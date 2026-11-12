@@ -50,8 +50,8 @@ theorem pi_congr {A : 𝕋.S} {B B' : 𝕋.S → 𝕋.S} (h : ∀ x, x ∈ₛ A 
   exact and_congr_right fun _ => forall_congr' fun x => imp_congr_right fun hx => by rw [h x hx]
 
 /-- **Coarsely related valid types have the same elements and the same relation.** -/
-theorem ValidAny.tyRel_same {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.univList n) A) :
-    ∀ {B : 𝕋.S}, 𝕋.ValidAny (𝕋.univList n) B → 𝕋.TyRel A B → 𝕋.SameEl A B := by
+theorem ValidAny.tyRel_same_sim {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.univList n) A) :
+    ∀ {B : 𝕋.S}, 𝕋.ValidAny (𝕋.univList n) B → 𝕋.TyRel A B → 𝕋.SameEl A B ∧ 𝕋.Sim A B := by
   induction hA with
   | @prop c hc =>
     intro B hB h
@@ -65,7 +65,7 @@ theorem ValidAny.tyRel_same {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.uni
         by_cases hcne : ∃ v, c.mem v
         · rw [if_pos hcne, if_pos (hiff.1 hcne)]
         · rw [if_neg hcne, if_neg (fun h => hcne (hiff.2 h))]
-      refine ⟨hEl, fun x y hx => ?_⟩
+      refine ⟨⟨hEl, fun x y hx => ?_⟩, .base (.inl (kind_cand _)) (.inl (kind_cand _))⟩
       rw [rel_cand hx, rel_cand (hEl ▸ hx), hEl]
     | tT => rw [kind_tT] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | tProp => rw [kind_tProp] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
@@ -80,7 +80,7 @@ theorem ValidAny.tyRel_same {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.uni
     rw [kind_tT] at hk
     cases hB with
     | prop => rw [kind_cand] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
-    | tT => exact sameEl_refl _
+    | tT => exact ⟨sameEl_refl _, .base (.inr (.inl kind_tT)) (.inr (.inl kind_tT))⟩
     | tProp => rw [kind_tProp] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | univ hu =>
       obtain ⟨m, -, rfl⟩ := mem_univList hu
@@ -94,7 +94,7 @@ theorem ValidAny.tyRel_same {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.uni
     cases hB with
     | prop => rw [kind_cand] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | tT => rw [kind_tT] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
-    | tProp => exact sameEl_refl _
+    | tProp => exact ⟨sameEl_refl _, .base (.inr (.inr kind_tProp)) (.inr (.inr kind_tProp))⟩
     | univ hu =>
       obtain ⟨m, -, rfl⟩ := mem_univList hu
       rw [UniverseTower.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
@@ -114,12 +114,12 @@ theorem ValidAny.tyRel_same {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.uni
       rw [TyRel, skel_univ, skel_univ] at h
       have : m = m' := 𝕋.enc_inj (𝕋.pair_inj h).2
       subst this
-      exact sameEl_refl _
+      exact ⟨sameEl_refl _, .univ (kind_tU ..) (kind_tU ..) rfl⟩
     | pi => rw [kind_tPi] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | piP => rw [kind_tPiP] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
-  | @pi D F hD hDc hF hfull hFrel hmix ihD ihF =>
+  | @pi D F hD hDc hF hfull hFrel hmix hfam ihD ihF =>
     intro B hB h
-    have hk := (ValidAny.pi hD hDc hF hfull hFrel hmix).kind_eq_of_tyRel hB h
+    have hk := (ValidAny.pi hD hDc hF hfull hFrel hmix hfam).kind_eq_of_tyRel hB h
     rw [kind_tPi] at hk
     cases hB with
     | prop => rw [kind_cand] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
@@ -131,12 +131,19 @@ theorem ValidAny.tyRel_same {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.uni
     | @pi D' F' hD' hDc' hF' hfull' hFrel' hmix' =>
       rw [TyRel, skel_tPi, skel_tPi] at h
       obtain ⟨hsD, hsF⟩ := 𝕋.pair_inj (𝕋.pair_inj h).2
-      obtain ⟨hElD, hRelD⟩ := ihD hD' hsD
-      have hfib : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.SameEl (F d) (F' d) := fun d hd => by
+      obtain ⟨⟨hElD, hRelD⟩, hSimD⟩ := ihD hD' hsD
+      have hfib' : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.SameEl (F d) (F' d) ∧ 𝕋.Sim (F d) (F' d) := fun d hd => by
         refine ihF d hd (hF' d (hElD ▸ hd)) ?_
         have : 𝕋.app (𝕋.lam (𝕋.El D) fun d => 𝕋.skel (F d)) d =
             𝕋.app (𝕋.lam (𝕋.El D') fun d => 𝕋.skel (F' d)) d := by rw [hsF]
         rwa [𝕋.app_lam hd, 𝕋.app_lam (hElD ▸ hd)] at this
+      have hfib : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.SameEl (F d) (F' d) := fun d hd => (hfib' d hd).1
+      have hsim : 𝕋.Sim (𝕋.prePi D F) (𝕋.prePi D' F') := by
+        refine .pi (kind_prePi ..) (kind_prePi ..) (by simpa using hSimD) (by simpa using hElD)
+          fun d hd => ?_
+        have hd' : d ∈ₛ 𝕋.El D := by simpa using hd
+        rw [fib_prePi hd', fib_prePi (hElD ▸ hd')]
+        exact (hfib' d hd').2
       have hpi : (𝕋.pi (𝕋.El D) fun d => 𝕋.El (F d)) = 𝕋.pi (𝕋.El D') fun d => 𝕋.El (F' d) := by
         rw [← hElD]; exact pi_congr fun d hd => (hfib d hd).1
       have hmem : ∀ x, x ∈ₛ 𝕋.El (𝕋.tPi D F) ↔ x ∈ₛ 𝕋.El (𝕋.tPi D' F') := by
@@ -144,16 +151,23 @@ theorem ValidAny.tyRel_same {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.uni
         rw [mem_El_tPi, mem_El_tPi]
         refine exists_congr fun f => and_congr_right fun _ => ?_
         rw [← hpi]
-        refine and_congr_right fun hf => ?_
+        refine and_congr_right fun hf => and_congr ?_
+          ⟨fun hu => hu.sim fun _ => hsim, fun hu => hu.sim fun _ => hsim.symm⟩
         refine forall_congr' fun d => forall_congr' fun d' => ?_
         rw [← hElD]
         refine imp_congr_right fun hd => ?_
         rw [hRelD d d' hd, (hfib d hd).2 _ _ ((𝕋.mem_pi.1 hf).2 d hd)]
       have hEl := 𝕋.ext hmem
-      refine ⟨hEl, fun f g hf => ?_⟩
+      refine ⟨⟨hEl, fun f g hf => ?_⟩, ?_⟩
+      rotate_left
+      · refine .pi (kind_tPi ..) (kind_tPi ..) (by simpa using hSimD) (by simpa using hElD)
+          fun d hd => ?_
+        have hd' : d ∈ₛ 𝕋.El D := by simpa using hd
+        rw [fib_tPi hd', fib_tPi (hElD ▸ hd')]
+        exact (hfib' d hd').2
       rw [rel_tPi_iff hf, rel_tPi_iff (hEl ▸ hf), hEl, ← hElD]
       refine and_congr_right fun _ => forall_congr' fun d => imp_congr_right fun hd => ?_
-      obtain ⟨f', rfl, hf', -⟩ := mem_El_tPi.1 hf
+      obtain ⟨f', rfl, hf', -, -⟩ := mem_El_tPi.1 hf
       refine (hfib d hd).2 _ _ ?_
       simp only [ap, snd_pair]
       exact (𝕋.mem_pi.1 hf').2 d hd
@@ -172,10 +186,10 @@ theorem ValidAny.tyRel_same {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.uni
     | pi => rw [kind_tPi] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | @piP c' B₁ hc' hne' hB₁ hB₁c =>
       rw [TyRel, skel_tPiP, skel_tPiP] at h
-      obtain ⟨hElB, hRelB⟩ := ih hB₁ (𝕋.pair_inj h).2
+      obtain ⟨⟨hElB, hRelB⟩, hSimB⟩ := ih hB₁ (𝕋.pair_inj h).2
       have hEl : 𝕋.El (𝕋.tPiP c B₀) = 𝕋.El (𝕋.tPiP c' B₁) := by
         simp only [tPiP, El_rec5, hElB]
-      refine ⟨hEl, fun f g hf => ?_⟩
+      refine ⟨⟨hEl, fun f g hf => ?_⟩, .piP (kind_tPiP ..) (kind_tPiP ..) (by simpa using hSimB)⟩
       rw [rel_tPiP_iff hf, rel_tPiP_iff (hEl ▸ hf), hEl]
       refine and_congr_right fun _ => ?_
       obtain ⟨f', rfl, hf'⟩ := mem_El_tPiP.1 hf
@@ -183,11 +197,21 @@ theorem ValidAny.tyRel_same {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.uni
       simp only [ap, snd_pair]
       exact (𝕋.mem_pi.1 hf').2 _ (𝕋.mem_one.2 rfl)
 
+/-- **Coarsely related valid types have the same elements and the same relation.** -/
+theorem ValidAny.tyRel_same {n : Nat} {A B : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.univList n) A)
+    (hB : 𝕋.ValidAny (𝕋.univList n) B) (h : 𝕋.TyRel A B) : 𝕋.SameEl A B :=
+  (hA.tyRel_same_sim hB h).1
+
+/-- Coarsely related valid types are similar. -/
+theorem ValidAny.tyRel_sim {n : Nat} {A B : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.univList n) A)
+    (hB : 𝕋.ValidAny (𝕋.univList n) B) (h : 𝕋.TyRel A B) : 𝕋.Sim A B :=
+  (hA.tyRel_same_sim hB h).2
+
 /-! ### The coarse relation is a partial equivalence -/
 
 theorem ap_mem_of_mem_tPi {D f d : 𝕋.S} {F : 𝕋.S → 𝕋.S} (hf : f ∈ₛ 𝕋.El (𝕋.tPi D F))
     (hd : d ∈ₛ 𝕋.El D) : 𝕋.ap f d ∈ₛ 𝕋.El (F d) := by
-  obtain ⟨f', rfl, hf', -⟩ := mem_El_tPi.1 hf
+  obtain ⟨f', rfl, hf', -, -⟩ := mem_El_tPi.1 hf
   simp only [ap, snd_pair]
   exact (𝕋.mem_pi.1 hf').2 d hd
 
@@ -232,7 +256,7 @@ theorem ValidAny.isPER {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.univList
     · obtain ⟨hy, e⟩ := (rel_univ_iff hx).1 h1
       obtain ⟨hz, e'⟩ := (rel_univ_iff hy).1 h2
       exact (rel_univ_iff hx).2 ⟨hz, e.trans e'⟩
-  | @pi D F hD hDc hF hfull hFrel hmix ihD ihF =>
+  | @pi D F hD hDc hF hfull hFrel hmix _ ihD ihF =>
     refine ⟨fun f hf => ?_, fun f g hf h => ((rel_tPi_iff hf).1 h).1, fun f g hf h => ?_,
       fun f g k hf h1 h2 => ?_⟩
     · exact (rel_tPi_iff hf).2 ⟨hf, fun d hd => (ihF d hd).refl _ (ap_mem_of_mem_tPi hf hd)⟩

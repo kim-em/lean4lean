@@ -467,6 +467,152 @@ theorem Lf.congr (b : Nat × Nat) : ∀ (m : Nat) (I : World.{u}) (H H' s : I �
       exact hpiP b' hb I' φ (fun i' => ⟨(hh _).1 ▸ (hk i').1, fun hs => (hk i').2
         (hs.congr (hh _))⟩) hT hF
 
+/-! ### Similar records -/
+
+/-- Two records with the same structure of kinds, universes and domains: what uniformity
+reads of a type. Coarsely related valid types are similar. -/
+inductive Sim (𝕋 : UniverseTower.{u}) : 𝕋.S → 𝕋.S → Prop where
+  | base {X X'} : 𝕋.IsBase X → 𝕋.IsBase X' → Sim 𝕋 X X'
+  | univ {X X'} : 𝕋.kind X = 𝕋.tagN 3 → 𝕋.kind X' = 𝕋.tagN 3 → 𝕋.argsOf X = 𝕋.argsOf X' →
+      Sim 𝕋 X X'
+  | pi {X X'} : 𝕋.kind X = 𝕋.tagN 4 → 𝕋.kind X' = 𝕋.tagN 4 → Sim 𝕋 (𝕋.dom X) (𝕋.dom X') →
+      𝕋.El (𝕋.dom X) = 𝕋.El (𝕋.dom X') →
+      (∀ d, 𝕋.mem d (𝕋.El (𝕋.dom X)) → Sim 𝕋 (𝕋.fib X d) (𝕋.fib X' d)) → Sim 𝕋 X X'
+  | piP {X X'} : 𝕋.kind X = 𝕋.tagN 5 → 𝕋.kind X' = 𝕋.tagN 5 → Sim 𝕋 (𝕋.cod X) (𝕋.cod X') →
+      Sim 𝕋 X X'
+
+theorem Sim.symm {X X' : 𝕋.S} (h : 𝕋.Sim X X') : 𝕋.Sim X' X := by
+  induction h with
+  | base hb hb' => exact .base hb' hb
+  | univ hk hk' ha => exact .univ hk' hk ha.symm
+  | pi hk hk' _ hE _ ihD ihF => exact .pi hk' hk ihD hE.symm fun d hd => ihF d (hE ▸ hd)
+  | piP hk hk' _ ih => exact .piP hk' hk ih
+
+theorem Sim.isBase {X X' : 𝕋.S} (h : 𝕋.Sim X X') (hb : 𝕋.IsBase X) : 𝕋.IsBase X' := by
+  cases h with
+  | base _ hb' => exact hb'
+  | univ hk => exact (not_isBase_of_kind hk (by omega) hb).elim
+  | pi hk => exact (not_isBase_of_kind hk (by omega) hb).elim
+  | piP hk => exact (not_isBase_of_kind hk (by omega) hb).elim
+
+theorem Sim.kind_eq {X X' : 𝕋.S} {a : Nat} (h : 𝕋.Sim X X') (ha : 3 ≤ a)
+    (hk : 𝕋.kind X = 𝕋.tagN a) : 𝕋.kind X' = 𝕋.tagN a := by
+  cases h with
+  | base hb => exact (not_isBase_of_kind hk ha hb).elim
+  | univ hk₁ hk' => rw [← kind_unique hk₁ hk]; exact hk'
+  | pi hk₁ hk' => rw [← kind_unique hk₁ hk]; exact hk'
+  | piP hk₁ hk' => rw [← kind_unique hk₁ hk]; exact hk'
+
+theorem LvLe.sim {X X' : 𝕋.S} (h : 𝕋.Sim X X') : ∀ {N : Nat}, 𝕋.LvLe N X → 𝕋.LvLe N X' := by
+  induction h with
+  | base _ hb' => exact fun _ => .base hb'
+  | univ hk hk' ha =>
+    intro N H
+    cases H with
+    | base hb => exact (not_isBase_of_kind hk (by omega) hb).elim
+    | univ _ ha' hj => exact .univ hk' (ha ▸ ha') hj
+    | pi hk₁ => have := kind_unique hk hk₁; omega
+    | piP hk₁ => have := kind_unique hk hk₁; omega
+  | pi hk hk' _ hE _ ihD ihF =>
+    intro N H
+    cases H with
+    | base hb => exact (not_isBase_of_kind hk (by omega) hb).elim
+    | univ hk₁ => have := kind_unique hk hk₁; omega
+    | pi _ hD hF => exact .pi hk' (ihD hD) fun d hd => ihF d (hE ▸ hd) (hF d (hE ▸ hd))
+    | piP hk₁ => have := kind_unique hk hk₁; omega
+  | piP hk hk' _ ih =>
+    intro N H
+    cases H with
+    | base hb => exact (not_isBase_of_kind hk (by omega) hb).elim
+    | univ hk₁ => have := kind_unique hk hk₁; omega
+    | pi hk₁ => have := kind_unique hk hk₁; omega
+    | piP _ hB => exact .piP hk' (ih hB)
+
+theorem Small.sim {m : Nat} {X X' : 𝕋.S} (h : 𝕋.Sim X X') (H : 𝕋.Small m X) : 𝕋.Small m X' := by
+  rcases H with hb | ⟨n, rfl, hl⟩
+  · exact .inl (h.isBase hb)
+  · exact .inr ⟨n, rfl, hl.sim h⟩
+
+theorem DpLe.sim {m : Nat} {X X' : 𝕋.S} (h : 𝕋.Sim X X') :
+    ∀ {k : Nat}, 𝕋.DpLe m X k → 𝕋.DpLe m X' k := by
+  induction h with
+  | base _ hb' => exact fun _ => .small (.inl hb')
+  | univ _ hk' => exact fun _ => .univ hk'
+  | @pi X X' hk hk' hD hE hF ihD ihF =>
+    intro k H
+    cases H with
+    | small hs => exact .small (hs.sim (.pi hk hk' hD hE hF))
+    | univ hk₁ => have := kind_unique hk hk₁; omega
+    | pi _ hD' hF' => exact .pi hk' (ihD hD') fun d hd => ihF d (hE ▸ hd) (hF' d (hE ▸ hd))
+    | piP hk₁ => have := kind_unique hk hk₁; omega
+  | @piP X X' hk hk' hB ih =>
+    intro k H
+    cases H with
+    | small hs => exact .small (hs.sim (.piP hk hk' hB))
+    | univ hk₁ => have := kind_unique hk hk₁; omega
+    | pi hk₁ => have := kind_unique hk hk₁; omega
+    | piP _ hB' => exact .piP hk' (ih hB')
+
+theorem Tame.sim {m : Nat} {I : World.{u}} {H H' : I → 𝕋.S} (hh : ∀ i, 𝕋.Sim (H i) (H' i))
+    (h : 𝕋.Tame m H) : 𝕋.Tame m H' :=
+  ⟨h.1.imp fun _ hN i => (hN i).sim (hh i), fun m' hm => (h.2 m' hm).imp fun _ hk i hl =>
+    (hk i (hl.sim (hh i).symm)).sim (hh i)⟩
+
+theorem FamLe.sim {m : Nat} {b : Nat × Nat} {I : World.{u}} {H H' : I → 𝕋.S}
+    (hh : ∀ i, 𝕋.Sim (H i) (H' i)) (h : 𝕋.FamLe m H b) : 𝕋.FamLe m H' b := fun i hs =>
+  let ⟨h1, h2⟩ := h i fun hs' => hs (hs'.sim (hh i))
+  ⟨h1.sim (hh i), h2.sim (hh i)⟩
+
+theorem Sim.pi_inv {X X' : 𝕋.S} (h : 𝕋.Sim X X') (hk : 𝕋.kind X = 𝕋.tagN 4) :
+    𝕋.Sim (𝕋.dom X) (𝕋.dom X') ∧ 𝕋.El (𝕋.dom X) = 𝕋.El (𝕋.dom X') ∧
+    ∀ d, 𝕋.mem d (𝕋.El (𝕋.dom X)) → 𝕋.Sim (𝕋.fib X d) (𝕋.fib X' d) := by
+  cases h with
+  | base hb => exact (not_isBase_of_kind hk (by omega) hb).elim
+  | univ hk₁ => have := kind_unique hk hk₁; omega
+  | pi _ _ hD hE hF => exact ⟨hD, hE, hF⟩
+  | piP hk₁ => have := kind_unique hk hk₁; omega
+
+theorem Sim.piP_inv {X X' : 𝕋.S} (h : 𝕋.Sim X X') (hk : 𝕋.kind X = 𝕋.tagN 5) :
+    𝕋.Sim (𝕋.cod X) (𝕋.cod X') := by
+  cases h with
+  | base hb => exact (not_isBase_of_kind hk (by omega) hb).elim
+  | univ hk₁ => have := kind_unique hk hk₁; omega
+  | pi hk₁ => have := kind_unique hk hk₁; omega
+  | piP _ _ hB => exact hB
+
+/-- **Uniformity depends on the family of types only up to similarity** (U2). -/
+theorem Lf.sim (b : Nat × Nat) : ∀ (m : Nat) (I : World.{u}) (H H' s : I → 𝕋.S),
+    (∀ i, 𝕋.Sim (H i) (H' i)) → 𝕋.Lf b m I H s → 𝕋.Lf b m I H' s := by
+  induction b using (Prod.lex Nat.lt_wfRel Nat.lt_wfRel).wf.induction with
+  | _ b ih =>
+    intro m I H H' s hh h
+    obtain ⟨ht, hf, ⟨k, hu⟩, hpi, hpiP⟩ := Lf_iff.1 h
+    refine Lf_iff.2 ⟨ht.sim hh, hf.sim hh, ⟨k, fun i hk hs =>
+      hu i ((hh i).symm.kind_eq (by omega) hk) fun hs' => hs (hs'.sim (hh i))⟩, ?_, ?_⟩
+    · intro b' hb I' φ a hk ha hG hT hF
+      have hk₀ : ∀ i', 𝕋.kind (H (φ i')) = 𝕋.tagN 4 ∧ ¬ 𝕋.Small m (H (φ i')) := fun i' =>
+        ⟨(hh _).symm.kind_eq (by omega) (hk i').1, fun hs => (hk i').2 (hs.sim (hh _))⟩
+      have inv := fun i' => (hh (φ i')).pi_inv (hk₀ i').1
+      have ha₀ : ∀ i', 𝕋.mem (a i') (𝕋.El (𝕋.dom (H (φ i')))) := fun i' => by
+        rw [(inv i').2.1]; exact ha i'
+      have sD : ∀ i', 𝕋.Sim (𝕋.dom (H' (φ i'))) (𝕋.dom (H (φ i'))) := fun i' => (inv i').1.symm
+      have sF : ∀ i', 𝕋.Sim (𝕋.fib (H (φ i')) (a i')) (𝕋.fib (H' (φ i')) (a i')) := fun i' =>
+        (inv i').2.2 _ (ha₀ i')
+      refine ih b' hb m I' _ _ _ sF ?_
+      exact hpi b' hb I' φ a hk₀ ha₀ (fun m' hm => ih b' hb m' I' _ _ _ sD (hG m' hm))
+        (hT.sim fun i' => (sF i').symm) (hF.sim fun i' => (sF i').symm)
+    · intro b' hb I' φ hk hT hF
+      have hk₀ : ∀ i', 𝕋.kind (H (φ i')) = 𝕋.tagN 5 ∧ ¬ 𝕋.Small m (H (φ i')) := fun i' =>
+        ⟨(hh _).symm.kind_eq (by omega) (hk i').1, fun hs => (hk i').2 (hs.sim (hh _))⟩
+      have sB : ∀ i', 𝕋.Sim (𝕋.cod (H (φ i'))) (𝕋.cod (H' (φ i'))) := fun i' =>
+        (hh (φ i')).piP_inv (hk₀ i').1
+      refine ih b' hb m I' _ _ _ sB ?_
+      exact hpiP b' hb I' φ hk₀ (hT.sim fun i' => (sB i').symm) (hF.sim fun i' => (sB i').symm)
+
+theorem Unif.sim {m : Nat} {I : World.{u}} {H H' s : I → 𝕋.S} (hh : ∀ i, 𝕋.Sim (H i) (H' i))
+    (h : 𝕋.Unif m I H s) : 𝕋.Unif m I H' s := fun m' hm =>
+  (h m' hm).imp fun b hb => Lf.sim b m' I H H' s hh hb
+
 end UniverseTower
 
 end VEnv.Strengthening

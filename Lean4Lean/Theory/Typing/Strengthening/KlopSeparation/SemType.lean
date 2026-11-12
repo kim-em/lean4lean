@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Uniform
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.UniformLemmas
 
 /-! # Constructors of the semantic types of the Klop model
 
@@ -55,8 +55,8 @@ noncomputable def prePi (D : 𝕋.S) (F : 𝕋.S → 𝕋.S) : 𝕋.S :=
 def PiUnif (D : 𝕋.S) (F : 𝕋.S → 𝕋.S) (g : 𝕋.S) : Prop :=
   𝕋.Unif 0 PUnit (fun _ => 𝕋.prePi D F) (fun _ => g)
 
-/-- A dependent product over a data domain with at least one data fibre: the uniform functions that
-respect the coarse relations, related pointwise. `F d` is the fibre over `d`. -/
+/-- A dependent product over a data domain with at least one data fibre: the uniform functions
+that respect the coarse relations, related pointwise. `F d` is the fibre over `d`. -/
 noncomputable def tPi (D : 𝕋.S) (F : 𝕋.S → 𝕋.S) : 𝕋.S :=
   let elts := 𝕋.image
     (𝕋.sep (𝕋.pi (𝕋.El D) fun d => 𝕋.El (F d)) fun f =>

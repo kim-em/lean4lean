@@ -29,6 +29,25 @@ theorem kind_tU (n : Nat) (tys : 𝕋.S) : 𝕋.kind (𝕋.tU n tys) = 𝕋.tagN
 theorem kind_tPi (D : 𝕋.S) (F : 𝕋.S → 𝕋.S) : 𝕋.kind (𝕋.tPi D F) = 𝕋.tagN 4 := by simp [tPi]
 theorem kind_tPiP (c : Candidate) (B : 𝕋.S) : 𝕋.kind (𝕋.tPiP c B) = 𝕋.tagN 5 := by simp [tPiP]
 
+/-! ### Accessors of function type records -/
+
+@[simp] theorem dom_tPi (D : 𝕋.S) (F : 𝕋.S → 𝕋.S) : 𝕋.dom (𝕋.tPi D F) = D := by
+  simp [dom, tPi]
+theorem fib_tPi {D d : 𝕋.S} {F : 𝕋.S → 𝕋.S} (hd : d ∈ₛ 𝕋.El D) : 𝕋.fib (𝕋.tPi D F) d = F d := by
+  simp [fib, tPi, 𝕋.app_lam hd]
+@[simp] theorem cod_tPiP (c : Candidate) (B : 𝕋.S) : 𝕋.cod (𝕋.tPiP c B) = B := by
+  simp [cod, tPiP]
+@[simp] theorem kind_prePi (D : 𝕋.S) (F : 𝕋.S → 𝕋.S) : 𝕋.kind (𝕋.prePi D F) = 𝕋.tagN 4 := by
+  simp [prePi]
+theorem sameArgs_prePi (D : 𝕋.S) (F : 𝕋.S → 𝕋.S) : 𝕋.SameArgs (𝕋.prePi D F) (𝕋.tPi D F) := by
+  simp [SameArgs, prePi, tPi]
+@[simp] theorem dom_prePi (D : 𝕋.S) (F : 𝕋.S → 𝕋.S) : 𝕋.dom (𝕋.prePi D F) = D := by
+  rw [(sameArgs_prePi D F).dom, dom_tPi]
+theorem fib_prePi {D d : 𝕋.S} {F : 𝕋.S → 𝕋.S} (hd : d ∈ₛ 𝕋.El D) :
+    𝕋.fib (𝕋.prePi D F) d = F d := by
+  rw [(sameArgs_prePi D F).fib, fib_tPi hd]
+theorem argsOf_univ (n : Nat) : 𝕋.argsOf (𝕋.univ n) = 𝕋.enc n := by simp [univ, tU]
+
 /-- An object whose tag is not `100` is not `•`. -/
 theorem ne_star_of_kind {x : 𝕋.S} {k : Nat} (h : 𝕋.kind x = 𝕋.tagN k) (hk : k ≠ 100) :
     x ≠ 𝕋.star := by
@@ -73,9 +92,11 @@ theorem mem_El_tPiP {c : Candidate} {B x : 𝕋.S} :
 theorem mem_El_tPi {D x : 𝕋.S} {F : 𝕋.S → 𝕋.S} :
     x ∈ₛ 𝕋.El (𝕋.tPi D F) ↔
       ∃ f, x = 𝕋.pair (𝕋.tagN 104) f ∧ (f ∈ₛ 𝕋.pi (𝕋.El D) fun d => 𝕋.El (F d)) ∧
-        ∀ d d', d ∈ₛ 𝕋.El D → 𝕋.Rel D d d' → 𝕋.Rel (F d) (𝕋.app f d) (𝕋.app f d') := by
+        (∀ d d', d ∈ₛ 𝕋.El D → 𝕋.Rel D d d' → 𝕋.Rel (F d) (𝕋.app f d) (𝕋.app f d')) ∧
+        𝕋.PiUnif D F x := by
   simp only [tPi, El_rec5, 𝕋.mem_image, 𝕋.mem_sep]
-  exact ⟨fun ⟨f, hf, e⟩ => ⟨f, e, hf⟩, fun ⟨f, e, hf⟩ => ⟨f, hf, e⟩⟩
+  exact ⟨fun ⟨f, ⟨hf, hr, hu⟩, e⟩ => ⟨f, e, hf, hr, e ▸ hu⟩,
+    fun ⟨f, e, hf, hr, hu⟩ => ⟨f, ⟨hf, hr, e ▸ hu⟩, e⟩⟩
 
 /-- A function object on `A` with values in `B` is a member of the product. -/
 theorem lam_mem_pi {A : 𝕋.S} {B f : 𝕋.S → 𝕋.S} (h : ∀ x, x ∈ₛ A → f x ∈ₛ B x) :
@@ -92,9 +113,10 @@ theorem fn_mem_tPiP {c : Candidate} {B : 𝕋.S} {f : 𝕋.S → 𝕋.S}
 theorem fn_mem_tPi {D : 𝕋.S} {F f : 𝕋.S → 𝕋.S}
     (h : ∀ d, d ∈ₛ 𝕋.El D → f d ∈ₛ 𝕋.El (F d))
     (hD : ∀ d d', d ∈ₛ 𝕋.El D → 𝕋.Rel D d d' → d' ∈ₛ 𝕋.El D)
-    (hr : ∀ d d', d ∈ₛ 𝕋.El D → 𝕋.Rel D d d' → 𝕋.Rel (F d) (f d) (f d')) :
+    (hr : ∀ d d', d ∈ₛ 𝕋.El D → 𝕋.Rel D d d' → 𝕋.Rel (F d) (f d) (f d'))
+    (hu : 𝕋.PiUnif D F (𝕋.fn (𝕋.El D) f)) :
     𝕋.fn (𝕋.El D) f ∈ₛ 𝕋.El (𝕋.tPi D F) := by
-  refine mem_El_tPi.2 ⟨_, rfl, lam_mem_pi h, fun d d' hd hdd' => ?_⟩
+  refine mem_El_tPi.2 ⟨_, rfl, lam_mem_pi h, fun d d' hd hdd' => ?_, hu⟩
   rw [𝕋.app_lam hd, 𝕋.app_lam (hD d d' hd hdd')]
   exact hr d d' hd hdd'
 
@@ -132,7 +154,7 @@ theorem ne_star_of_mem_tProp {x : 𝕋.S} (h : x ∈ₛ 𝕋.El 𝕋.tProp) : x 
 
 /-- The elements of a universe are valid types of its level. -/
 theorem mem_El_univ {n : Nat} {x : 𝕋.S} :
-    x ∈ₛ 𝕋.El (𝕋.univ n) ↔ x ∈ₛ 𝕋.U (n + 1) ∧ 𝕋.ValidTy (𝕋.univList n) x := by
+    x ∈ₛ 𝕋.El (𝕋.univ n) ↔ x ∈ₛ 𝕋.bset (𝕋.baseOf (𝕋.univList n)) ∧ 𝕋.ValidTy (𝕋.univList n) x := by
   simp [univ, tU, 𝕋.mem_sep]
 
 theorem ne_star_of_mem_univ {n : Nat} {x : 𝕋.S} (h : x ∈ₛ 𝕋.El (𝕋.univ n)) : x ≠ 𝕋.star :=
@@ -192,7 +214,9 @@ theorem mkLam_mem_mkPi {n : Nat} {D : 𝕋.S} {F f : 𝕋.S → 𝕋.S}
     (hF : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.ValidAny (𝕋.univList n) (F d))
     (hf : ∀ d, d ∈ₛ 𝕋.El D → f d ∈ₛ 𝕋.El (F d))
     (hD : ∀ d d', d ∈ₛ 𝕋.El D → 𝕋.Rel D d d' → d' ∈ₛ 𝕋.El D)
-    (hr : ∀ d d', d ∈ₛ 𝕋.El D → 𝕋.Rel D d d' → 𝕋.Rel (F d) (f d) (f d')) :
+    (hr : ∀ d d', d ∈ₛ 𝕋.El D → 𝕋.Rel D d d' → 𝕋.Rel (F d) (f d) (f d'))
+    (hu : ¬ 𝕋.IsCand D → (¬ ∀ d, d ∈ₛ 𝕋.El D → 𝕋.IsCand (F d)) →
+      𝕋.PiUnif D F (𝕋.fn (𝕋.El D) f)) :
     𝕋.mkLam D f ∈ₛ 𝕋.El (𝕋.mkPi D F) := by
   unfold mkPi
   split
@@ -261,7 +285,7 @@ theorem mkLam_mem_mkPi {n : Nat} {D : 𝕋.S} {F f : 𝕋.S → 𝕋.S}
         refine Classical.byContradiction fun hc => ?_
         exact (hF d hd).star_not_mem hc (by have := hf d hd; rwa [h d hd] at this)
       rw [hl]
-      exact fn_mem_tPi hf hD hr
+      exact fn_mem_tPi hf hD hr (hu hDc hall)
 
 /-! ### Applications -/
 
@@ -355,7 +379,7 @@ theorem rel_tProp_iff {x y : 𝕋.S} (hx : x ∈ₛ 𝕋.El 𝕋.tProp) :
 
 theorem rel_univ_iff {n : Nat} {x y : 𝕋.S} (hx : x ∈ₛ 𝕋.El (𝕋.univ n)) :
     𝕋.Rel (𝕋.univ n) x y ↔ y ∈ₛ 𝕋.El (𝕋.univ n) ∧ 𝕋.TyRel x y := by
-  have hx' : x ∈ₛ 𝕋.sep (𝕋.U (n + 1)) (𝕋.ValidTy (𝕋.univList n)) := by
+  have hx' : x ∈ₛ 𝕋.sep (𝕋.bset (𝕋.baseOf (𝕋.univList n))) (𝕋.ValidTy (𝕋.univList n)) := by
     simpa [univ, tU] using hx
   rw [Rel]; simp only [univ, tU, relOf_rec5]; rw [𝕋.mem_relFn hx']
   simp [univ, tU]
