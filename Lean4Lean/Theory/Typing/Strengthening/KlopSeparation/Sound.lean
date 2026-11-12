@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.DenSubst
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.PiCongr
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.UnifSem
 import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.MinimalEnv
 
 /-! # Soundness of the Klop model: statement
@@ -64,6 +64,19 @@ def Sem (Γ : List VExpr) (a b A : VExpr) : Prop :=
       (𝕋.candOf (𝕋.den ρ A)).mem ((pval b).subst w)) ∧
     ∀ ρ' w', 𝕋.ValOK Γ ρ' w' → 𝕋.CoRel Γ ρ ρ' →
       𝕋.TyRel (𝕋.den ρ A) (𝕋.den ρ' A) ∧ 𝕋.Rel (𝕋.den ρ A) (𝕋.den ρ a) (𝕋.den ρ' a)
+
+/-- A family of valuations of a context, indexed by a world, is uniform from level `n` on:
+every variable is a uniform section of the family of its types. -/
+def CtxUnif (n : Nat) (Γ : List VExpr) {I : World} (ρ : I → Nat → 𝕋.S) : Prop :=
+  ∀ j A, Lookup Γ j A → 𝕋.Unif n I (fun i => 𝕋.den (ρ i) A) (fun i => ρ i j)
+
+/-- **The uniformity clause of the semantic judgment** (`FIRST_PRINCIPLES.md` §30.6): over
+every world, at a uniform family of valuations, the denotations of a term form a uniform
+section of the family of denotations of its type. -/
+def SemU (Γ : List VExpr) (a A : VExpr) : Prop :=
+  ∀ (n : Nat) (I : World) (ρ : I → Nat → 𝕋.S) (w : I → Nat → PVal),
+    (∀ i, 𝕋.ValOK Γ (ρ i) (w i)) → 𝕋.CtxUnif n Γ ρ →
+    𝕋.Unif n I (fun i => 𝕋.den (ρ i) A) (fun i => 𝕋.den (ρ i) a)
 
 theorem valOK_nil (ρ : Nat → 𝕋.S) (w : Nat → PVal) : 𝕋.ValOK [] ρ w := by
   intro i A h
@@ -284,12 +297,90 @@ theorem full_mem_sortDen (l : VLevel) :
   | zero => exact mem_El_tProp.2 ⟨_, Candidate.good_full, rfl⟩
   | succ m => exact (ValidAny.prop Candidate.good_full).mem_univ fun _ => rfl
 
+/-! ### Uniformity of families of types -/
+
+theorem sortDen_cases (l : VLevel) : 𝕋.sortDen l = 𝕋.tProp ∨ ∃ j, 𝕋.sortDen l = 𝕋.univ j := by
+  unfold sortDen
+  cases l.eval [] with
+  | zero => exact .inl rfl
+  | succ j => exact .inr ⟨j, rfl⟩
+
+/-- A uniform family of members of a sort has bounded depth. -/
+theorem dp_bound_of_unif {m : Nat} {I : World} {v : VLevel} {X : I → 𝕋.S}
+    (hX : ∀ i, 𝕋.mem (X i) (𝕋.El (𝕋.sortDen v)))
+    (hu : 𝕋.Unif m I (fun _ => 𝕋.sortDen v) X) :
+    ∃ k, ∀ i, 𝕋.LvLe m (X i) → 𝕋.DpLe m (X i) k := by
+  obtain ⟨b, hb⟩ := hu m (Nat.le_refl m)
+  obtain ⟨k, hk⟩ := (Lf_iff.1 hb).2.2.1
+  rcases sortDen_cases v with e | ⟨j, e⟩
+  · refine ⟨0, fun i _ => ?_⟩
+    have := hX i; rw [e] at this
+    obtain ⟨c, -, hc⟩ := mem_El_tProp.1 this
+    exact .small (.inl (isBase_of_isCand ⟨c, hc⟩))
+  · rw [e] at hk
+    by_cases hs : 𝕋.Small m (𝕋.univ j)
+    · refine ⟨0, fun i _ => .small ?_⟩
+      have hl : 𝕋.LvLe j (X i) := by
+        have := hX i; rw [e] at this; exact (mem_El_univ.1 this).2.1.lvLe
+      rcases hs with hb | ⟨m'', rfl, hl'⟩
+      · exact (not_isBase_of_kind (kind_tU ..) (by omega) hb).elim
+      · cases hl' with
+        | base hb => exact (not_isBase_of_kind (kind_tU ..) (by omega) hb).elim
+        | univ _ ha hj =>
+          rw [argsOf_univ] at ha
+          cases 𝕋.enc_inj ha
+          exact .inr ⟨m'', rfl, hl.mono (Nat.le_of_lt hj)⟩
+        | pi hk' => exact absurd (kind_unique (kind_tU ..) hk') (by decide)
+        | piP hk' => exact absurd (kind_unique (kind_tU ..) hk') (by decide)
+    · exact ⟨k, fun i hl => hk i (kind_tU ..) hs hl⟩
+
+/-- A uniform family of members of a sort is tame. -/
+theorem tame_of_unif_sort {m : Nat} {I : World} {v : VLevel} {X : I → 𝕋.S}
+    (hX : ∀ i, 𝕋.mem (X i) (𝕋.El (𝕋.sortDen v)))
+    (hu : 𝕋.Unif m I (fun _ => 𝕋.sortDen v) X) : 𝕋.Tame m X :=
+  ⟨⟨sortLv v, fun i => (mem_sortDen (hX i)).1.lvLe⟩, fun _ hm =>
+    dp_bound_of_unif hX (hu.mono hm)⟩
+
+/-- A constant family of valuations is uniform. -/
+theorem ctxUnif_const {Γ : List VExpr} {ρ : Nat → 𝕋.S} {w : Nat → PVal} (hρ : 𝕋.ValOK Γ ρ w)
+    (n : Nat) (I : World) : 𝕋.CtxUnif n Γ (fun _ : I => ρ) := by
+  intro j A h
+  obtain ⟨⟨k, hty⟩, hm, -⟩ := hρ j A h
+  exact (hty.unif_const I hm).mono (Nat.zero_le n)
+
+/-- Extending a uniform family of valuations by a uniform section of the new type. -/
+theorem ctxUnif_cons {Γ : List VExpr} {A : VExpr} {n : Nat} {I : World} {ρ : I → Nat → 𝕋.S}
+    {a : I → 𝕋.S} (hρ : 𝕋.CtxUnif n Γ ρ)
+    (ha : 𝕋.Unif n I (fun i => 𝕋.den (ρ i) A) a) :
+    𝕋.CtxUnif n (A :: Γ) (fun i => 𝕋.cons (a i) (ρ i)) := by
+  intro j B h
+  cases h with
+  | zero => simp only [den_lift]; exact ha
+  | succ h => simp only [den_lift]; exact hρ _ _ h
+
+/-- The family of fibres of a binder is uniform as a function into its sort, from the
+uniformity clause of the body. -/
+theorem SemU.famUnif {Γ : List VExpr} {A B : VExpr} {v : VLevel}
+    (HBU : 𝕋.SemU (A :: Γ) B (.sort v)) {ρ : Nat → 𝕋.S} {w : Nat → PVal}
+    (hρ : 𝕋.ValOK Γ ρ w) (hAty : 𝕋.IsSemTy (𝕋.den ρ A))
+    (hfib : ∀ d, 𝕋.mem d (𝕋.El (𝕋.den ρ A)) →
+      𝕋.mem (𝕋.den (𝕋.cons d ρ) B) (𝕋.El (𝕋.sortDen v))) :
+    𝕋.FamUnif (𝕋.den ρ A) fun d => 𝕋.den (𝕋.cons d ρ) B := by
+  intro m I a ha hu
+  have hex := fun i => exists_valOK_cons hρ hAty (ha i)
+  have hctx : 𝕋.CtxUnif m (A :: Γ) (fun i => 𝕋.cons (a i) ρ) :=
+    ctxUnif_cons (ctxUnif_const hρ m I) hu
+  exact dp_bound_of_unif (fun i => hfib _ (ha i))
+    (HBU m I (fun i => 𝕋.cons (a i) ρ) (fun i => consV (hex i).choose w)
+      (fun i => (hex i).choose_spec) hctx)
+
 /-- The membership part of the Π rule: a Π over a domain in `⟦Sort u⟧` with fibres in
 `⟦Sort v⟧` that respect `~` is an element of `⟦Sort (imax u v)⟧`. -/
 theorem mkPi_mem_sortDen {u v : VLevel} {D : 𝕋.S} {F : 𝕋.S → 𝕋.S}
     (hD : 𝕋.mem D (𝕋.El (𝕋.sortDen u)))
     (hF : ∀ d, 𝕋.mem d (𝕋.El D) → 𝕋.mem (F d) (𝕋.El (𝕋.sortDen v)))
-    (hFrel : ∀ d d', 𝕋.mem d (𝕋.El D) → 𝕋.Rel D d d' → 𝕋.TyRel (F d) (F d')) :
+    (hFrel : ∀ d d', 𝕋.mem d (𝕋.El D) → 𝕋.Rel D d d' → 𝕋.TyRel (F d) (F d'))
+    (hfam : 𝕋.FamUnif D F) :
     𝕋.mem (𝕋.mkPi D F) (𝕋.El (𝕋.sortDen (.imax u v))) := by
   let N := max (sortLv u) (sortLv v)
   have hDv : 𝕋.ValidAny (𝕋.univList N) D := (mem_sortDen hD).1.mono (Nat.le_max_left ..)
@@ -306,7 +397,7 @@ theorem mkPi_mem_sortDen {u v : VLevel} {D : 𝕋.S} {F : 𝕋.S → 𝕋.S}
     rcases (mem_sortDen (hF d₀ hd₀)).2 with h | h
     · exact .inr fun d hd => h _ (hF d hd)
     · exact .inl fun d hd => h _ (hF d hd)
-  have hval := mkPi_valid hDv hFv hFrel hsort
+  have hval := mkPi_valid hDv hFv hFrel hsort fun _ => hfam
   unfold sortDen
   have himax : (VLevel.imax u v).eval [] = Lean.Nat.imax (u.eval []) (v.eval []) := rfl
   rw [himax]
@@ -362,7 +453,8 @@ theorem Sem.fibres {Γ : List VExpr} {A B B' : VExpr} {v : VLevel}
 
 /-- The Π rule (`IsDefEqStrong.forallEDF`). -/
 theorem Sem.forallE {Γ : List VExpr} {A A' B B' : VExpr} {u v : VLevel}
-    (HA : 𝕋.Sem Γ A A' (.sort u)) (HB : 𝕋.Sem (A :: Γ) B B' (.sort v)) :
+    (HA : 𝕋.Sem Γ A A' (.sort u)) (HB : 𝕋.Sem (A :: Γ) B B' (.sort v))
+    (HBU : 𝕋.SemU (A :: Γ) B (.sort v)) :
     𝕋.Sem Γ (.forallE A B) (.forallE A' B') (.sort (.imax u v)) := by
   have key : ∀ ρ w, 𝕋.ValOK Γ ρ w →
       𝕋.mem (𝕋.den ρ (.forallE A B)) (𝕋.El (𝕋.sortDen (.imax u v))) := by
@@ -370,6 +462,7 @@ theorem Sem.forallE {Γ : List VExpr} {A A' B B' : VExpr} {u v : VLevel}
     obtain ⟨-, -, hAm, -, -⟩ := HA ρ w hρ
     obtain ⟨hfib, hrel⟩ := HB.fibres hρ (isSemTy_of_mem_sortDen hAm)
     exact mkPi_mem_sortDen hAm (fun d hd => (hfib d hd).1) hrel
+      (HBU.famUnif hρ (isSemTy_of_mem_sortDen hAm) fun d hd => (hfib d hd).1)
   intro ρ w hρ
   obtain ⟨-, hAA', hAm, -, hAr⟩ := HA ρ w hρ
   have hAty : 𝕋.IsSemTy (𝕋.den ρ A) := isSemTy_of_mem_sortDen hAm
