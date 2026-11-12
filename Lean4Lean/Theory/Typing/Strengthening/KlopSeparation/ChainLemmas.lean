@@ -12,8 +12,8 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower} {env : VEnv} {ρ : Nat → 𝕋.S} {w : Nat → PVal}
+namespace SetModel
+variable {𝕋 : SetModel} {env : VEnv} {ρ : Nat → 𝕋.S} {w : Nat → PVal}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -141,6 +141,6 @@ theorem Chain.none_star
     show 𝕋.mkApp (𝕋.den ρ f) _ = _
     rw [ih rfl]; simp [mkApp]
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

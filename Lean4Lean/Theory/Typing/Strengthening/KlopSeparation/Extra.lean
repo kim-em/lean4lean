@@ -14,8 +14,8 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -44,7 +44,7 @@ theorem den_klopC (ρ : Nat → 𝕋.S) : 𝕋.den ρ klopC = 𝕋.mkLam 𝕋.tT
   simp [den, constDen]
 
 /-- The constant motive `fun y _ => T` at an element `x` of `T`. -/
-noncomputable def constMotive (𝕋 : UniverseTower) (x : 𝕋.S) : 𝕋.S :=
+noncomputable def constMotive (𝕋 : SetModel) (x : 𝕋.S) : 𝕋.S :=
   𝕋.mkLam 𝕋.tT fun y => 𝕋.mkLam (𝕋.cand (𝕋.eqCand 𝕋.tT x y)) fun _ => 𝕋.tT
 
 theorem star_mem_eqCand_tT {x y : 𝕋.S} (hx : x ∈ₛ 𝕋.El 𝕋.tT) (hy : y ∈ₛ 𝕋.El 𝕋.tT) :
@@ -166,6 +166,6 @@ theorem den_klopCBody (ρ : Nat → 𝕋.S) : 𝕋.den ρ klopCBody = 𝕋.mkLam
     (star_mem_eqCand_tT hx (tsucc_mem hx))]
   exact recBody_C hx
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

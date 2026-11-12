@@ -1,17 +1,13 @@
-/-! # Universe towers
+/-! # Set models
 
-`UniverseTower` is the hypothesis of `not_weakN_iff_of_tower`: a set-theoretic universe with
-function abstraction and application, dependent products, separation, pairing, an embedding
-of every small Lean type, and a tower of universes `U 0 ∈ U 1 ∈ …`, each closed under these
-operations.
+`SetModel` is the hypothesis of `not_weakN_iff_of_setModel`: a set theory with function
+abstraction and application, dependent products, separation, replacement, pairing, unions and
+an embedding of every Lean type of the lowest universe. No universe of sets is asked for.
 
-Any sequence of inaccessible cardinals `κ₀ < κ₁ < …` gives one: `S` is the type of sets,
-`U n = V_κₙ`, `lam A f` is the graph of `f` on `A`, `app` is application of a graph (anything
-outside the domain), `pi A B` is the set of dependent functions, `enc` is any injection of the
-elements of a small type into sets. Only the types of cardinality at most the continuum
-(`ContinuumSized`) are required to lie in `U 0`. Lean proves the existence of `n` inaccessible
-cardinals for every numeral `n` and not of a sequence of them, which is why the tower is a
-hypothesis.
+`ZFSet.{0}` is one: `lam A f` is the graph of `f` on `A`, `app` is application of a graph
+(anything outside the domain), `pi A B` is the set of dependent functions, `enc` is any
+injection of the elements of a type into sets. That instance is built in the model
+repository, which has Mathlib; this repository states the result for an arbitrary `SetModel`.
 
 The interface is stated at the level the model uses (applicative set theory) and not as raw
 membership axioms.
@@ -22,20 +18,7 @@ namespace VEnv.Strengthening
 
 universe u
 
-/-- `α` has at most the cardinality of the continuum: it injects into the sets of natural
-numbers. -/
-class ContinuumSized (α : Type) : Prop where
-  out : ∃ f : α → Nat → Prop, ∀ a b, f a = f b → a = b
-
-theorem ContinuumSized.of_injective {α β : Type} [h : ContinuumSized β] (g : α → β)
-    (hg : ∀ a b, g a = g b → a = b) : ContinuumSized α := by
-  obtain ⟨f, hf⟩ := h.out
-  exact ⟨fun a => f (g a), fun a b e => hg _ _ (hf _ _ e)⟩
-
-instance : ContinuumSized Nat := ⟨fun n m => n = m, fun a b e => by
-  have := congrFun e a; simp at this; exact this.symm⟩
-
-structure UniverseTower where
+structure SetModel where
   /-- The sets. -/
   S : Type (u + 1)
   mem : S → S → Prop

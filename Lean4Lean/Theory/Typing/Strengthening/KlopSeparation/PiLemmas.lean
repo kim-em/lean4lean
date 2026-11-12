@@ -11,8 +11,8 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -111,7 +111,7 @@ theorem ValidAny.isCand_iff {n : Nat} {x : 𝕋.S} (H : 𝕋.ValidAny (𝕋.univ
     | tProp => rw [kind_tProp] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | univ hu =>
       obtain ⟨m, -, rfl⟩ := mem_univList hu
-      rw [UniverseTower.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
+      rw [SetModel.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | pi => rw [kind_tPi] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | piP => rw [kind_tPiP] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
 
@@ -232,6 +232,6 @@ theorem mkApp_rel {n : Nat} {D g g' x x' : 𝕋.S} {F : 𝕋.S → 𝕋.S}
         exact hresp x x' hx hxx'
       exact hper.trans _ _ _ (ap_mem_of_mem_tPi hg hx) (hr x hx) h2
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

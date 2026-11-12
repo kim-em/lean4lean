@@ -21,9 +21,9 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
+namespace SetModel
 universe u
-variable (𝕋 : UniverseTower.{u})
+variable (𝕋 : SetModel.{u})
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -94,7 +94,7 @@ decreasing_by all_goals assumption
 def Unif (m : Nat) (I : World.{u}) (H s : I → 𝕋.S) : Prop :=
   ∀ m', m ≤ m' → ∃ b, 𝕋.Lf b m' I H s
 
-end UniverseTower
+end SetModel
 
 end VEnv.Strengthening
 end Lean4Lean

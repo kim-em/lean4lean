@@ -9,8 +9,8 @@ the substituted term (`den_inst`). No typing is involved.
 
 namespace Lean4Lean
 namespace VEnv.Strengthening
-namespace UniverseTower
-variable (𝕋 : UniverseTower)
+namespace SetModel
+variable (𝕋 : SetModel)
 
 /-- **Weakening.** -/
 theorem den_liftN (e : VExpr) (n k : Nat) (ρ : Nat → 𝕋.S) :
@@ -95,6 +95,6 @@ theorem den_beta (A e a : VExpr) (ρ : Nat → 𝕋.S)
   show 𝕋.mkApp (𝕋.mkLam _ _) _ = _
   rw [𝕋.mkApp_mkLam ha]
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

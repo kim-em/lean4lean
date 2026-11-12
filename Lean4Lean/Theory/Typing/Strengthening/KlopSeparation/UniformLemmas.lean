@@ -11,9 +11,9 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
+namespace SetModel
 universe u
-variable {𝕋 : UniverseTower.{u}}
+variable {𝕋 : SetModel.{u}}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -51,7 +51,7 @@ theorem DpLe.mono {m k k' : Nat} (h : k ≤ k') {X : 𝕋.S} (H : 𝕋.DpLe m X 
     exact .piP hk (ih (by omega))
 
 /-- `Y` is the domain, a fibre or the codomain of the function type record `X`. -/
-def Child (𝕋 : UniverseTower.{u}) (X Y : 𝕋.S) : Prop :=
+def Child (𝕋 : SetModel.{u}) (X Y : 𝕋.S) : Prop :=
   (𝕋.kind X = 𝕋.tagN 4 ∧ (Y = 𝕋.dom X ∨ ∃ d, 𝕋.mem d (𝕋.El (𝕋.dom X)) ∧ Y = 𝕋.fib X d)) ∨
   (𝕋.kind X = 𝕋.tagN 5 ∧ Y = 𝕋.cod X)
 
@@ -401,16 +401,16 @@ theorem Lf.cover (b : Nat × Nat) : ∀ (m : Nat) (I : World.{u}) (H s : I → �
           (fun j => hk j.1) (hT.comp _) (hF.comp _)
 
 /-- Two records with the same kind and constructor arguments. -/
-def SameArgs (𝕋 : UniverseTower.{u}) (X X' : 𝕋.S) : Prop :=
+def SameArgs (𝕋 : SetModel.{u}) (X X' : 𝕋.S) : Prop :=
   𝕋.kind X = 𝕋.kind X' ∧ 𝕋.argsOf X = 𝕋.argsOf X'
 
 theorem SameArgs.symm {X X' : 𝕋.S} (h : 𝕋.SameArgs X X') : 𝕋.SameArgs X' X := ⟨h.1.symm, h.2.symm⟩
 theorem SameArgs.dom {X X' : 𝕋.S} (h : 𝕋.SameArgs X X') : 𝕋.dom X = 𝕋.dom X' := by
-  simp [UniverseTower.dom, h.2]
+  simp [SetModel.dom, h.2]
 theorem SameArgs.fib {X X' : 𝕋.S} (h : 𝕋.SameArgs X X') (d : 𝕋.S) : 𝕋.fib X d = 𝕋.fib X' d := by
-  simp [UniverseTower.fib, h.2]
+  simp [SetModel.fib, h.2]
 theorem SameArgs.cod {X X' : 𝕋.S} (h : 𝕋.SameArgs X X') : 𝕋.cod X = 𝕋.cod X' := by
-  simp [UniverseTower.cod, h.2]
+  simp [SetModel.cod, h.2]
 
 theorem LvLe.congr {N : Nat} {X X' : 𝕋.S} (h : 𝕋.SameArgs X X') (H : 𝕋.LvLe N X) :
     𝕋.LvLe N X' := by
@@ -471,7 +471,7 @@ theorem Lf.congr (b : Nat × Nat) : ∀ (m : Nat) (I : World.{u}) (H H' s : I �
 
 /-- Two records with the same structure of kinds, universes and domains: what uniformity
 reads of a type. Coarsely related valid types are similar. -/
-inductive Sim (𝕋 : UniverseTower.{u}) : 𝕋.S → 𝕋.S → Prop where
+inductive Sim (𝕋 : SetModel.{u}) : 𝕋.S → 𝕋.S → Prop where
   | base {X X'} : 𝕋.IsBase X → 𝕋.IsBase X' → Sim 𝕋 X X'
   | univ {X X'} : 𝕋.kind X = 𝕋.tagN 3 → 𝕋.kind X' = 𝕋.tagN 3 → 𝕋.argsOf X = 𝕋.argsOf X' →
       Sim 𝕋 X X'
@@ -720,7 +720,7 @@ theorem Unif.cover {m : Nat} {I : World.{u}} {H s : I → 𝕋.S} (P : I → Pro
   obtain ⟨b, hb⟩ := exists_famLe_of_tame hT
   exact ⟨b, Lf.cover b m' I H s P (hb₁.fuel (hb.comp _)) (hb₂.fuel (hb.comp _))⟩
 
-end UniverseTower
+end SetModel
 
 end VEnv.Strengthening
 end Lean4Lean

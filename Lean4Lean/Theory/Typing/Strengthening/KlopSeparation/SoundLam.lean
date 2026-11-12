@@ -7,8 +7,8 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -104,6 +104,6 @@ theorem Sem.lam {Γ : List VExpr} {A A' B body body' : VExpr} {u v : VLevel}
     obtain ⟨n, hAv⟩ := hAty
     exact ((Hb _ _ h₁).2.2.2.2 _ _ h₂ (coRel_cons hr hTA (hAv.isPER.refl _ hd))).2
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

@@ -17,8 +17,8 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
-variable (𝕋 : UniverseTower)
+namespace SetModel
+variable (𝕋 : SetModel)
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -155,7 +155,7 @@ theorem den_CE_ne_E (ρ : Nat → 𝕋.S) :
   intro h
   exact absurd (𝕋.tval_inj h) (by decide)
 
-end UniverseTower
+end SetModel
 
 end VEnv.Strengthening
 end Lean4Lean

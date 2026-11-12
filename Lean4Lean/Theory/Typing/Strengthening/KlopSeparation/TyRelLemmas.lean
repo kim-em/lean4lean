@@ -11,8 +11,8 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -38,7 +38,7 @@ theorem ValidAny.kind_eq_of_tyRel {n : Nat} {A B : 𝕋.S} (hA : 𝕋.ValidAny (
   rw [hk, hk', (𝕋.pair_inj h).1]
 
 /-- The statement proved by induction: same elements and same relation. -/
-def SameEl (𝕋 : UniverseTower) (A B : 𝕋.S) : Prop :=
+def SameEl (𝕋 : SetModel) (A B : 𝕋.S) : Prop :=
   𝕋.El A = 𝕋.El B ∧ ∀ x y, 𝕋.mem x (𝕋.El A) → (𝕋.Rel A x y ↔ 𝕋.Rel B x y)
 
 theorem sameEl_refl (A : 𝕋.S) : 𝕋.SameEl A A := ⟨rfl, fun _ _ _ => .rfl⟩
@@ -71,7 +71,7 @@ theorem ValidAny.tyRel_same_sim {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋
     | tProp => rw [kind_tProp] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | univ hu =>
       obtain ⟨m, -, rfl⟩ := mem_univList hu
-      rw [UniverseTower.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
+      rw [SetModel.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | pi => rw [kind_tPi] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | piP => rw [kind_tPiP] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
   | tT =>
@@ -84,7 +84,7 @@ theorem ValidAny.tyRel_same_sim {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋
     | tProp => rw [kind_tProp] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | univ hu =>
       obtain ⟨m, -, rfl⟩ := mem_univList hu
-      rw [UniverseTower.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
+      rw [SetModel.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | pi => rw [kind_tPi] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | piP => rw [kind_tPiP] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
   | tProp =>
@@ -97,14 +97,14 @@ theorem ValidAny.tyRel_same_sim {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋
     | tProp => exact ⟨sameEl_refl _, .base (.inr (.inr kind_tProp)) (.inr (.inr kind_tProp))⟩
     | univ hu =>
       obtain ⟨m, -, rfl⟩ := mem_univList hu
-      rw [UniverseTower.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
+      rw [SetModel.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | pi => rw [kind_tPi] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | piP => rw [kind_tPiP] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
   | @univ u hu =>
     intro B hB h
     obtain ⟨m, -, rfl⟩ := mem_univList hu
     have hk := (ValidAny.univ hu).kind_eq_of_tyRel hB h
-    rw [UniverseTower.univ, kind_tU] at hk
+    rw [SetModel.univ, kind_tU] at hk
     cases hB with
     | prop => rw [kind_cand] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | tT => rw [kind_tT] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
@@ -127,7 +127,7 @@ theorem ValidAny.tyRel_same_sim {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋
     | tProp => rw [kind_tProp] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | univ hu' =>
       obtain ⟨m', -, rfl⟩ := mem_univList hu'
-      rw [UniverseTower.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
+      rw [SetModel.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | @pi D' F' hD' hDc' hF' hfull' hFrel' hmix' =>
       rw [TyRel, skel_tPi, skel_tPi] at h
       obtain ⟨hsD, hsF⟩ := 𝕋.pair_inj (𝕋.pair_inj h).2
@@ -182,7 +182,7 @@ theorem ValidAny.tyRel_same_sim {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋
     | tProp => rw [kind_tProp] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | univ hu' =>
       obtain ⟨m', -, rfl⟩ := mem_univList hu'
-      rw [UniverseTower.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
+      rw [SetModel.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | pi => rw [kind_tPi] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
     | @piP c' B₁ hc' hne' hB₁ hB₁c =>
       rw [TyRel, skel_tPiP, skel_tPiP] at h
@@ -222,7 +222,7 @@ theorem ap_mem_of_mem_tPiP {c : Candidate} {B f : 𝕋.S} (hf : f ∈ₛ 𝕋.El
   exact (𝕋.mem_pi.1 hf').2 _ (𝕋.mem_one.2 rfl)
 
 /-- The coarse relation of a type is reflexive, symmetric and transitive on its elements. -/
-structure IsPER (𝕋 : UniverseTower) (A : 𝕋.S) : Prop where
+structure IsPER (𝕋 : SetModel) (A : 𝕋.S) : Prop where
   refl : ∀ x, 𝕋.mem x (𝕋.El A) → 𝕋.Rel A x x
   mem : ∀ x y, 𝕋.mem x (𝕋.El A) → 𝕋.Rel A x y → 𝕋.mem y (𝕋.El A)
   symm : ∀ x y, 𝕋.mem x (𝕋.El A) → 𝕋.Rel A x y → 𝕋.Rel A y x
@@ -277,6 +277,6 @@ theorem ValidAny.isPER {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.univList
       obtain ⟨hk, e'⟩ := (rel_tPiP_iff hg).1 h2
       exact (rel_tPiP_iff hf).2 ⟨hk, ih.trans _ _ _ (ap_mem_of_mem_tPiP hf) e e'⟩
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

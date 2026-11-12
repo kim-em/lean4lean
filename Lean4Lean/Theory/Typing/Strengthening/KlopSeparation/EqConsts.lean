@@ -12,8 +12,8 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -123,6 +123,6 @@ theorem constOK_EqRefl (ls : List VLevel) :
   refine eqCand_mem_of_toR ha ?_
   exact .head (.appL .beta) (.head .beta .rfl)
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

@@ -34,8 +34,8 @@ def rΓ6 : List VExpr := [rA6 u, rA5, rA4 u, rA3 v u, rA2, rA1 u]
 
 end Types
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower} {v u : VLevel}
+namespace SetModel
+variable {𝕋 : SetModel} {v u : VLevel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -171,7 +171,7 @@ theorem recArgs_of_valOK {ρ : Nat → 𝕋.S} {w : Nat → PVal} (hρ : 𝕋.Va
   exact ⟨⟨m5, m4, m3, m2, m1, ((eqCand_nonempty_iff hαv.isPER).1 hne).2⟩, hs⟩
 
 /-- The body of `Eq.rec` as a semantic term. -/
-noncomputable def recBodyD (𝕋 : UniverseTower) (ρ : Nat → 𝕋.S) : 𝕋.S :=
+noncomputable def recBodyD (𝕋 : SetModel) (ρ : Nat → 𝕋.S) : 𝕋.S :=
   𝕋.recBody (ρ 5) (ρ 4) (ρ 3) (ρ 2) (ρ 1)
 
 /-- **The body of `Eq.rec` is a semantic term of the result type.** -/
@@ -246,7 +246,7 @@ def recTy (v u : VLevel) : VExpr :=
     (.forallE (rA6 u) rR)))))
 
 /-- The six-fold abstraction of the body over the denotations of the binder types. -/
-noncomputable def recLamD (𝕋 : UniverseTower) (v u : VLevel) (ρ : Nat → 𝕋.S) : 𝕋.S :=
+noncomputable def recLamD (𝕋 : SetModel) (v u : VLevel) (ρ : Nat → 𝕋.S) : 𝕋.S :=
   𝕋.mkLam (𝕋.den ρ (rA1 u)) fun x1 =>
   𝕋.mkLam (𝕋.den (𝕋.cons x1 ρ) rA2) fun x2 =>
   𝕋.mkLam (𝕋.den (𝕋.cons x2 (𝕋.cons x1 ρ)) (rA3 v u)) fun x3 =>
@@ -318,6 +318,6 @@ theorem recTy_eq (ls : List VLevel) :
     rA1, rA2, rA3, rA4, rA5, rA6, rR, motiveOf, eqS, reflS, VExpr.lift, VExpr.liftN, liftVar,
     VLevel.inst]
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

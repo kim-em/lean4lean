@@ -12,8 +12,8 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -191,7 +191,7 @@ theorem ValidAny.good {n : Nat} {c : Candidate} (H : 𝕋.ValidAny (𝕋.univLis
   | tProp => rw [kind_tProp] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
   | univ h =>
     obtain ⟨m, -, rfl⟩ := mem_univList h
-    rw [UniverseTower.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
+    rw [SetModel.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
   | pi => rw [kind_tPi] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
   | piP => rw [kind_tPiP] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
 
@@ -309,7 +309,7 @@ theorem mkApp_mem {D g x : 𝕋.S} {F : 𝕋.S → 𝕋.S}
       exact star_mem_cand ⟨_, hv u hu⟩
     · obtain ⟨f, rfl, hf⟩ := mem_El_tPiP.1 hg
       have hns : 𝕋.pair (𝕋.tagN 104) f ≠ 𝕋.star :=
-        ne_star_of_kind (k := 104) (by simp [UniverseTower.kind]) (by decide)
+        ne_star_of_kind (k := 104) (by simp [SetModel.kind]) (by decide)
       rw [mkApp, if_neg hns]
       simp only [ap, snd_pair]
       exact (𝕋.mem_pi.1 hf).2 _ (𝕋.mem_one.2 rfl)
@@ -320,7 +320,7 @@ theorem mkApp_mem {D g x : 𝕋.S} {F : 𝕋.S → 𝕋.S}
       exact star_mem_cand ⟨_, hv x hx .bot⟩
     · obtain ⟨f, rfl, hf, -⟩ := mem_El_tPi.1 hg
       have hns : 𝕋.pair (𝕋.tagN 104) f ≠ 𝕋.star :=
-        ne_star_of_kind (k := 104) (by simp [UniverseTower.kind]) (by decide)
+        ne_star_of_kind (k := 104) (by simp [SetModel.kind]) (by decide)
       rw [mkApp, if_neg hns]
       simp only [ap, snd_pair]
       exact (𝕋.mem_pi.1 hf).2 _ hx
@@ -423,6 +423,6 @@ theorem tyRel_cand {c d : Candidate} :
   · intro h
     simp [h]
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

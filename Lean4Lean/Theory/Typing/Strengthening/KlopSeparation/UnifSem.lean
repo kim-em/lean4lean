@@ -18,9 +18,9 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
+namespace SetModel
 universe u
-variable {𝕋 : UniverseTower.{u}}
+variable {𝕋 : SetModel.{u}}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -314,7 +314,7 @@ theorem piUnif_of_unif {D : 𝕋.S} {F : 𝕋.S → 𝕋.S} {g : 𝕋.S}
 
 /-- A type none of whose iterated results is a universe: every section of a tame family of
 such types is uniform (U5). -/
-inductive Flat (𝕋 : UniverseTower.{u}) : 𝕋.S → Prop where
+inductive Flat (𝕋 : SetModel.{u}) : 𝕋.S → Prop where
   | base {X} : 𝕋.IsBase X → Flat 𝕋 X
   | pi {X} : 𝕋.kind X = 𝕋.tagN 4 → (∀ d, 𝕋.mem d (𝕋.El (𝕋.dom X)) → Flat 𝕋 (𝕋.fib X d)) →
       Flat 𝕋 X
@@ -410,6 +410,6 @@ theorem piUnif_of_unif_mk {D : 𝕋.S} {F f : 𝕋.S → 𝕋.S}
   rw [mkPi_eq_tPi_of_data hDc hall, mkLam_eq_fn (F := F) hd₀ (hFv _ hd₀) hc₀ (hf _ hd₀)] at h
   exact piUnif_of_unif h
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

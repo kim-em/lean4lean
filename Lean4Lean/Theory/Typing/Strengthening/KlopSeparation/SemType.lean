@@ -11,8 +11,8 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
-variable (𝕋 : UniverseTower)
+namespace SetModel
+variable (𝕋 : SetModel)
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -149,7 +149,7 @@ theorem mkApp_mkLam {D : 𝕋.S} {f : 𝕋.S → 𝕋.S} {x : 𝕋.S} (hx : x �
   · rename_i h; simp [mkApp, h x hx]
   · rw [mkApp, if_neg (fun h => 𝕋.star_ne_fn _ _ h.symm), 𝕋.ap_fn hx]
 
-end UniverseTower
+end SetModel
 
 end VEnv.Strengthening
 end Lean4Lean

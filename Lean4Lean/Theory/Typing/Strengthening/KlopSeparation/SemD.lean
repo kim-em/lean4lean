@@ -16,13 +16,13 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
 /-- A semantic term in context: membership and coarse relatedness. -/
-def SemD (𝕋 : UniverseTower) (Γ : List VExpr) (d : (Nat → 𝕋.S) → 𝕋.S) (A : VExpr) : Prop :=
+def SemD (𝕋 : SetModel) (Γ : List VExpr) (d : (Nat → 𝕋.S) → 𝕋.S) (A : VExpr) : Prop :=
   ∀ ρ w, 𝕋.ValOK Γ ρ w →
     𝕋.mem (d ρ) (𝕋.El (𝕋.den ρ A)) ∧
     ∀ ρ' w', 𝕋.ValOK Γ ρ' w' → 𝕋.CoRel Γ ρ ρ' → 𝕋.Rel (𝕋.den ρ A) (d ρ) (d ρ')
@@ -115,6 +115,6 @@ theorem Sem.eqApp {Γ : List VExpr} {A x y : VExpr} {l : VLevel}
       (per.trans _ _ _ hxm h hyy)⟩,
     fun ⟨_, h⟩ => ⟨hxm, per.trans _ _ _ hxm hxx (per.trans _ _ _ hx' h (per.symm _ _ hym hyy))⟩⟩
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

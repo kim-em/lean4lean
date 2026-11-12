@@ -7,8 +7,8 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 /-- The β rule (`IsDefEqStrong.beta`). -/
 theorem Sem.beta {Γ : List VExpr} {A B e e' : VExpr} {u : VLevel}
@@ -48,6 +48,6 @@ theorem Sem.proofIrrel {Γ : List VExpr} {p h h' : VExpr}
   rw [hc] at hm hm'
   rw [(𝕋.mem_El_cand.1 hm).1, (𝕋.mem_El_cand.1 hm').1]
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

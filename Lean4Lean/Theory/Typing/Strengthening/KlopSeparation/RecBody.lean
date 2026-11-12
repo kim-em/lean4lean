@@ -19,17 +19,17 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
 /-- `(a = x) → Sort v`. -/
-noncomputable def fibTy (𝕋 : UniverseTower) (v : VLevel) (α a x : 𝕋.S) : 𝕋.S :=
+noncomputable def fibTy (𝕋 : SetModel) (v : VLevel) (α a x : 𝕋.S) : 𝕋.S :=
   𝕋.mkPi (𝕋.cand (𝕋.eqCand α a x)) fun _ => 𝕋.sortDen v
 
 /-- The fibre of a motive over an endpoint. -/
-noncomputable def Fib (𝕋 : UniverseTower) (M x : 𝕋.S) : 𝕋.S := 𝕋.mkApp (𝕋.mkApp M x) 𝕋.star
+noncomputable def Fib (𝕋 : SetModel) (M x : 𝕋.S) : 𝕋.S := 𝕋.mkApp (𝕋.mkApp M x) 𝕋.star
 
 theorem motiveTy_eq (v : VLevel) (α a : 𝕋.S) :
     𝕋.motiveTy v α a = 𝕋.mkPi α fun b => 𝕋.fibTy v α a b := rfl
@@ -104,12 +104,12 @@ theorem eq_tT_of_tyRel {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.univList
   | tProp => rw [kind_tProp] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
   | univ hu =>
     obtain ⟨m, -, rfl⟩ := mem_univList hu
-    rw [UniverseTower.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
+    rw [SetModel.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
   | pi => rw [kind_tPi] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
   | piP => rw [kind_tPiP] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
 
 /-- The hypotheses on the arguments of `Eq.rec`. -/
-structure RecArgs (𝕋 : UniverseTower) (u v : VLevel) (α a M m b : 𝕋.S) : Prop where
+structure RecArgs (𝕋 : SetModel) (u v : VLevel) (α a M m b : 𝕋.S) : Prop where
   hα : 𝕋.mem α (𝕋.El (𝕋.sortDen u))
   ha : 𝕋.mem a (𝕋.El α)
   hM : 𝕋.mem M (𝕋.El (𝕋.motiveTy v α a))
@@ -230,6 +230,6 @@ theorem unif_fib {n : Nat} {I : World} {u v : VLevel} {α a M x : I → 𝕋.S}
     (unif_of_small (fun i => .inl (.inl (kind_cand _))) _)
     ((sortDen_valid v).tame_const n I)
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

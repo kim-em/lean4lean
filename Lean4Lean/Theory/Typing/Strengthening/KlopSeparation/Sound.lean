@@ -31,8 +31,8 @@ def subst : PVal → (Nat → PVal) → PVal
 
 end PVal
 
-namespace UniverseTower
-variable (𝕋 : UniverseTower)
+namespace SetModel
+variable (𝕋 : SetModel)
 
 /-- A semantic type of some level: a good candidate or a valid data type. -/
 def IsSemTy (x : 𝕋.S) : Prop := ∃ n, 𝕋.ValidAny (𝕋.univList n) x
@@ -494,7 +494,7 @@ theorem Sem.forallE {Γ : List VExpr} {A A' B B' : VExpr} {u v : VLevel}
     have := (hrelB _ _ h₂ (coRel_cons hr hTA (hDv.isPER.refl _ hd))).2
     exact (tyRel_of_rel_sortDen hm this).2
 
-end UniverseTower
+end SetModel
 
 end VEnv.Strengthening
 end Lean4Lean

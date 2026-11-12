@@ -21,13 +21,13 @@ theorem constVal_subst (c : Name) (σ : Nat → PVal) : (constVal c).subst σ = 
     · simp [recVal, PVal.subst, PVal.up_eq_upN, PVal.upN, PVal.liftN, liftVar]
     · rfl
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
 /-- A constant is an element of its declared type, with a realizing value. -/
-def ConstOK (𝕋 : UniverseTower) (c : Name) (ls : List VLevel) (ty : VExpr) : Prop :=
+def ConstOK (𝕋 : SetModel) (c : Name) (ls : List VLevel) (ty : VExpr) : Prop :=
   ∀ ρ : Nat → 𝕋.S, 𝕋.mem (𝕋.constDen c ls) (𝕋.El (𝕋.den ρ ty)) ∧
     (𝕋.IsCand (𝕋.den ρ ty) → (𝕋.candOf (𝕋.den ρ ty)).mem (constVal c))
 
@@ -145,6 +145,6 @@ theorem constDen_congr {c : Name} {ls ls' : List VLevel} (h : List.Forall₂ (·
     · exact recDen_congr (getD_equiv h 0) (getD_equiv h 1)
     · rfl
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

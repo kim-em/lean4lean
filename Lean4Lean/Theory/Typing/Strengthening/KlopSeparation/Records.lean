@@ -1,9 +1,10 @@
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Small
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.SetModel
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Values
 
 /-! # Semantic types of the Klop model
 
 Second layer of the model for `KlopInventory.separated` (`FIRST_PRINCIPLES.md` §28, §29),
-inside a `UniverseTower`.
+inside a `SetModel`.
 
 Every object of the model is a pair whose first component is the encoding of a natural
 number tag, so objects of different kinds are distinct: `•` (tag 100), the elements of `T`
@@ -23,8 +24,8 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
-variable (𝕋 : UniverseTower)
+namespace SetModel
+variable (𝕋 : SetModel)
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -142,7 +143,7 @@ theorem mem_relFn {elts : 𝕋.S} {R : 𝕋.S → 𝕋.S → Prop} {x y : 𝕋.S
     y ∈ₛ 𝕋.app (𝕋.relFn elts R) x ↔ y ∈ₛ elts ∧ R x y := by
   rw [relFn, 𝕋.app_lam hx, 𝕋.mem_sep]
 
-end UniverseTower
+end SetModel
 
 end VEnv.Strengthening
 end Lean4Lean

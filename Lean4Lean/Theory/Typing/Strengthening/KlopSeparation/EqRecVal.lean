@@ -28,8 +28,8 @@ theorem recVal_steps (u1 u2 u3 u4 u5 u6 : PVal) :
   simp [PVal.inst, PVal.liftN_zero, PVal.inst_liftN]
   exact .rfl
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -107,6 +107,6 @@ theorem recVal_realizes (v u : VLevel) (ρ : Nat → 𝕋.S)
     rwa [𝕋.candOf_cand] at this
   exact ((𝕋.candOf _).steps (recVal_steps u1 u2 u3 u4 u5 u6)).2 (case_realizes H hc7 hu4 hu6')
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

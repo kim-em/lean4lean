@@ -33,8 +33,8 @@ theorem lift_subst_scons (t u : PVal) (σ : Nat → PVal) :
 
 end PVal
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -66,7 +66,7 @@ theorem mkLam_mkApp {n : Nat} {D g : 𝕋.S} {F : 𝕋.S → 𝕋.S}
         congr 1
         rw [(𝕋.mem_pi.1 hf').1]
         refine 𝕋.lam_ext fun x hx => ?_
-        rw [mkApp, if_neg (ne_star_of_kind (k := 104) (by simp [UniverseTower.kind]) (by decide))]
+        rw [mkApp, if_neg (ne_star_of_kind (k := 104) (by simp [SetModel.kind]) (by decide))]
         simp only [ap, snd_pair]
         rw [← (𝕋.mem_pi.1 hf').1]
     · rw [if_neg hn] at hg
@@ -89,7 +89,7 @@ theorem mkLam_mkApp {n : Nat} {D g : 𝕋.S} {F : 𝕋.S → 𝕋.S}
       congr 1
       rw [(𝕋.mem_pi.1 hf').1]
       refine 𝕋.lam_ext fun x hx => ?_
-      rw [mkApp, if_neg (ne_star_of_kind (k := 104) (by simp [UniverseTower.kind]) (by decide))]
+      rw [mkApp, if_neg (ne_star_of_kind (k := 104) (by simp [SetModel.kind]) (by decide))]
       simp only [ap, snd_pair]
       rw [← (𝕋.mem_pi.1 hf').1]
 
@@ -142,6 +142,6 @@ theorem Sem.eta {Γ : List VExpr} {A B e : VExpr} {u v : VLevel}
     rw [hη ρ w hρ, hη ρ' w' hρ']
     exact h2
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

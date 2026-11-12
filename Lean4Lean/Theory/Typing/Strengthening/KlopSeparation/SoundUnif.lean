@@ -16,13 +16,13 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
 /-- The uniformity clause for a semantic term. -/
-def SemDU (𝕋 : UniverseTower) (Γ : List VExpr) (d : (Nat → 𝕋.S) → 𝕋.S) (A : VExpr) : Prop :=
+def SemDU (𝕋 : SetModel) (Γ : List VExpr) (d : (Nat → 𝕋.S) → 𝕋.S) (A : VExpr) : Prop :=
   ∀ (n : Nat) (I : World) (ρ : I → Nat → 𝕋.S) (w : I → Nat → PVal),
     (∀ i, 𝕋.ValOK Γ (ρ i) (w i)) → 𝕋.CtxUnif n Γ ρ →
     𝕋.Unif n I (fun i => 𝕋.den (ρ i) A) (fun i => d (ρ i))
@@ -244,6 +244,6 @@ theorem semU_const_of {Γ : List VExpr} {c : Name} {ls : List VLevel} {ty : VExp
     exact (hv.unif_const I hm).mono (Nat.zero_le n)
   · exact unif_of_isEmpty (fun i => hI ⟨i⟩) _ _
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

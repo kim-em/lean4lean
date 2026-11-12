@@ -11,8 +11,8 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -71,6 +71,6 @@ theorem sortDen_mem (l : VLevel) : 𝕋.sortDen l ∈ₛ 𝕋.El (𝕋.sortDen (
   | zero => exact tProp_mem_univ
   | succ n => exact univ_mem_univ n
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

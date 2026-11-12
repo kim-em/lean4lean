@@ -13,8 +13,8 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
-variable (𝕋 : UniverseTower)
+namespace SetModel
+variable (𝕋 : SetModel)
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -145,7 +145,7 @@ theorem mem_baseOf {l : List 𝕋.S} {x : 𝕋.S} :
       · exact .inr h
       · exact .inl (.inr (.inr (.inr ⟨v, hv, h⟩)))
 
-end UniverseTower
+end SetModel
 
 end VEnv.Strengthening
 end Lean4Lean

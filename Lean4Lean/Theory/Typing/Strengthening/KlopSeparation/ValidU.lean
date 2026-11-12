@@ -14,9 +14,9 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
+namespace SetModel
 universe u
-variable {𝕋 : UniverseTower.{u}}
+variable {𝕋 : SetModel.{u}}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -37,7 +37,7 @@ theorem ValidAny.mono {m n : Nat} (h : m ≤ n) {x : 𝕋.S} (H : 𝕋.ValidAny 
   H.mono_list fun _ hu => univList_mono h hu
 
 /-- A valid semantic type of some level. -/
-def Valid (𝕋 : UniverseTower.{u}) (x : 𝕋.S) : Prop := ∃ n, 𝕋.ValidAny (𝕋.univList n) x
+def Valid (𝕋 : SetModel.{u}) (x : 𝕋.S) : Prop := ∃ n, 𝕋.ValidAny (𝕋.univList n) x
 
 theorem univ_mem_univList_of_lt {m n : Nat} (h : m < n) : 𝕋.univ m ∈ 𝕋.univList n :=
   univList_mono h (univ_mem_univList m)
@@ -260,13 +260,13 @@ theorem ValidAny.mem_bset : ∀ (n : Nat) {x : 𝕋.S}, 𝕋.ValidAny (𝕋.univ
           exact mem_union2.2 (.inr (mem_union2.2 (.inr (tPiP_mem_piPSet c h1))))
     intro x hx
     obtain ⟨k, hk⟩ := hx.exists_dpLe n hx.lvLe
-    exact UniverseTower.mem_bset.2 ⟨k, corr hx k hk⟩
+    exact SetModel.mem_bset.2 ⟨k, corr hx k hk⟩
 
 /-- A valid data type of level `n` (or the full candidate) is an element of `𝒰ₙ`. -/
 theorem ValidAny.mem_univ {n : Nat} {x : 𝕋.S} (H : 𝕋.ValidAny (𝕋.univList n) x)
     (hc : 𝕋.IsCand x → x = 𝕋.cand Candidate.full) : x ∈ₛ 𝕋.El (𝕋.univ n) :=
   mem_El_univ.2 ⟨H.mem_bset n, H, hc⟩
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

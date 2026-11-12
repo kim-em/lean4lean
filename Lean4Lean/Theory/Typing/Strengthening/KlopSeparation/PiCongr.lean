@@ -18,8 +18,8 @@ theorem Candidate.ext' {c d : Candidate} (h : ∀ v, c.mem v ↔ d.mem v) : c = 
   funext v
   exact propext (h v)
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -165,6 +165,6 @@ theorem rel_mkPi_of_pointwise {D g g' : 𝕋.S} {F : 𝕋.S → 𝕋.S}
       rwa [mkApp, if_neg (ne_star_of_mem_tPi hg), mkApp,
         if_neg (ne_star_of_mem_tPi hg')] at this
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

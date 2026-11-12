@@ -88,14 +88,14 @@ theorem subst_up_inst (t u : PVal) (σ : Nat → PVal) :
 end PVal
 
 theorem consV_eq_scons (u : PVal) (w : Nat → PVal) :
-    UniverseTower.consV u w = PVal.scons u w := by
+    SetModel.consV u w = PVal.scons u w := by
   funext i; cases i <;> rfl
 
 /-- The value of an abstraction applied to a value reduces to the value of the body at the
 extended assignment. -/
 theorem PVal.step_lam_app (b : VExpr) (A : VExpr) (w : Nat → PVal) (u : PVal) :
     PVal.Step (.app ((pval (.lam A b)).subst w) u)
-      ((pval b).subst (UniverseTower.consV u w)) := by
+      ((pval b).subst (SetModel.consV u w)) := by
   have : (pval (.lam A b)).subst w = .lam ((pval b).subst (PVal.up w)) := rfl
   rw [this, consV_eq_scons, ← PVal.subst_up_inst]
   exact .beta

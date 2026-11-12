@@ -22,8 +22,8 @@ def reflS (u : VLevel) (A x : VExpr) : VExpr := .app (.app (.const ``Eq.refl [u]
 def motiveOf (v u : VLevel) (α a : VExpr) : VExpr :=
   .forallE α (.forallE (eqS u α.lift a.lift (.bvar 0)) (.sort v))
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -171,6 +171,6 @@ theorem SemU.fibApp {Γ : List VExpr} {α a M b t : VExpr} {u v : VLevel}
   exact unif_fib (u := u) (fun i => (f i).2.1) (fun i => (f i).2.2.1) (fun i => (f i).2.2.2.1)
     (fun i => (f i).2.2.2.2.1) (fun i => (f i).2.2.2.2.2.1) hMu (HbU n I ρ w hρ hctx)
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

@@ -28,13 +28,13 @@ def IsSpine : VExpr → Prop
   | .app f _ => IsSpine f
   | _ => False
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
 /-- The tracked semantic type of a constant-headed spine. -/
-inductive Chain (𝕋 : UniverseTower) (env : VEnv) (ρ : Nat → 𝕋.S) (w : Nat → PVal) :
+inductive Chain (𝕋 : SetModel) (env : VEnv) (ρ : Nat → 𝕋.S) (w : Nat → PVal) :
     VExpr → Option 𝕋.S → Prop where
   | const {c : Name} {ci : VConstant} {ls : List VLevel} : env.constants c = some ci →
       Chain 𝕋 env ρ w (.const c ls) (some (𝕋.den ρ (ci.type.instL ls)))
@@ -48,7 +48,7 @@ inductive Chain (𝕋 : UniverseTower) (env : VEnv) (ρ : Nat → 𝕋.S) (w : N
   | appNone {f x : VExpr} : Chain 𝕋 env ρ w f none → Chain 𝕋 env ρ w (.app f x) none
 
 /-- The head invariant for one side of a judgment. -/
-def SpineOK (𝕋 : UniverseTower) (env : VEnv) (ρ : Nat → 𝕋.S) (w : Nat → PVal)
+def SpineOK (𝕋 : SetModel) (env : VEnv) (ρ : Nat → 𝕋.S) (w : Nat → PVal)
     (e A : VExpr) : Prop :=
   IsSpine e → ∃ o, 𝕋.Chain env ρ w e o ∧ ∀ R, o = some R → R = 𝕋.den ρ A
 
@@ -105,6 +105,6 @@ theorem SpineOK.app {f a A B : VExpr} (Hf : 𝕋.SpineOK env ρ w f (.forallE A 
         refine ⟨_, .appPi hc ham, fun R hR => ?_⟩
         rw [← Option.some.inj hR, hinst]
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean

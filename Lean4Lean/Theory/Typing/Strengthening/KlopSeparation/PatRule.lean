@@ -21,39 +21,39 @@ open Classical
 variable {env : VEnv}
 
 /-- `Eq.rec` is an element of its declared type, with a realizing value. -/
-theorem UniverseTower.constOK_EqRec {𝕋 : UniverseTower} (ls : List VLevel) :
+theorem SetModel.constOK_EqRec {𝕋 : SetModel} (ls : List VLevel) :
     𝕋.ConstOK ``Eq.rec ls (canonicalEqRecType.instL ls) := by
   intro ρ
   have hc : 𝕋.constDen ``Eq.rec ls = 𝕋.recDen (ls.getD 0 .zero) (ls.getD 1 .zero) := by
-    simp [UniverseTower.constDen]
+    simp [SetModel.constDen]
   have hv : constVal ``Eq.rec = recVal := by simp [constVal]
-  rw [UniverseTower.recTy_eq, hc, hv]
-  exact ⟨UniverseTower.recDen_mem ρ, UniverseTower.recVal_realizes _ _ ρ⟩
+  rw [SetModel.recTy_eq, hc, hv]
+  exact ⟨SetModel.recDen_mem ρ, SetModel.recVal_realizes _ _ ρ⟩
 
 /-- Every constant of the environment is an element of its declared type, with a realizing
 value. -/
-theorem KlopInventory.constOK (𝕋 : UniverseTower) (heq : env.HasCanonicalEq)
+theorem KlopInventory.constOK (𝕋 : SetModel) (heq : env.HasCanonicalEq)
     (K : KlopInventory env) {c : Name} {ci : VConstant} (h : env.constants c = some ci)
     (ls : List VLevel) : 𝕋.ConstOK c ls (ci.type.instL ls) := by
   rcases K.constants_only c ci h with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
-  · cases Option.some.inj (heq.1.symm.trans h); exact UniverseTower.constOK_Eq ls
-  · cases Option.some.inj (heq.2.1.symm.trans h); exact UniverseTower.constOK_EqRefl ls
-  · cases Option.some.inj (heq.2.2.1.symm.trans h); exact UniverseTower.constOK_EqRec ls
-  · cases Option.some.inj (K.T.symm.trans h); exact UniverseTower.constOK_T ls
-  · cases Option.some.inj (K.E.symm.trans h); exact UniverseTower.constOK_E ls
-  · cases Option.some.inj (K.P.symm.trans h); exact UniverseTower.constOK_P ls
+  · cases Option.some.inj (heq.1.symm.trans h); exact SetModel.constOK_Eq ls
+  · cases Option.some.inj (heq.2.1.symm.trans h); exact SetModel.constOK_EqRefl ls
+  · cases Option.some.inj (heq.2.2.1.symm.trans h); exact SetModel.constOK_EqRec ls
+  · cases Option.some.inj (K.T.symm.trans h); exact SetModel.constOK_T ls
+  · cases Option.some.inj (K.E.symm.trans h); exact SetModel.constOK_E ls
+  · cases Option.some.inj (K.P.symm.trans h); exact SetModel.constOK_P ls
   · cases Option.some.inj (K.H.symm.trans h)
-    have := UniverseTower.constOK_H (𝕋 := 𝕋) ls
+    have := SetModel.constOK_H (𝕋 := 𝕋) ls
     simpa [VExpr.instL, VExpr.eqApp, VLevel.inst] using this
-  · cases Option.some.inj (K.C.symm.trans h); exact UniverseTower.constOK_C ls
-  · cases Option.some.inj (K.Fix.symm.trans h); exact UniverseTower.constOK_Fix ls
+  · cases Option.some.inj (K.C.symm.trans h); exact SetModel.constOK_C ls
+  · cases Option.some.inj (K.Fix.symm.trans h); exact SetModel.constOK_Fix ls
 
 /-- The reduct template of the ι rule at levels `v`, `u`. -/
 def recRhs (v u : VLevel) : VExpr :=
   .lam (rA1 u) (.lam rA2 (.lam (rA3 v u) (.lam (rA4 u) (.bvar 0))))
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -210,7 +210,7 @@ theorem pat_core (heq : env.HasCanonicalEq) (K : KlopInventory env)
     rw [hc', recDen_app hα' ha' hM' hm' hb' ht, recBody, if_neg hfib, if_neg]
     exact fun h => h.2.2 hab
 
-end UniverseTower
+end SetModel
 
 /-- The registered reduct template of `Eq.rec`, level-instantiated. -/
 theorem eqRecRule_rhs_instL (ls : List VLevel) :
@@ -221,7 +221,7 @@ theorem eqRecRule_rhs_instL (ls : List VLevel) :
 
 /-- **The ι rule of `Eq.rec` is sound**: a matched redex with the semantic judgment and the
 head invariant is semantically equal to its registered reduct. -/
-theorem KlopInventory.sem_pat_core (𝕋 : UniverseTower) (heq : env.HasCanonicalEq)
+theorem KlopInventory.sem_pat_core (𝕋 : SetModel) (heq : env.HasCanonicalEq)
     (K : KlopInventory env)
     {Γ : List VExpr} {p : Pattern} {r : p.RHS × p.Check} {e A : VExpr} {m1 m2}
     (hp : env.pats p r) (hm : p.Matches e m1 m2)
@@ -230,7 +230,7 @@ theorem KlopInventory.sem_pat_core (𝕋 : UniverseTower) (heq : env.HasCanonica
     𝕋.Sem Γ e (r.1.apply m1 m2) A := by
   obtain ⟨rfl, hr⟩ := K.pats_only p r hp
   subst hr
-  refine UniverseTower.Sem.of_den_eq' He Hr fun ρ w hρ => ?_
+  refine SetModel.Sem.of_den_eq' He Hr fun ρ w hρ => ?_
   obtain ⟨recArgs, ctorArgs, lsC, h1, h2, rfl, hred⟩ :=
     SimplePattern.iotaRHS_apply_of_matches (k := 4) (nind := 1) (cnp := 2) (nf := 0)
       (rhs := eqRecRule.rhs) (hc := eqRecRule_closed) hm
@@ -240,7 +240,7 @@ theorem KlopInventory.sem_pat_core (𝕋 : UniverseTower) (heq : env.HasCanonica
   match recArgs, h1, ctorArgs, h2 with
   | [αt, at', Mt, mt, bt], _, [α', a'], _ =>
     rw [eqRecRule_rhs_instL] at Hr ⊢
-    exact UniverseTower.pat_core heq K hρ He (Hs ρ w hρ) Hr
+    exact SetModel.pat_core heq K hρ He (Hs ρ w hρ) Hr
 
 end VEnv.Strengthening
 end Lean4Lean

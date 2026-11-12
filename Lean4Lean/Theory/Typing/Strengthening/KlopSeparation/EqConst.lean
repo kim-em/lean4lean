@@ -12,8 +12,8 @@ namespace VEnv.Strengthening
 
 open Classical
 
-namespace UniverseTower
-variable {𝕋 : UniverseTower}
+namespace SetModel
+variable {𝕋 : SetModel}
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
@@ -68,10 +68,10 @@ theorem not_isCand_mkPi {D d : 𝕋.S} {F : 𝕋.S → 𝕋.S} (hd : d ∈ₛ �
       exact absurd hc (not_isCand_of_kind (kind_tPi ..) (by decide))
 
 /-- `α → Prop` as a semantic type. -/
-noncomputable def predTy (𝕋 : UniverseTower) (α : 𝕋.S) : 𝕋.S := 𝕋.mkPi α fun _ => 𝕋.tProp
+noncomputable def predTy (𝕋 : SetModel) (α : 𝕋.S) : 𝕋.S := 𝕋.mkPi α fun _ => 𝕋.tProp
 
 /-- `α → α → Prop` as a semantic type. -/
-noncomputable def relTy (𝕋 : UniverseTower) (α : 𝕋.S) : 𝕋.S := 𝕋.mkPi α fun _ => 𝕋.predTy α
+noncomputable def relTy (𝕋 : SetModel) (α : 𝕋.S) : 𝕋.S := 𝕋.mkPi α fun _ => 𝕋.predTy α
 
 theorem predTy_valid {n : Nat} {α : 𝕋.S} (hα : 𝕋.ValidAny (𝕋.univList n) α) :
     𝕋.ValidAny (𝕋.univList n) (𝕋.predTy α) :=
@@ -97,11 +97,11 @@ theorem relTy_tyRel {n : Nat} {α α' : 𝕋.S} (hα : 𝕋.ValidAny (𝕋.univL
     fun _ _ => predTy_tyRel hα hα' h
 
 /-- `fun b => a = b`. -/
-noncomputable def eqG (𝕋 : UniverseTower) (α a : 𝕋.S) : 𝕋.S :=
+noncomputable def eqG (𝕋 : SetModel) (α a : 𝕋.S) : 𝕋.S :=
   𝕋.mkLam α fun b => 𝕋.cand (𝕋.eqCand α a b)
 
 /-- `fun a b => a = b`. -/
-noncomputable def eqH (𝕋 : UniverseTower) (α : 𝕋.S) : 𝕋.S := 𝕋.mkLam α fun a => 𝕋.eqG α a
+noncomputable def eqH (𝕋 : SetModel) (α : 𝕋.S) : 𝕋.S := 𝕋.mkLam α fun a => 𝕋.eqG α a
 
 theorem eqG_mem {n : Nat} {α a : 𝕋.S} (hα : 𝕋.ValidAny (𝕋.univList n) α) (ha : a ∈ₛ 𝕋.El α) :
     𝕋.eqG α a ∈ₛ 𝕋.El (𝕋.predTy α) := by
@@ -196,6 +196,6 @@ theorem constOK_Eq (ls : List VLevel) : 𝕋.ConstOK ``Eq ls (canonicalEqType.in
     have hs : 𝕋.star ∈ₛ 𝕋.El (𝕋.cand Candidate.full) := star_mem_cand ⟨.bot, trivial⟩
     refine not_isCand_mkPi hs (not_isCand_mkPi hs not_isCand_tProp)
 
-end UniverseTower
+end SetModel
 end VEnv.Strengthening
 end Lean4Lean
