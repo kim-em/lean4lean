@@ -77,11 +77,13 @@ theorem predTy_valid {n : Nat} {α : 𝕋.S} (hα : 𝕋.ValidAny (𝕋.univList
     𝕋.ValidAny (𝕋.univList n) (𝕋.predTy α) :=
   mkPi_valid hα (fun _ _ => .tProp) (fun _ _ _ _ => rfl)
     (.inl fun _ _ hc => (not_isCand_tProp hc).elim)
+    (fun _ => famUnif_of_base fun _ _ => .inr (.inr kind_tProp))
 
 theorem relTy_valid {n : Nat} {α : 𝕋.S} (hα : 𝕋.ValidAny (𝕋.univList n) α) :
     𝕋.ValidAny (𝕋.univList n) (𝕋.relTy α) :=
   mkPi_valid hα (fun _ _ => predTy_valid hα) (fun _ _ _ _ => rfl)
     (.inl fun _ _ hc => mkPi_full hc fun _ _ hc' => (not_isCand_tProp hc').elim)
+    (fun _ => famUnif_const (predTy_valid hα))
 
 theorem predTy_tyRel {n : Nat} {α α' : 𝕋.S} (hα : 𝕋.ValidAny (𝕋.univList n) α)
     (hα' : 𝕋.ValidAny (𝕋.univList n) α') (h : 𝕋.TyRel α α') :
@@ -107,6 +109,7 @@ theorem eqG_mem {n : Nat} {α a : 𝕋.S} (hα : 𝕋.ValidAny (𝕋.univList n)
   refine mkLam_mem_mkPi (n := n) (fun _ _ => .tProp)
     (fun b _ => cand_mem_tProp (good_eqCand ..)) (fun b b' hb h => per.mem _ _ hb h)
     (fun b b' hb h => rel_tProp_eqCand ?_)
+    (piUnif_of_flat _ (predTy_valid hα) fun _ _ => flat_tProp)
   rw [eqCand_nonempty_iff per, eqCand_nonempty_iff per]
   exact and_congr_right fun _ =>
     ⟨fun h1 => per.trans _ _ _ ha h1 h, fun h1 =>
@@ -135,6 +138,7 @@ theorem eqH_mem {n : Nat} {α : 𝕋.S} (hα : 𝕋.ValidAny (𝕋.univList n) �
     𝕋.eqH α ∈ₛ 𝕋.El (𝕋.relTy α) :=
   mkLam_mem_mkPi (n := n) (fun _ _ => predTy_valid hα) (fun a ha => eqG_mem hα ha)
     (fun a a' ha h => hα.isPER.mem _ _ ha h) (fun a a' ha h => eqG_rel hα hα rfl ha h)
+    (piUnif_of_flat _ (relTy_valid hα) fun _ _ => flat_mkPi fun _ _ => flat_tProp)
 
 theorem eqH_rel {n : Nat} {α α' : 𝕋.S} (hα : 𝕋.ValidAny (𝕋.univList n) α)
     (hα' : 𝕋.ValidAny (𝕋.univList n) α') (hT : 𝕋.TyRel α α') :
@@ -165,9 +169,26 @@ theorem constOK_Eq (ls : List VLevel) : 𝕋.ConstOK ``Eq ls (canonicalEqType.in
   rw [hden, heq]
   have hv : ∀ α, α ∈ₛ 𝕋.El (𝕋.sortDen l) → 𝕋.ValidAny (𝕋.univList (sortLv l)) α :=
     fun α hα => (mem_sortDen hα).1
+  obtain ⟨N₀, hN₀⟩ := isSemTy_sortDen (𝕋 := 𝕋) l
+  have hfam : 𝕋.FamUnif (𝕋.sortDen l) fun α => 𝕋.relTy α := by
+    intro m I a ha hu
+    obtain ⟨k, hk⟩ := dp_bound_of_unif ha hu
+    exact dp_bound_mkPi (D := a) (F := fun i _ => 𝕋.predTy (a i)) ⟨k, hk⟩
+      ((dp_bound_mkPi (D := a) (F := fun _ _ => 𝕋.tProp) ⟨k, hk⟩
+        ⟨0, fun _ _ _ _ _ => .small (.inl (.inr (.inr kind_tProp)))⟩).imp
+        fun _ h i _ _ _ hl => h i hl)
+  have hvalid : 𝕋.ValidAny (𝕋.univList (max N₀ (sortLv l)))
+      (𝕋.mkPi (𝕋.sortDen l) fun α => 𝕋.relTy α) :=
+    mkPi_valid (hN₀.mono (Nat.le_max_left ..))
+      (fun α hα => (relTy_valid (hv α hα)).mono (Nat.le_max_right ..))
+      (fun α α' hα h => relTy_tyRel (hv α hα) (hv α' (tyRel_of_rel_sortDen hα h).1)
+        (tyRel_of_rel_sortDen hα h).2)
+      (.inl fun _ _ hc => mkPi_full hc fun _ _ hc' => mkPi_full hc' fun _ _ hc'' =>
+        (not_isCand_tProp hc'').elim) (fun _ => hfam)
   refine ⟨mkLam_mem_mkPi (n := sortLv l) (fun α hα => relTy_valid (hv α hα))
     (fun α hα => eqH_mem (hv α hα)) (fun α α' hα h => (tyRel_of_rel_sortDen hα h).1)
-    (fun α α' hα h => ?_), fun hcand => ?_⟩
+    (fun α α' hα h => ?_) (piUnif_of_flat _ hvalid fun _ _ =>
+      flat_mkPi fun _ _ => flat_mkPi fun _ _ => flat_tProp), fun hcand => ?_⟩
   · obtain ⟨hα', hT⟩ := tyRel_of_rel_sortDen hα h
     exact eqH_rel (hv α hα) (hv α' hα') hT
   · -- the type is a data type: its fibre at the full candidate is one

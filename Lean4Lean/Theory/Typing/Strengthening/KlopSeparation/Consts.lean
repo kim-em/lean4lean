@@ -95,7 +95,10 @@ theorem constOK_C (ls : List VLevel) :
   rw [h, hden]
   refine ⟨mkLam_mem_mkPi (n := 0) (fun _ _ => .tT) (fun d hd => tsucc_mem hd)
     (fun d d' hd h => (rel_tT_iff hd).1 h)
-    (fun d d' hd h => 𝕋.rel_tT (tsucc_mem hd) (tsucc_mem ((rel_tT_iff hd).1 h))), fun hc => ?_⟩
+    (fun d d' hd h => 𝕋.rel_tT (tsucc_mem hd) (tsucc_mem ((rel_tT_iff hd).1 h)))
+    (piUnif_of_flat (n := 0) _ (mkPi_valid .tT (fun _ _ => .tT) (fun _ _ _ _ => rfl)
+      (.inl fun _ _ hc => (not_isCand_tT hc).elim) fun _ => famUnif_of_base fun _ _ =>
+        .inr (.inl kind_tT)) fun _ _ => flat_tT), fun hc => ?_⟩
   rw [mkPi_tT_tT] at hc
   exact absurd hc (not_isCand_of_kind (kind_tPi ..) (by decide))
 

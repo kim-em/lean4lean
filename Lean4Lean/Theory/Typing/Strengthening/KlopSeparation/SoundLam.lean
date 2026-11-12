@@ -39,10 +39,13 @@ theorem lam_val_mem {D : 𝕋.S} {F : 𝕋.S → 𝕋.S} {v : PVal} (hc : 𝕋.I
 /-- The abstraction rule (`IsDefEqStrong.lamDF`). -/
 theorem Sem.lam {Γ : List VExpr} {A A' B body body' : VExpr} {u v : VLevel}
     (HA : 𝕋.Sem Γ A A' (.sort u)) (HB : 𝕋.Sem (A :: Γ) B B (.sort v))
-    (Hb : 𝕋.Sem (A :: Γ) body body' B) :
+    (Hb : 𝕋.Sem (A :: Γ) body body' B)
+    (HAU : 𝕋.SemU Γ A (.sort u)) (HBU : 𝕋.SemU (A :: Γ) B (.sort v))
+    (HbU : 𝕋.SemU (A :: Γ) body B) :
     𝕋.Sem Γ (.lam A body) (.lam A' body') (.forallE A B) := by
   have HPi : 𝕋.Sem Γ (.forallE A B) (.forallE A B) (.sort (.imax u v)) :=
-    Sem.forallE (HA.trans HA.symm) HB
+    Sem.forallE (HA.trans HA.symm) HB HBU
+  have HlamU := SemU.lam (HA.trans HA.symm) HB (Hb.trans Hb.symm) HAU HBU HbU
   -- membership, at any valuation
   have key : ∀ ρ w, 𝕋.ValOK Γ ρ w →
       𝕋.mem (𝕋.den ρ (.lam A body)) (𝕋.El (𝕋.den ρ (.forallE A B))) := by
@@ -53,12 +56,16 @@ theorem Sem.lam {Γ : List VExpr} {A A' B body body' : VExpr} {u v : VLevel}
     obtain ⟨hfib, -⟩ := HB.fibres hρ ⟨n, hAv⟩
     refine mkLam_mem_mkPi (n := sortLv v) (fun d hd => (mem_sortDen (hfib d hd).1).1)
       (fun d hd => ?_) (fun d d' hd hdd' => hAv.isPER.mem _ _ hd hdd') (fun d d' hd hdd' => ?_)
+      (fun hDc hall => SemDU.piUnif (d := fun ρ => 𝕋.den ρ body) HlamU hρ
+        (fun d hd => ⟨_, (mem_sortDen (hfib d hd).1).1⟩) (fun d hd => ?_) hDc hall)
     · obtain ⟨u', hu'⟩ := exists_valOK_cons hρ ⟨n, hAv⟩ hd
       exact (Hb _ _ hu').2.2.1
     · have hd' := hAv.isPER.mem _ _ hd hdd'
       obtain ⟨u₁, h₁⟩ := exists_valOK_cons hρ ⟨n, hAv⟩ hd
       obtain ⟨u₂, h₂⟩ := exists_valOK_cons hρ ⟨n, hAv⟩ hd'
       exact ((Hb _ _ h₁).2.2.2.2 _ _ h₂ (coRel_cons (coRel_refl hρ) rfl hdd')).2
+    · obtain ⟨u', hu'⟩ := exists_valOK_cons hρ ⟨n, hAv⟩ hd
+      exact (Hb _ _ hu').2.2.1
   intro ρ w hρ
   obtain ⟨-, hAA', hAm, -, hAr⟩ := HA ρ w hρ
   have hAty : 𝕋.IsSemTy (𝕋.den ρ A) := isSemTy_of_mem_sortDen hAm

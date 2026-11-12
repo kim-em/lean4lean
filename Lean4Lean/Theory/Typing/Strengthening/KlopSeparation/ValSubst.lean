@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Sound
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.SoundUnif
 
 /-! # Substitution on proof values
 

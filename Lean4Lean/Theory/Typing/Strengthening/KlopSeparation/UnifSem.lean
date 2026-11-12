@@ -310,6 +310,94 @@ theorem piUnif_of_unif {D : 𝕋.S} {F : 𝕋.S → 𝕋.S} {g : 𝕋.S}
     (h : 𝕋.Unif 0 PUnit (fun _ => 𝕋.tPi D F) (fun _ => g)) : 𝕋.PiUnif D F g :=
   Unif.congr (fun _ => (sameArgs_prePi D F).symm) h
 
+/-! ### Types without universes in result position -/
+
+/-- A type none of whose iterated results is a universe: every section of a tame family of
+such types is uniform (U5). -/
+inductive Flat (𝕋 : UniverseTower.{u}) : 𝕋.S → Prop where
+  | base {X} : 𝕋.IsBase X → Flat 𝕋 X
+  | pi {X} : 𝕋.kind X = 𝕋.tagN 4 → (∀ d, 𝕋.mem d (𝕋.El (𝕋.dom X)) → Flat 𝕋 (𝕋.fib X d)) →
+      Flat 𝕋 X
+  | piP {X} : 𝕋.kind X = 𝕋.tagN 5 → Flat 𝕋 (𝕋.cod X) → Flat 𝕋 X
+
+theorem Lf_of_flat (b : Nat × Nat) : ∀ (m : Nat) (I : World.{u}) (H s : I → 𝕋.S),
+    𝕋.Tame m H → 𝕋.FamLe m H b → (∀ i, 𝕋.Flat (H i)) → 𝕋.Lf b m I H s := by
+  induction b using (Prod.lex Nat.lt_wfRel Nat.lt_wfRel).wf.induction with
+  | _ b ih =>
+    intro m I H s hT hF hfl
+    refine Lf_iff.2 ⟨hT, hF, ⟨0, fun i hk => ?_⟩, ?_, ?_⟩
+    · cases hfl i with
+      | base hb => exact (not_isBase_of_kind hk (by omega) hb).elim
+      | pi hk' => exact absurd (kind_unique hk hk') (by decide)
+      | piP hk' => exact absurd (kind_unique hk hk') (by decide)
+    · intro b' hb I' φ a hk ha _ hTr hFr
+      refine ih b' hb m I' _ _ hTr hFr fun i' => ?_
+      cases hfl (φ i') with
+      | base hb => exact (not_isBase_of_kind (hk i').1 (by omega) hb).elim
+      | pi _ hf => exact hf _ (ha i')
+      | piP hk' => exact absurd (kind_unique (hk i').1 hk') (by decide)
+    · intro b' hb I' φ hk hTr hFr
+      refine ih b' hb m I' _ _ hTr hFr fun i' => ?_
+      cases hfl (φ i') with
+      | base hb => exact (not_isBase_of_kind (hk i').1 (by omega) hb).elim
+      | pi hk' => exact absurd (kind_unique (hk i').1 hk') (by decide)
+      | piP _ hf => exact hf
+
+theorem unif_of_flat {m : Nat} {I : World.{u}} {H : I → 𝕋.S} (hT : 𝕋.Tame m H)
+    (hfl : ∀ i, 𝕋.Flat (H i)) (s : I → 𝕋.S) : 𝕋.Unif m I H s := fun m' hm => by
+  obtain ⟨b, hb⟩ := exists_famLe_of_tame (hT.mono hm)
+  exact ⟨b, Lf_of_flat b m' I H s (hT.mono hm) hb hfl⟩
+
+theorem flat_mkPi {D : 𝕋.S} {F : 𝕋.S → 𝕋.S} (h : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.Flat (F d)) :
+    𝕋.Flat (𝕋.mkPi D F) := by
+  rcases mkPi_cases D F with ⟨hc, -⟩ | ⟨e, hDc, hne, -⟩ | ⟨e, -, -⟩
+  · exact .base (isBase_of_isCand hc)
+  · rw [e]
+    refine .piP (kind_tPiP ..) ?_
+    rw [cod_tPiP]
+    exact h _ (by rw [El_of_isCand_nonempty hDc hne]; exact 𝕋.mem_one.2 rfl)
+  · rw [e]
+    exact .pi (kind_tPi ..) fun d hd => by
+      have hd' := hd; rw [dom_tPi] at hd'
+      rw [fib_tPi hd']; exact h d hd'
+
+theorem flat_tProp : 𝕋.Flat 𝕋.tProp := .base (.inr (.inr kind_tProp))
+theorem flat_tT : 𝕋.Flat 𝕋.tT := .base (.inr (.inl kind_tT))
+theorem flat_cand (c : Candidate) : 𝕋.Flat (𝕋.cand c) := .base (.inl (kind_cand c))
+
+theorem mkPi_eq_tPi {D : 𝕋.S} {F : 𝕋.S → 𝕋.S} (hDc : ¬ 𝕋.IsCand D)
+    (hall : ¬ ∀ d, d ∈ₛ 𝕋.El D → 𝕋.IsCand (F d)) : 𝕋.mkPi D F = 𝕋.tPi D F := by
+  rw [mkPi, if_neg hDc, if_neg hall]
+
+/-- A function object into a family of types without universes in result position is
+uniform. -/
+theorem piUnif_of_flat {n : Nat} {D : 𝕋.S} {F : 𝕋.S → 𝕋.S} (g : 𝕋.S)
+    (hv : 𝕋.ValidAny (𝕋.univList n) (𝕋.mkPi D F)) (hfl : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.Flat (F d))
+    (hDc : ¬ 𝕋.IsCand D) (hall : ¬ ∀ d, d ∈ₛ 𝕋.El D → 𝕋.IsCand (F d)) : 𝕋.PiUnif D F g := by
+  have hfl' := flat_mkPi hfl
+  rw [mkPi_eq_tPi hDc hall] at hv hfl'
+  exact piUnif_of_unif (unif_of_flat (hv.tame_const 0 _) (fun _ => hfl') _)
+
+/-! ### Uniform families of fibres -/
+
+/-- A family all of whose fibres are base types is uniform. -/
+theorem famUnif_of_base {D : 𝕋.S} {F : 𝕋.S → 𝕋.S} (h : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.IsBase (F d)) :
+    𝕋.FamUnif D F := fun _ _ _ ha _ => ⟨0, fun i _ => .small (.inl (h _ (ha i)))⟩
+
+/-- A constant family at a valid type is uniform. -/
+theorem famUnif_const {n : Nat} {D X : 𝕋.S} (hX : 𝕋.ValidAny (𝕋.univList n) X) :
+    𝕋.FamUnif D fun _ => X := by
+  intro m I a _ _
+  by_cases hl : 𝕋.LvLe m X
+  · obtain ⟨k, hk⟩ := hX.exists_dpLe m hl
+    exact ⟨k, fun _ _ => hk⟩
+  · exact ⟨0, fun _ h => (hl h).elim⟩
+
+/-- A family of bounded depth at every level is uniform. -/
+theorem famUnif_of_bound {D : 𝕋.S} {F : 𝕋.S → 𝕋.S} {k : Nat}
+    (h : ∀ d, d ∈ₛ 𝕋.El D → ∀ m, 𝕋.DpLe m (F d) k) : 𝕋.FamUnif D F :=
+  fun m _ _ ha _ => ⟨k, fun i _ => h _ (ha i) m⟩
+
 end UniverseTower
 end VEnv.Strengthening
 end Lean4Lean
