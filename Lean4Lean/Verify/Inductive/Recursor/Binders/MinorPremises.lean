@@ -728,7 +728,6 @@ theorem inductionHypothesisTypeOriginOfInferredScope
     {decl : VInductDecl} {depth : Nat}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     {fieldTarget : VExpr}
@@ -837,7 +836,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
     rw [← R.lctx_eq, R.mlctx_wf.tr.fvars_eq]
     exact hfvScope
   have Hrun := mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope fv stats build
-    c R Hstats hconsume hlit hctx hfield prior hpriorFVars hinferredScope hrootUp
+    c R Hstats hlit hctx hfield prior hpriorFVars hinferredScope hrootUp
     (Q := fun target result => ∃ viTarget,
       TrExprS R.venv recLparams R.mlctx.vlctx
         (result.1.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) viTarget ∧
@@ -897,7 +896,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
     let motiveApp := Expr.app
       (mkAppN recInfos[target]!.motive targetIndices)
       (mkAppN (.fvar fv) args)
-    rcases hconsume c recLparams R.toSemantics Hvi HviType with
+    rcases consumeTypeAnnotationsDefEq c recLparams R.toSemantics Hvi HviType with
       ⟨consumedTarget, Hconsumed⟩
     change (Except.ok (current.lctx.mkForall args motiveApp,
       ({
@@ -931,7 +930,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
     refine Except.WF.pure
       ⟨consumedTarget, Hconsumed.unannotated, Hconsumed.isType, O, rfl, rfl, ?_⟩
     intro domain hfieldTyping htargetDecl hrecursive
-    have hcallUniverses := Hinput.callUniverses hconsume Htrace R hscopeUniverses.1
+    have hcallUniverses := Hinput.callUniverses Htrace R hscopeUniverses.1
       hfield (hscopeUniverses.2 _ Hinput.inference)
       (hinferredScope _ Hinput.inference) Hargs.toFVarArrayAfter
       Rcurrent.toBindingContextWF stats.params.size
@@ -1044,7 +1043,6 @@ theorem inductionHypothesisTypeOrigin
     {decl : VInductDecl} {depth : Nat}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     {fieldTarget : VExpr}
@@ -1128,7 +1126,7 @@ theorem inductionHypothesisTypeOrigin
             TypedCallTemplate stats
               (recInfos.map (·.motive)) R rootScope decl depth
               (.fvar fv) result.2 :=
-  inductionHypothesisTypeOriginOfInferredScope fv stats recInfos c R Hstats hconsume hlit
+  inductionHypothesisTypeOriginOfInferredScope fv stats recInfos c R Hstats hlit
     hctx hfield prior hpriorFVars
     ((getTypeFVarInRecursorContext.WF R hfield).mono fun _ ⟨_, hbelow, _, _, _⟩ =>
       hbelow rootScope hrootUp (by simpa only [FVarsIn] using hfieldScope))
@@ -1153,7 +1151,6 @@ theorem resultTypingOfMotiveApplications
     {decl : VInductDecl} {depth : Nat}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (Hfields : ∀ j (hj : j < u.size),
@@ -1242,7 +1239,7 @@ theorem resultTypingOfMotiveApplications
   rw [hfieldEq, hfieldBang]
   refine Except.WF.mono (Except.WF.and
     (inductionHypothesisTypeOrigin fv stats recInfos next
-      Rnext HstatsNext hconsume
+      Rnext HstatsNext
         (by simpa only [Hprior.venv_eq] using hlit) hctxNext HfieldAt
         _ hpriorFVars hfieldScope (Hprior.upsetRoot rootScopeInContext hrootUp)
         (by
@@ -1251,7 +1248,7 @@ theorem resultTypingOfMotiveApplications
         (Hbindings.motives.mono Hprior.contextExtension.contextLE) hrecords
         ?happCoarse)
     (inductionHypothesisTypeOriginOfInferredScope fv stats recInfos next
-      Rnext HstatsNext hconsume
+      Rnext HstatsNext
         (by simpa only [Hprior.venv_eq] using hlit) hctxNext HfieldAt
         _ hpriorFVars
         ((getTypeFVarRun.WF next fv (by
@@ -1327,7 +1324,6 @@ theorem resultTypingOfMotiveTelescopes
     {decl : VInductDecl} {depth : Nat}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (Hfields : ∀ j (hj : j < u.size),
@@ -1375,7 +1371,7 @@ theorem resultTypingOfMotiveTelescopes
     (AddInductive.mkRecInfos.loopUTemplates stats bu u recInfos 0 #[] #[]
       k c).WF Q :=
   resultTypingOfMotiveApplications stats bu u recInfos k R rootScope Hstats
-    hconsume hlit hctx Hfields hfieldsList hufields rootScopeInContext hrootUp
+    hlit hctx Hfields hfieldsList hufields rootScopeInContext hrootUp
     fieldScope HfieldsSharp sharpInContext hsharpUp
     hrootUniverses hsharpUniverses hfieldUniverses
     Htelescopes.applications Hbindings
@@ -2875,7 +2871,6 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
     (hprefix : ParameterPrefix stats 0 ctor.type tail)
     (htailScope : tail.FVarsIn
       (fun fv => fv ∈ ExprArrayFVarIds stats.params))
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (htail : TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget)
     (htailType : R.venv.IsType recLparams.length
@@ -3084,7 +3079,7 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
   subst lctx
   have HminorRawAt := HextAll.weakTrExprS HminorRaw'
   have HminorRawTypeAt := HextAll.weakIsType HminorRawType
-  rcases hconsume outCtx recLparams Rout.toSemantics HminorRawAt HminorRawTypeAt with
+  rcases consumeTypeAnnotationsDefEq outCtx recLparams Rout.toSemantics HminorRawAt HminorRawTypeAt with
     ⟨consumedTarget, Hconsumed⟩
   let HsuffixOut :=
     (Hsuffix.weakenRecent HfieldsRecent).weakenRecent HhypothesesRecent
@@ -3369,7 +3364,6 @@ theorem oneConstructorTyping {alpha : Type} {Q : alpha → Prop}
       (fun fv => fv ∈ ExprArrayFVarIds stats.params))
     (hparamUniverses : ParameterUniverseSupport c stats.params)
     (htailUniverses : tail.levelParamsIn c.lparams = true)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (htail : TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget)
@@ -3507,7 +3501,7 @@ theorem oneConstructorTyping {alpha : Type} {Q : alpha → Prop}
   apply mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent (Q := Q)
     stats ctor.type tail
       (mkAppN (.const ctor.name stats.levels) stats.params)
-      process c R Hstats hprefix hconsume hlit hctx htail Hsuffix htail₀ htail₀Ty
+      process c R Hstats hprefix hlit hctx htail Hsuffix htail₀ htail₀Ty
       htailType htailScope Hsuffix.parameterFVarsUp Hintro HintroType
   intro current Rargs terminal terminalTarget appliedTarget allFields
     recursiveFields fields positions args HterminalNonforall Hterminal
@@ -3655,7 +3649,6 @@ theorem oneConstructorTyping {alpha : Type} {Q : alpha → Prop}
     exact hfieldTypes fv (by simpa using hallExpr) decl hfind
   apply mkRecInfos.loopUTemplates.resultTypingOfMotiveTelescopes (Q := Q)
     stats allFields recursiveFields recInfos finish Rargs producerScope HstatsArgs
-      hconsume
       (by simpa only [HfieldsRecent.venv_eq] using hlit)
       hctxArgs
       (by
@@ -3740,7 +3733,7 @@ theorem oneConstructorTyping {alpha : Type} {Q : alpha → Prop}
     hhypothesesSize hcallsSize
   exact constructorMinorClosureTyping stats indTypes indTypeName dIdx
     recInfos ctor tail sourceConstructors sourceIndex hsourceConstructor
-    hsourceFamily k R Hsuffix Hstats hprefix htailScope hconsume hctx htail
+    hsourceFamily k R Hsuffix Hstats hprefix htailScope hctx htail
     htailType htail₀ htail₀Ty Hbindings Horigins Hblueprints
     HblueprintSemantics HminorSources HminorSemantics HmajorTypes HmajorShapes
     HmotiveTypes HmotiveShapes Htelescopes HindexRows Hparams HnoAlias Horder
@@ -3770,7 +3763,6 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     (Hsuffix : ParameterContextSuffix R.toSemantics stats depth)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (Hbindings : RecInfoBindings c recInfos)
@@ -3896,7 +3888,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
           dIdx next ctors k)
         R Hsuffix Hstats Hprefix HtailScope hparamUniverses
         (htailUniverses ctor (by simp) tail Hprefix)
-        hconsume hlit hctx Htail
+        hlit hctx Htail
         HtailType Htail₀ Htail₀Ty Hintro HintroType Hbindings Horigins Hblueprints
         HblueprintSemantics HminorSources
         HminorSemantics HmajorTypes
@@ -3983,7 +3975,6 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     (HsuffixCtx : ParameterContextSuffix R.toSemantics stats depth)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (Hbindings : RecInfoBindings c recInfos)
@@ -4088,7 +4079,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
       (by simp [getElem!_pos indTypes dIdx hfamily])
       (fun out => AddInductive.mkRecInfos.loopInd2 stats indTypes
         (dIdx + 1) out k)
-      R HsuffixCtx Hstats hconsume hlit hctx Hbindings
+      R HsuffixCtx Hstats hlit hctx Hbindings
       Horigins Hblueprints HblueprintSemantics HminorSources HminorSemantics
       HmajorTypes HmajorShapes
       HmotiveTypes HmotiveShapes
@@ -4112,7 +4103,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
         HmotiveTypesOut HmotiveShapesOut HtelescopesOut HindexRowsOut
         HparamsOut HnoAliasOut HorderOut HaritiesOut HrootOut
       refine resultTyping (root := root) (Q := Q) stats indTypes
-        (dIdx + 1) out k Rout HsuffixOut HstatsOut hconsume
+        (dIdx + 1) out k Rout HsuffixOut HstatsOut
         (by simpa only [henvOut] using hlit)
         hctxOut HbindingsOut HoriginsOut HblueprintsOut
         HblueprintSemanticsOut HminorSourcesOut

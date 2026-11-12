@@ -308,7 +308,6 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
     (htargetWF : target.toVConstant.WF Hc.venv)
     (htargetShape : decl.TypeShape Hc.venv params target)
     (hparamAt : stats.params[i]? = none)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
     (hbound : ∀ fieldLevel fieldLevel',
@@ -337,12 +336,12 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
         cases hfullForall with
         | @forallE fullDom fullBody _ _ _ _ _
             hdomFullType _ hdomFull hbodyFull =>
-          rcases hconsume c _ Hc.toSemantics hdomFull hdomFullType with
+          rcases consumeTypeAnnotationsDefEq c _ Hc.toSemantics hdomFull hdomFullType with
             ⟨consumedDom, Hdom⟩
           have henv := Hc.checking.tr.wf
           rcases halign.forallE_align henv hdomNarrow hdomNarrowType hbodyNarrow with
             ⟨dom₀, body₀, hdom₀, hdom₀Type, _hdomU, hbody₀, _⟩
-          rcases hconsume _ _ Hc.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
+          rcases consumeTypeAnnotationsDefEq _ _ Hc.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
             ⟨consumedDom₀, Hdom₀⟩
           have hparamNext : stats.params[i + 1]? = none := by
             rw [Array.getElem?_eq_none_iff] at hparamAt ⊢
@@ -356,11 +355,11 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
           | false =>
             have Hpos := checkPositivity.refinesScoped
               (ctor := ctor) (idx := i) Hc Hruntime halign Hstats
-              hconsume hlit hdomNarrow
+              hlit hdomNarrow
               (hdomFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
             have Huniform := checkPositivity.uniformNormalFormScoped
               (ctor := ctor) (idx := i) Hc Hruntime halign Hstats hlevels
-              hconsume hlit hdomNarrow
+              hlit hdomNarrow
               (hdomFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
             have Hboth : (AddInductive.checkPositivity stats dom ctor i c).WF
                 (fun recursive => decl.Positive Hc.venv scope.toCtx depth narrowDom ∧
@@ -610,7 +609,6 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesScoped
     (htargetWF : target.toVConstant.WF Hc.venv)
     (htargetShape : decl.TypeShape Hc.venv params target)
     (hparamAt : stats.params[i]? = none)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
     (hbound : ∀ fieldLevel fieldLevel',
@@ -635,7 +633,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesScoped
   have Htail := checkConstructors.loopCtor.tailRefinesScoped
     (params := params) (ctor := ctor) (fuel := fuel) Hc Hruntime halign Hstats hi
     htarget htargetUvars htargetLookup htargetWF htargetShape hparamAt
-    hconsume hlit hunsafe hbound hlevels htrNarrow htrFull
+    hlit hunsafe hbound hlevels htrNarrow htrFull
   exact Htail.mono fun _ htail => by
     obtain ⟨htail, _⟩ := htail
     subst narrowType
@@ -679,7 +677,6 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesOfTelescope
     (htargetWF : target.toVConstant.WF Hc.venv)
     (htargetShape : decl.TypeShape Hc.venv params target)
     (hparamAt : stats.params[decl.nparams]? = none)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
     (hbound : ∀ fieldLevel fieldLevel',
@@ -712,7 +709,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesOfTelescope
   apply checkConstructors.loopCtor.ctorShapeRefinesScoped
     (ctor := ctor) (fuel := fuel) Hc Hruntime halign Hstats hi htarget
     htargetUvars htargetLookup htargetWF htargetShape
-    hparamAt hconsume hlit hunsafe hbound hlevels
+    hparamAt hlit hunsafe hbound hlevels
     (normalized := VExpr.wrapForalls Hsynthesis.params current)
     (tail := current) (exprType := Hsynthesis.exprType)
     (ownParams := Hsynthesis.params)
@@ -753,7 +750,6 @@ theorem checkConstructors.loopCtor.refinesCtorShape
       some target.toVConstant)
     (htargetWF : target.toVConstant.WF Hc.venv)
     (htargetShape : decl.TypeShape Hc.venv params target)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
     (hbound : ∀ fieldLevel fieldLevel',
@@ -815,7 +811,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
           (Hsuffix.parameterEmbedding) halign
           Hstats hi htarget htargetUvars htargetLookup htargetWF htargetShape
           hparamAt
-          hconsume hlit hunsafe hbound hlevels
+          hlit hunsafe hbound hlevels
           (normalized := ctorVal.type) (tail := ctorVal.type)
           (exprType := exprType) (ownParams := [])
           (by simpa [Hstats.uvars] using hctorTyped)
@@ -831,7 +827,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
         (fuel := fuel + 1) Hc
         (Hsuffix.parameterEmbedding) halign
         Hstats hi htarget htargetUvars htargetLookup htargetWF
-        htargetShape hparamAt hconsume hlit hunsafe hbound hlevels
+        htargetShape hparamAt hlit hunsafe hbound hlevels
         (by simpa [hscope] using Hctor.type)
         (hchecked.2.1.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
       intro out hout
@@ -906,14 +902,14 @@ theorem checkConstructors.loopCtor.refinesCtorShape
             (ctor := ctor) (fuel := fuel' + 1) Hc
             (Hsuffix.parameterEmbedding) halign
             Hstats Hsynthesis' hi htarget htargetUvars htargetLookup
-            htargetWF htargetShape hparamAt hconsume hlit hunsafe
+            htargetWF htargetShape hparamAt hlit hunsafe
             hbound hlevels hparams htrNarrow htrFull
         have Htail := checkConstructors.loopCtor.tailRefinesScoped
           (params := params) (type := source') (i := decl.nparams)
           (ctor := ctor) (fuel := fuel' + 1) Hc
           (Hsuffix.parameterEmbedding) halign
           Hstats hi htarget htargetUvars htargetLookup htargetWF
-          htargetShape hparamAt hconsume hlit hunsafe hbound hlevels
+          htargetShape hparamAt hlit hunsafe hbound hlevels
           htrNarrow htrFull
         intro out hout
         have Hchecked := Hshape out hout

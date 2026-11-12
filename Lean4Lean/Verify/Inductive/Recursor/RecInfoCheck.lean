@@ -343,7 +343,6 @@ theorem ConstructorCheck.loopInd1WF
     (elimLevel : Level)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     (hlparams : c.lparams.Nodup)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (k : Array AddInductive.RecInfo -> AddInductive.M alpha)
     (Hk : forall {cOut : AddInductive.Context} {outDepth : Nat}
       (recInfos : Array AddInductive.RecInfo)
@@ -422,7 +421,7 @@ theorem ConstructorCheck.loopInd1WF
     change HparamsBase.fvars.Nodup
     exact Hmaterialized.parameterSuffix.paramsBound_nodup
   refine mkRecInfos.loopInd1.resultTyping Hbase stats indTypes elimLevel
-    Helim Hheaders hconsume 0 #[] k Rbase (by simp [Rbase, Hbase])
+    Helim Hheaders 0 #[] k Rbase (by simp [Rbase, Hbase])
     Hsuffix HparamsCtx
     Hstats (RecInfoBindings.empty _) (RecInfoBinderTypes.empty _)
     (TrBinderTypes.empty Rbase)
@@ -469,7 +468,6 @@ theorem ConstructorCheck.mkRecInfosWF
     (elimLevel : Level)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     (hlparams : c.lparams.Nodup)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.context.venv stats.indConsts)
     (k : Array AddInductive.RecInfo -> AddInductive.M alpha)
     (Hk : forall {cOut : AddInductive.Context} {outDepth : Nat}
@@ -520,7 +518,7 @@ theorem ConstructorCheck.mkRecInfosWF
         typeCheckerLParams := some <|
           AddInductive.getRecLevelParams elimLevel c.lparams }).WF Q := by
   unfold AddInductive.mkRecInfos
-  refine R.loopInd1WF elimLevel Helim hlparams hconsume
+  refine R.loopInd1WF elimLevel Helim hlparams
     (fun recInfos =>
       AddInductive.mkRecInfos.loopInd2 stats indTypes 0 recInfos k) ?_
   intro cFrames frameDepth recInfos Rframes henvFrames HsuffixFrames
@@ -542,7 +540,7 @@ theorem ConstructorCheck.mkRecInfosWF
       typeCheckerLParams := some <|
         AddInductive.getRecLevelParams elimLevel c.lparams }) (Q := Q)
     stats indTypes 0 recInfos k Rframes HsuffixFrames
-    HstatsFrames hconsume (by simpa only [henvFrames] using hlit)
+    HstatsFrames (by simpa only [henvFrames] using hlit)
     (checkInductiveTypes.loopType.MLCtxOnlyLams.noIndConsts
       Rframes.onlyLams)
     HbindingsFrames HoriginsFrames
@@ -610,7 +608,6 @@ theorem ConstructorCheck.getElimLevelMkRecInfosWF
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (hlparams : c.lparams.Nodup)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.context.venv stats.indConsts)
     (k : Level -> Bool -> Array AddInductive.RecInfo -> AddInductive.M alpha)
     (Hk : forall elimLevel,
@@ -682,7 +679,7 @@ theorem ConstructorCheck.getElimLevelMkRecInfosWF
           AddInductive.getRecLevelParams elimLevel c.lparams }).WF
         (KEligible stats indTypes) from
           AddInductive.isKTarget.checkedWF stats indTypes _).bind fun kTarget hk =>
-      R.mkRecInfosWF elimLevel hElim hlparams hconsume hlit
+      R.mkRecInfosWF elimLevel hElim hlparams hlit
         (k elimLevel kTarget) (Hk elimLevel hElim hElimRun kTarget hk)
 
 end VerifyInductive

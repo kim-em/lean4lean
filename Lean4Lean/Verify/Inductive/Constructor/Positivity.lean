@@ -1463,7 +1463,6 @@ theorem refinesScoped
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
       scope stats decl depth)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
     (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :
@@ -1518,11 +1517,11 @@ theorem refinesScoped
         cases hexposedFull with
         | @forallE fullDom fullBody _ _ _ _ _
             hdomFullType _ hdomFull hbodyFull =>
-          rcases hconsume c _ Hc.toSemantics hdomFull hdomFullType with
+          rcases consumeTypeAnnotationsDefEq c _ Hc.toSemantics hdomFull hdomFullType with
             ⟨consumedDom, Hdom⟩
           rcases halign.forallE_align henv hdomNarrow hdomNarrowType hbodyNarrow with
             ⟨dom₀, body₀, hdom₀, hdom₀Type, hdomU, hbody₀, _⟩
-          rcases hconsume _ _ Hc.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
+          rcases consumeTypeAnnotationsDefEq _ _ Hc.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
             ⟨consumedDom₀, Hdom₀⟩
           refine finish <| checkPositivityStep.forallE.sourceWF
             (Q := fun _ => decl.SyntacticallyPositive Hc.venv
@@ -1627,14 +1626,13 @@ theorem checkPositivity.refinesScoped
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
       scope stats decl depth)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
     (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :
     (AddInductive.checkPositivity stats type ctor idx c).WF
       (fun _ => decl.Positive Hc.venv scope.toCtx depth narrowType) := by
   apply checkPositivity.WF
-  exact checkPositivity.loop.refinesScoped Hc Hruntime halign Hstats hconsume
+  exact checkPositivity.loop.refinesScoped Hc Hruntime halign Hstats
     hlit htypeNarrow htypeFull
 
 

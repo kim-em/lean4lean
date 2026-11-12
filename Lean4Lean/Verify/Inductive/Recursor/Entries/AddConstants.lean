@@ -443,7 +443,6 @@ theorem AddInductive.declareRecursors.loop.typingWF
     (c : AddInductive.Context) (R : RecursorContextWF c recLparams)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams R.mlctx.vlctx
       stats decl depth)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (Hbindings : RecInfoBindings c recInfos)
@@ -608,7 +607,7 @@ theorem AddInductive.declareRecursors.loop.typingWF
           have hnextLe : sourceVEnv ≤ nextVEnv :=
             hle.trans (VEnv.addConst_le haddInfo)
           have Htail := AddInductive.declareRecursors.loop.typingWF Hcard
-            Hdecl c R Hstats hconsume hlit hctx Hbindings Horigins
+            Hdecl c R Hstats hlit hctx Hbindings Horigins
             Hblueprints HblueprintSemantics HminorSources HminorSemantics
             Hparams hnoalias hcounts hparameterUp Hseed numMinors numMotives
             all hnumMinors hnumMotives k isUnsafe
@@ -716,7 +715,6 @@ theorem AddInductive.declareRecursors.bindingWFOfTargets
     (R : RecursorContextWF c recLparams)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams R.mlctx.vlctx
       stats decl depth)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (Hcard : RecursorCounts stats recInfos decl)
@@ -798,7 +796,7 @@ theorem AddInductive.declareRecursors.bindingWFOfTargets
           c.lparams)
   refine Hcheck.bind fun _ Htypes => ?_
   have Hloop := AddInductive.declareRecursors.loop.typingWF
-      (elimLevel := elimLevel) Hcard Hdecl c R Hstats hconsume hlit
+      (elimLevel := elimLevel) Hcard Hdecl c R Hstats hlit
       hctx Hbindings Horigins Hblueprints HblueprintSemantics
       HminorSources HminorSemantics Hparams hnoalias hcounts hparameterUp Hseed
       (recInfos.flatMap (·.minors)).size

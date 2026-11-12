@@ -263,7 +263,6 @@ theorem checkConstructors.loopTypes.refinesChecked
     (hparams : Hmaterialized.headers.params = params)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length
       Hmaterialized.parameterScope Hc.chk.vlctx)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       Hc.venv stats.indConsts)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
@@ -321,7 +320,7 @@ theorem checkConstructors.loopTypes.refinesChecked
     have Hchecked := checkConstructors.loopCtor.refinesCtorShape
       (fuel := c.fuel.inductiveFuel) Hc Hsuffix Hstats halign hparamsCtx
       Hctor hchecked htarget rfl htargetUvars htargetLookup htargetWF
-      htargetShape hconsume hlit hunsafe (hbound targetIdx htarget) hlevels
+      htargetShape hlit hunsafe (hbound targetIdx htarget) hlevels
     exact Hchecked.mono fun fields Hresult => by
       rcases Hresult with
         ⟨tail, tailTarget, Hprefix, sourceDomains, Hcomparisons,

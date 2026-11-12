@@ -31,7 +31,6 @@ theorem firstStep.initializesAccumulator
     (hidx : 0 < indTypes.size)
     (hempty : stats.indConsts.isEmpty = true)
     (hparams : stats.params = #[])
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (Hrec : ∀ {c' : AddInductive.Context}
       {stats' : AddInductive.InductiveStats} {nindices : Nat}
       {resultSort : Level} {resultLevel : VLevel} {params : List VExpr},
@@ -121,7 +120,7 @@ theorem firstStep.initializesAccumulator
           indConsts := stats.indConsts.push
             (.const indTypes[0].name stats.levels) }
         AddInductive.checkInductiveTypes.loopInd nparams indTypes 1 stats k)
-      (Q := Q) hconsume
+      (Q := Q)
       (Hresult := by
         intro c' stats' type' current' i' nindices' Hc' henv' hsafety'
           hlparams' hallowPrimitive' hfuel' hempty' hlevels' hnindices'
@@ -334,7 +333,6 @@ theorem laterStep.extendsAccumulator
       Hc commonParams depth)
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
       some commonLevel)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (Hrec : ∀ {c' : AddInductive.Context} {nindices : Nat}
       {resultSort : Level} {resultLevel : VLevel},
       (Hc' : ContextWF c') →
@@ -522,7 +520,7 @@ theorem laterStep.extendsAccumulator
                 _ = Hsemantic.metadata ++
                     [(nindices'', resultLevel)] := by rw [hmetadataPrior]
             · exact Hambient'')
-          hconsume Hc rfl rfl rfl rfl (by simpa [Hc] using Hcache)
+          Hc rfl rfl rfl rfl (by simpa [Hc] using Hcache)
           (by simpa [Hc] using Hsuffix) (by simpa [Hc] using Hambient)
           ⟨Hsemantic, rfl, Htarget, rfl⟩ Hsynthesis' hparamsBoundary Hruntime
           HsuffixBase.headerCheck_paramAligned htypeNarrow' htypeFVars' htypeFull')
@@ -647,7 +645,6 @@ theorem laterLoopInd
     {rootVEnv : VEnv}
     {alpha : Type} (k : AddInductive.InductiveStats → AddInductive.M alpha)
     (Q : alpha → Prop)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (Hfinish : ∀ {c' : AddInductive.Context}
       {stats' : AddInductive.InductiveStats} {depth' : Nat},
       (Hc' : ContextWF c') →
@@ -721,11 +718,11 @@ theorem laterLoopInd
   by_cases hidx : dIdx < indTypes.size
   · apply laterStep.extendsAccumulator k Q Hc hidx hnoninitial
       hnonempty hparams hcommonParams Hcache Hsuffix Hsemantic Hambient
-      hcommon hconsume
+      hcommon
     intro c' nindices resultSort resultLevel Hc' henv' hsafety'
       hlparams' hallowPrimitive' hfuel' hvenv' Hcache' Hsuffix' Hsemantic'
       hmetadata' Hambient'
-    apply laterLoopInd k Q hconsume Hfinish Hc'
+    apply laterLoopInd k Q Hfinish Hc'
       (henv'.trans henvRoot) (hsafety'.trans hsafetyRoot)
       (hlparams'.trans hlparamsRoot)
       (hallowPrimitive'.trans hallowPrimitiveRoot)
@@ -788,7 +785,6 @@ theorem firstLoopInd
     {indTypes : Array InductiveType} {nparams : Nat}
     {alpha : Type} (k : AddInductive.InductiveStats → AddInductive.M alpha)
     (Q : alpha → Prop)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (Hc : ContextWF c)
     (Hfinish : ∀ {c' : AddInductive.Context}
       {stats' : AddInductive.InductiveStats} {depth' : Nat}
@@ -836,7 +832,7 @@ theorem firstLoopInd
     (AddInductive.checkInductiveTypes.loopInd nparams indTypes 0
       stats k c).WF Q := by
   apply firstStep.initializesAccumulator k Q Hc hctx hnonempty
-    hempty hparams hconsume
+    hempty hparams
   intro c' stats' nindices resultSort resultLevel params Hc' henv'
     hsafety' hlparams' hallowPrimitive' hfuel' hvenv' hlevels' hnindices'
     hconsts' Hsemantic hmetadata hofLevel Hcache Hsuffix Hambient
@@ -857,7 +853,7 @@ theorem firstLoopInd
           (indTypes.toList.take 1) := by
     apply Hsemantic.reindexSources
     simpa using (List.take_succ_eq_append_getElem hidxList).symm
-  apply laterLoopInd k Q hconsume Hfinish Hc' henv' hsafety'
+  apply laterLoopInd k Q Hfinish Hc' henv' hsafety'
     hlparams' hallowPrimitive' hfuel' hvenv' HsemanticTake
     (rootVEnv := Hc.venv)
     (dIdx := 1) (depth := nindices)
@@ -894,7 +890,6 @@ theorem checkInductiveTypes.accumulatesHeadersSourceAligned
     (Hc : ContextWF c)
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < indTypes.size)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (Hfinish : ∀ {c' : AddInductive.Context}
       {stats' : AddInductive.InductiveStats} {depth : Nat}
       {commonParams : List VExpr} {commonLevel : VLevel},
@@ -934,7 +929,7 @@ theorem checkInductiveTypes.accumulatesHeadersSourceAligned
   change (AddInductive.checkInductiveTypes.loopInd nparams indTypes 0
     { (default : AddInductive.InductiveStats) with
       levels := c.lparams.map .param } k c).WF Q
-  apply firstLoopInd k Q hconsume Hc Hfinish hctx hnonempty
+  apply firstLoopInd k Q Hc Hfinish hctx hnonempty
   · rfl
   · simp
   · rfl

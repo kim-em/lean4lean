@@ -517,7 +517,6 @@ theorem refinesRecursor
     (R : RecursorContextWF c recLparams)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
@@ -548,12 +547,12 @@ theorem refinesRecursor
     · rcases hforall with ⟨name, dom, body, bi, rfl⟩
       cases hexposed with
       | forallE hdomType _ hdom hbody =>
-        rcases hconsume c recLparams R.toSemantics hdom hdomType with
+        rcases consumeTypeAnnotationsDefEq c recLparams R.toSemantics hdom hdomType with
           ⟨consumedDom', Hdom⟩
         rcases Hdom.body hbody with ⟨body'', hbody'', hbodyEq⟩
         rcases TrExpr.forallE_source hnormalized₀ with
           ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, _, _⟩
-        rcases hconsume _ recLparams R.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
+        rcases consumeTypeAnnotationsDefEq _ recLparams R.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
           ⟨consumedDom₀, Hdom₀⟩
         rcases Hdom₀.body hbodyN₀ with ⟨body₀'', hbody₀'', _⟩
         refine withCheckedLocalDecl.WF (name := name) (bi := bi)
@@ -608,7 +607,6 @@ theorem isRecArg.refinesRecursor
     (R : RecursorContextWF c recLparams)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
@@ -628,7 +626,7 @@ theorem isRecArg.refinesRecursor
     rfl
   refine hread.bind fun _ h => ?_
   subst h
-  exact isRecArg.loop.refinesRecursor R Hstats hconsume hlit hctx
+  exact isRecArg.loop.refinesRecursor R Hstats hlit hctx
     htype htype₀
 
 /-- Recursive-domain metadata interpreted at an explicit universe arity.

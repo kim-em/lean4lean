@@ -244,7 +244,6 @@ argument telescope closed over the opened arguments and the exposed family
 arguments mention only `Us`, provided the inferred field type does and lies
 in a universe scope `P` of the root context. -/
 theorem LoopUArgsInput.callUniverses
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     {root : AddInductive.Context} {fv : FVarId}
     (Hinput : LoopUArgsInput root (.fvar fv))
     {current : AddInductive.Context} {exposed : Expr} {args : Array Expr}
@@ -282,7 +281,7 @@ theorem LoopUArgsInput.callUniverses
   have hnormalizedP : Hinput.normalizedType.FVarsIn P :=
     hnormalizedBelow P hscope.1 hinferredP
   obtain ⟨Rcurrent, P', _, _, _, hsc', hexposedU, _, hargs, _⟩ :=
-    trace.universeSupport hconsume RF hscope hnormalizedTr hinferredType
+    trace.universeSupport consumeTypeAnnotationsDefEq RF hscope hnormalizedTr hinferredType
       hnormalized₀ hnormalizedU hnormalizedP
   refine ⟨?_, ?_⟩
   · have hargTypes : ∀ x ∈ Hargs.fvars, ∀ decl,

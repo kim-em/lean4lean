@@ -152,7 +152,6 @@ theorem motiveSourceReplay
     {Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel}
     (Hheader : mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl
       baseDepth source dIdx)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     {R : RecursorContextWF current
       (AddInductive.getRecLevelParams elimLevel base.lparams)}
     (Rindices : RecursorContextWF cIndices
@@ -260,7 +259,7 @@ theorem motiveSourceReplay
       Rindices.chk.vlctx.toCtx famChk :=
     (HfamNarrow.2.2.defeqU_l henvR halign.wf.toCtx HfamChkEq).defeqDFC
       henvR.ordered halign.defeqCtx
-  rcases hconsume _ _ Rindices.atCheckLCtx.toSemantics HfamChk HfamChkType with
+  rcases consumeTypeAnnotationsDefEq _ _ Rindices.atCheckLCtx.toSemantics HfamChk HfamChkType with
     ⟨majorChk, HmajorChk⟩
   have HmotiveChk := Rindices.scopedMotiveClosure indices.size hnChk
     indices hxsChk HmajorChk.unannotated HmajorChk.isType
@@ -787,7 +786,6 @@ theorem motiveDecl
     {Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel}
     (Hheader : mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl
       baseDepth source dIdx)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     {R : RecursorContextWF current
       (AddInductive.getRecLevelParams elimLevel base.lparams)}
     (Hsuffix : ParameterContextSuffix R.toSemantics stats runtimeDepth)
@@ -979,7 +977,7 @@ theorem motiveDecl
   -- The motive rebuilt in the checker context of the index loop.
   obtain ⟨motiveSourceTarget, HmotiveSourceTr, HmotiveSourceType,
       HmotiveSourceCanonical, HmotiveSourceWF⟩ :=
-    motiveSourceReplay Hheader hconsume Rindices henvIndices Hsynthesis
+    motiveSourceReplay Hheader Rindices henvIndices Hsynthesis
       HnarrowStats Hruntime hfront halign HnarrowIndices hindexCount
       hcanonical Hrecent harity Hframe.resultLevelOf hmotiveSourceScope'
       hmotiveSourceScopeCtx
@@ -1152,7 +1150,6 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     (Hheaders : ∀ i (hi : i < indTypes.size),
       mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl
         baseDepth indTypes[i] i)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
     (k : Array AddInductive.RecInfo → AddInductive.M alpha)
     (R : RecursorContextWF current
@@ -1255,7 +1252,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
         AddInductive.withCheckLCtx L
           (AddInductive.mkRecInfos.loopArgs1 stats normalized 0 #[]
             current.fuel.inductiveFuel loopK)) current).WF Q
-    refine Hheader.startRecursorTyping Helim R hconsume henv
+    refine Hheader.startRecursorTyping Helim R henv
       Hsuffix (HparamsCtx dIdx hidx) Hstats hparamU Hroot.lparams_eq
       loopK ?_ current.fuel.inductiveFuel
     · intro cIndices nextDepth Rindices henvIndices HsuffixIndices
@@ -1270,7 +1267,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
         rw [if_pos harity]
         rcases Hheader.recursorFrame Helim R Rindices Hsynthesis
             HnarrowStats Hruntime HnarrowIndices hindexCount hcanonical
-            harity henvIndices hconsume Hrecent with ⟨Hframe⟩
+            harity henvIndices Hrecent with ⟨Hframe⟩
         let majorTy :=
           ((mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
             indices).consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper)
@@ -1443,7 +1440,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
                 [] S.canonical.params.reverse
                   Hsuffix.parameterDecls.toCtx := by
           rw [hprogress]
-          exact motiveDecl Hheader hconsume Hsuffix Hroot Rindices
+          exact motiveDecl Hheader Hsuffix Hroot Rindices
             henvIndices Hsynthesis hcanonicalParams hscopeBase HnarrowStats
             Hruntime hfront halign HnarrowIndices hindexCount hcanonical
             HindexOrigins.bound Hrecent hindexUniverses harity Hframe
@@ -1462,7 +1459,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
           rw [hsrc]
           exact HindexTrace.mono (hMajorFrame.trans hMotiveFrame)
         refine resultTyping Hbase stats indTypes elimLevel Helim Hheaders
-          hconsume (dIdx + 1)
+          (dIdx + 1)
           (recInfos.push {
             motive := .fvar ⟨cMajor.ngen.curr⟩
             minors := #[]
@@ -1521,7 +1518,6 @@ theorem resultRecursiveDomain {alpha : Type}
     {decl : VInductDecl} {recLparams : List Name}
     {root : AddInductive.Context}
     (Rroot : RecursorContextWF root recLparams)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       Rroot.venv stats.indConsts)
     {initialType uiTy : Expr} {xs : Array Expr} {fuel : Nat}
@@ -1608,13 +1604,13 @@ theorem resultRecursiveDomain {alpha : Type}
       rcases TrExpr.forallE_source htype with
         ⟨sourceDom, sourceBody, hdom, hbody, hdomType,
           hbodyType, hforallEq⟩
-      rcases hconsume c recLparams R.toSemantics hdom hdomType with
+      rcases consumeTypeAnnotationsDefEq c recLparams R.toSemantics hdom hdomType with
         ⟨consumedDom, Hdom⟩
       rcases Hdom.body hbody with
         ⟨consumedBody, hbodyConsumed, hbodyEq⟩
       rcases TrExpr.forallE_source htype₀ with
         ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, hbodyN₀Type, hforallEq₀⟩
-      rcases hconsume _ recLparams R.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
+      rcases consumeTypeAnnotationsDefEq _ recLparams R.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
         ⟨consumedDom₀, Hdom₀⟩
       rcases Hdom₀.body hbodyN₀ with
         ⟨consumedBody₀, hbodyConsumed₀, hbodyEq₀⟩
@@ -1907,7 +1903,6 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
     {decl : VInductDecl} {depth : Nat}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     {fieldTarget : VExpr}
@@ -2042,7 +2037,7 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
     normalized #[] c.fuel.inductiveFuel { c with checkLCtx := F }).WF _
   have Hloop := mkRecInfos.loopUArgs.loop.resultRecursiveDomain
     (fuel := c.fuel.inductiveFuel) (.fvar fv) stats k RF
-    hconsume hlit RF Hstats hctx hnormalizedTr hinferredType hnormalized₀
+    hlit RF Hstats hctx hnormalizedTr hinferredType hnormalized₀
     hfieldType₀Ty
     (FVarSuffix.empty RF.toSemantics)
     (M₀ := RF.chk) (T₀ := fieldType₀)
