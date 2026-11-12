@@ -536,8 +536,7 @@ theorem RestorationTablesAgree.agreement {decl : VInductDecl}
     recursorName := D.recursorName
     recursorNotHead := ?_
     headNone := ?_
-    head := ?_
-    ctorTarget := ?_ }
+    head := ?_ }
   · intro c new h hmem
     rw [compilationRestoration_heads_auxiliary] at hmem
     exact D.recursorNotHead c new h hmem
@@ -605,18 +604,6 @@ theorem RestorationTablesAgree.agreement {decl : VInductDecl}
           Expr.mkAppN_eq_mkAppList, ← hauxEq, hrename a ha ctor hctor] at hv
         exact AuxiliaryContainerApp.reopenedTranslation hdom hlvls hYs hlevels hAs hsize hTr _
           (by simpa using hv)
-  · intro c nested auxI _ hget
-    obtain ⟨info, hc, hn, rfl⟩ := getNestedIfAuxCtor_eq_some hget
-    obtain ⟨a, ha, hauxEq, envS, domains, lvls, Ys, hdom, hab, hlvls, hYs⟩ :=
-      D.familyKey _ nested hn
-    obtain ⟨ctor, hctor, rfl⟩ := D.ctorLookup c info hc a ha hauxEq.symm
-    refine ⟨a.source.name, lvls, ?_, ?_⟩
-    · obtain ⟨xs, hxs⟩ := D.paramsFVars
-      rw [hxs, Expr.abstractN_eq] at hab
-      exact abstractN_getAppFn_const nested 0
-        (by rw [hab, Expr.getAppFn_mkAppList_const])
-    · rw [compilationRestoration_restoredHeadName_constructor D.headNodup ha hctor,
-        ← hauxEq, hrename a ha ctor hctor]
 
 /-! ### Per-family link data of a lowering run -/
 

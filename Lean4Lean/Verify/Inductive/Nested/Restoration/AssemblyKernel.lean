@@ -262,7 +262,7 @@ theorem NestedRun.constructorParameterAlignment
     {installedVEnv : VEnv} (hinstalled : B.recursorVEnv ≤ installedVEnv) :
     ConstructorParameterAlignment safety outEnv installedVEnv := by
   let I : NestedInstalledRun result sourceProdEnv sourceTypes (ves.venv safety) decl lparams
-      nparams isUnsafe safety outEnv L := { toNestedRun := E, assembly := B, lowered_eq := hB }
+      nparams isUnsafe safety outEnv L := { toNestedRun := E, assembly := B }
   have Hlower : NestedLoweringOutputClosed I.context.env E.validationFuel.inductiveFuel nparams
       sourceTypes
       { ({ lvls := lparams.map .param, newTypes := #[] } : Lean4Lean.ElimNestedInductive.State)

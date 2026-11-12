@@ -61,7 +61,6 @@ structure ClosedNestedOccurrenceTyping
     (e : Expr) where
   /-- The type inferred for the open application by validation. -/
   type : Expr
-  typeClosed : Closed type
   domains : List VExpr
   residualTarget : VExpr
   residualType : VExpr
@@ -158,7 +157,7 @@ theorem ClosedNestedOccurrencesTyped.residualTranslations
     ClosedNestedOccurrenceTypings venv lparams res selection := by
   intro name e hfind
   rcases H name e hfind with
-    ⟨hclosedE, type, domains, body, bodyType, htypeClosed, harity, Hlambda,
+    ⟨hclosedE, type, domains, body, bodyType, -, harity, Hlambda,
       Hforall, Htyping⟩
   have Htel : Expr.LambdaTelescope (res.lctx.mkLambda res.params e)
       domains.length (e.abstractList selection.fvars) := by
@@ -171,7 +170,7 @@ theorem ClosedNestedOccurrencesTyped.residualTranslations
     exact Htel
   have Hresidual := TrExprS.lambdaTelescope_exact_residual Htel rfl Hlambda
   have Hbody := (VEnv.HasType.wrapLams_inv henv (by trivial) Htyping).2
-  exact ⟨⟨type, htypeClosed, domains, body, bodyType, harity, Hforall,
+  exact ⟨⟨type, domains, body, bodyType, harity, Hforall,
     Hresidual, by simpa [abstractForallContext_toCtx, VLCtx.toCtx] using Hbody⟩⟩
 
 

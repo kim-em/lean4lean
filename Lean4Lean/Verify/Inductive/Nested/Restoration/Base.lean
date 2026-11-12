@@ -77,7 +77,6 @@ structure RestoredBlockBase
   recursorValues : recursorEntries.map Prod.snd = sourceRecursors ++ auxiliaryRecursors
   formationAssembly : NestedExpansionData sourceEnv decl
   formationExpanded : formationAssembly.expanded = loweredDecl
-  checked : SourcePrefixOfLowered decl loweredDecl
   uvars : decl.uvars = lparams.length
   numParams : decl.nparams = nparams
   unsafeEq : decl.isUnsafe = isUnsafe

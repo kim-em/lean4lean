@@ -935,43 +935,6 @@ theorem NodeReplacementResolved.mapping
   exact ⟨value, targetName, levels, auxName, auxLevels, nested, Hcandidate,
     hauxLevels, hhead, hreplacement, hnested, hlookup⟩
 
-/-- A mapped replacement introduces only its selected parameter variables;
-all trailing arguments are inherited from the source application. -/
-theorem NodeReplacementHasResolvedMapping.outputFVarsIn
-    (H : NodeReplacementHasResolvedMapping env params As input state
-      lowered finalResult)
-    (Hselection : CDeclArray lctx As)
-    (Hinput : input.FVarIdsIn (· ∈ Hselection.fvars)) :
-    lowered.FVarIdsIn (· ∈ Hselection.fvars) := by
-  rcases H with
-    ⟨value, targetName, levels, auxName, auxLevels, nested,
-      Hcandidate, _hauxLevels, hhead, hlowered, hnested, hlookup⟩
-  have HAs : ∀ arg ∈ As.toList,
-      arg.FVarIdsIn (· ∈ Hselection.fvars) := by
-    intro arg harg
-    rw [Hselection.expressions] at harg
-    rcases List.mem_map.mp harg with ⟨fv, hfv, rfl⟩
-    simpa [Expr.FVarIdsIn] using hfv
-  rw [hlowered]
-  rw [Expr.mkAppRange_to_end _ _ _ Hcandidate.parameters.arity]
-  apply Expr.FVarIdsIn.mkAppList.mpr
-  constructor
-  · rw [Expr.mkAppN_eq_mkAppList]
-    exact Expr.FVarIdsIn.mkAppList.mpr
-      ⟨by simp [Expr.FVarIdsIn], HAs⟩
-  · intro arg harg
-    apply Hinput.getAppArgsList
-    rw [← Expr.getAppArgs_toList]
-    exact List.mem_of_mem_drop harg
-
-theorem NodeReplacementResolved.outputFVarsIn
-    (H : NodeReplacementResolved env lctx params As input state lowered
-      nextState finalResult finalState)
-    (Hselection : CDeclArray lctx As)
-    (Hinput : input.FVarIdsIn (· ∈ Hselection.fvars)) :
-    lowered.FVarIdsIn (· ∈ Hselection.fvars) :=
-  H.mapping.outputFVarsIn Hselection Hinput
-
 /-- A mapped lowering leaf after reopening its cached source application with
 the parameter array chosen by restoration. -/
 def NodeReplacementReopens
@@ -1292,38 +1255,6 @@ inductive ExprLowering.Resolved
       (body', outState) →
       ExprLowering.Resolved env lctx params As finalResult (.proj name idx body) state
         (Expr.updateProj! (.proj name idx body) body', outState)
-
-/-- Nested lowering preserves free-variable-ID scoping. Replaced occurrences use
-`outputFVarsIn`; other nodes inherit the property componentwise. -/
-theorem ExprLowering.Resolved.outputFVarIdsIn
-    (H : ExprLowering.Resolved env lctx params As finalResult input state out)
-    (Hselection : CDeclArray lctx As)
-    (Hinput : input.FVarIdsIn (· ∈ Hselection.fvars)) :
-    out.1.FVarIdsIn (· ∈ Hselection.fvars) := by
-  induction H with
-  | occurrence Hnode => exact Hnode.outputFVarsIn Hselection Hinput
-  | bvar | fvar | mvar | sort | const | lit => exact Hinput
-  | app Hnode Hfn Harg ihFn ihArg =>
-    simp only [Expr.FVarIdsIn] at Hinput
-    simpa [Expr.updateApp!, Expr.FVarIdsIn] using
-      And.intro (ihFn Hinput.1) (ihArg Hinput.2)
-  | lam Hnode Hdom Hbody ihDom ihBody =>
-    simp only [Expr.FVarIdsIn] at Hinput
-    simpa [Expr.updateLambdaE!, Expr.FVarIdsIn] using
-      And.intro (ihDom Hinput.1) (ihBody Hinput.2)
-  | forallE Hnode Hdom Hbody ihDom ihBody =>
-    simp only [Expr.FVarIdsIn] at Hinput
-    simpa [Expr.updateForallE!, Expr.FVarIdsIn] using
-      And.intro (ihDom Hinput.1) (ihBody Hinput.2)
-  | letE Hnode Htype Hvalue Hbody ihType ihValue ihBody =>
-    simp only [Expr.FVarIdsIn] at Hinput
-    simpa [Expr.updateLet!, Expr.FVarIdsIn] using
-      And.intro (ihType Hinput.1)
-        (And.intro (ihValue Hinput.2.1) (ihBody Hinput.2.2))
-  | mdata Hnode Hbody ihBody =>
-    simpa [Expr.updateMData!, Expr.FVarIdsIn] using ihBody Hinput
-  | proj Hnode Hbody ihBody =>
-    simpa [Expr.updateProj!, Expr.FVarIdsIn] using ihBody Hinput
 
 /-- Nested lowering preserves bound-variable closedness at every depth: a
 replacement swaps a closed parameter prefix for an auxiliary head applied to the

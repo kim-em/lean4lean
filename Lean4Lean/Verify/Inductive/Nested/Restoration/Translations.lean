@@ -20,20 +20,6 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- One executable auxiliary recursor restoration step: the translated
-recursor constant and the abstract rule batch of the step, of the restored
-length. The record fixes no equation syntax; the rules are fixed by the
-compilation of the nested installation. -/
-structure AuxiliaryRecursorRuleBatch
-    (safety : DefinitionSafety) (trEnv : VEnv)
-    (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
-      oldRecName sourceEnv targetEnv) where
-  recursor : VConstVal
-  rules : List VDefEq
-  translated : TrConstVal safety trEnv
-    (.recInfo Hstep.restored.newInfo) recursor
-  rulesLength : rules.length = Hstep.restored.newInfo.rules.length
-
 /-- Translation, typing and shape of one restored source recursor. -/
 structure SourceRecursorTranslation
     (decl : VInductDecl) (owner : VInductiveType)
@@ -48,7 +34,6 @@ structure SourceRecursorTranslation
     Hstep.restored.newInfo.type recursor.type
   name : recursor.name = Hstep.restored.newRecName
   wf : recursor.toVConstant.WF sourceVEnv
-  shape : Nonempty (decl.NestedRecursorShape owner recursor)
 
 /-- The abstract source recursor of one source family. It mentions neither the
 lowered declaration nor any executable restoration step: it is the abstract

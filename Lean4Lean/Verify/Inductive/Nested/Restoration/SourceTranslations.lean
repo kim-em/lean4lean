@@ -576,8 +576,7 @@ theorem NestedLoweringOutputClosed.sourceInductiveTypingAtFreshExactOwner
     uvars := Hrefine.uvars
     type := Hrefine.type
     name := HrecName
-    wf := HrecWF
-    shape := HsourceRec.shape }
+    wf := HrecWF }
   exact ⟨⟨{
     owner := sourceDecl.types[familyIdx]'hdecl
     header := Hsource.header

@@ -985,9 +985,6 @@ structure LoweredOccurrenceSpine
   nested : Expr
   candidate : NestedOccurrence prodEnv state input value
   inputHead : input.getAppFn = .const targetName levels
-  replacement : output = mkAppRange
-    (mkAppN (.const auxName concreteAuxLevels) As)
-    value.numParams input.getAppArgs.size input.getAppArgs
   nested_eq : (nested ==
     ((mkAppRange (.const targetName levels) 0 value.numParams
       input.getAppArgs).abstract As).instantiateRev result.params) = true
@@ -1042,7 +1039,6 @@ theorem NodeReplacementResolved.targetSpine
       nested := nested
       candidate := Hcandidate
       inputHead := hhead
-      replacement := hreplacement
       nested_eq := hnested
       resultLookup := hlookup
       auxiliaryLevels := _

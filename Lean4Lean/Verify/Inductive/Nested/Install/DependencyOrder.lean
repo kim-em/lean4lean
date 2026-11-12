@@ -585,11 +585,8 @@ def AuxiliaryRecursorTranslation.ofTypeTranslation
   translated := ⟨⟨hsafety, rfl, Htranslation⟩, rfl⟩
   wf := Htype
 
-/-- A restoration step whose source name occurs in the exact generated
-recursor batch determines its generated owner and complete restoration
-telescope alignment.  No semantic recursor payload is selected here: the
-installed entry position and the concrete restoration lookup force the
-owner and old `RecursorVal`. -/
+/-- A source name that occurs in the exact generated recursor batch determines its
+generated owner: the installed entry position forces the owner. -/
 theorem RecursorInstallation.restoredTelescopeAlignmentOfGeneratedName
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -597,17 +594,11 @@ theorem RecursorInstallation.restoredTelescopeAlignmentOfGeneratedName
     {ctorEnv loweredEnv : Environment}
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
     (Hprod : RecursorInstallation R loweredEnv)
-    (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
-      oldRecName sourceProdEnv targetProdEnv)
+    {oldRecName : Name}
     (hgenerated : oldRecName ∈
-      (Hprod.entries.map Prod.snd).map (·.name))
-    (hresultNparams : result.nparams = nparams)
-    (hresultParams : result.params.size = result.nparams) :
-    ∃ ownerIdx, ∃ hentry : ownerIdx < Hprod.entries.length,
-      oldRecName = Lean.mkRecName indTypes[ownerIdx]!.name ∧
-        Nonempty (RestoredRecursorTelescopeAlignment result
-          loweredEnv auxRec Hstep.restored.newInfo
-            (Hprod.generated.entry ownerIdx hentry)) := by
+      (Hprod.entries.map Prod.snd).map (·.name)) :
+    ∃ ownerIdx, ownerIdx < Hprod.entries.length ∧
+      oldRecName = Lean.mkRecName indTypes[ownerIdx]!.name := by
   rcases List.mem_map.mp hgenerated with ⟨value, hvalue, hvalueName⟩
   rcases List.mem_iff_getElem.mp hvalue with ⟨ownerIdx, hentry, hentryValue⟩
   have hentry' : ownerIdx < Hprod.entries.length := by simpa using hentry
@@ -626,9 +617,7 @@ theorem RecursorInstallation.restoredTelescopeAlignmentOfGeneratedName
         rw [E.source_eq]
         rfl
       _ = Lean.mkRecName indTypes[ownerIdx]!.name := E.name
-  exact ⟨ownerIdx, hentry', holdRecName,
-    Hprod.restoredSourceTelescopeAlignment ownerIdx hentry' Hstep
-      holdRecName hresultNparams hresultParams⟩
+  exact ⟨ownerIdx, hentry', holdRecName⟩
 
 /-- Generated-entry alignment for one concrete auxiliary restoration
 step.  The owner is an output, not a caller-selected index. -/
@@ -644,9 +633,6 @@ structure AuxiliaryRecursorGeneratedAlignment
   ownerIdx : Nat
   entry_lt : ownerIdx < Hprod.entries.length
   oldRecName_eq : oldRecName = Lean.mkRecName indTypes[ownerIdx]!.name
-  alignment : RestoredRecursorTelescopeAlignment result
-    loweredEnv auxRec Hstep.restored.newInfo
-      (Hprod.generated.entry ownerIdx entry_lt)
 
 /-- The concrete auxiliary fold, together with generated-name membership,
 determines a generated-entry telescope alignment at every state transition.
@@ -691,21 +677,19 @@ theorem FoldSteps.generatedAlignmentTrace
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv)
     (hgenerated : ∀ name ∈ names,
-      name ∈ (Hprod.entries.map Prod.snd).map (·.name))
-    (hresultNparams : result.nparams = nparams)
-    (hresultParams : result.params.size = result.nparams) :
+      name ∈ (Hprod.entries.map Prod.snd).map (·.name)) :
     AuxiliaryRecursorGeneratedAlignments Hprod Htrace := by
   induction Htrace with
   | @nil source => exact .nil source
   | @cons head source middle tail target Hstep Htail ih =>
-      rcases Hprod.restoredTelescopeAlignmentOfGeneratedName Hstep
-          (hgenerated head (by simp)) hresultNparams hresultParams with
-        ⟨ownerIdx, hentry, holdRecName, ⟨Halignment⟩⟩
+      rcases Hprod.restoredTelescopeAlignmentOfGeneratedName
+          (hgenerated head (by simp)) with
+        ⟨ownerIdx, hentry, holdRecName⟩
       have hgeneratedTail : ∀ name ∈ tail,
           name ∈ (Hprod.entries.map Prod.snd).map (·.name) := by
         intro name hname
         exact hgenerated name (by simp [hname])
-      exact .cons Hstep Htail ⟨ownerIdx, hentry, holdRecName, Halignment⟩
+      exact .cons Hstep Htail ⟨ownerIdx, hentry, holdRecName⟩
         (ih hgeneratedTail)
 
 /-- Every name selected by the executable auxiliary-recursion suffix is an
@@ -781,10 +765,8 @@ theorem NestedRestorationFolds.generatedAlignmentTraceOfKernel
       ((), targetProdEnv)) :
     AuxiliaryRecursorGeneratedAlignments Hprod H.auxiliaries := by
   apply H.auxiliaries.generatedAlignmentTrace Hprod
-  · intro name hname
-    exact Hlower.auxRecNameGeneratedAtFresh Hc Hprod hempty hname
-  · exact Hlower.toResult.resultNParams
-  · exact Hlower.resultParamsSize
+  intro name hname
+  exact Hlower.auxRecNameGeneratedAtFresh Hc Hprod hempty hname
 
 /-- Pre-rule auxiliary recursor translations, synchronized directly with
 the executable restoration fold. This relation has no dependency on an

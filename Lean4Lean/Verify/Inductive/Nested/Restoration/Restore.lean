@@ -59,7 +59,7 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   obtain ⟨hV, Cstrip⟩ := E.strippedChecker B hBlowered wf Hchecked Hparameters hnested
   obtain ⟨recs, auxiliaries, block, envR, outVEnv, hcontainers, hcompiled, hrecsOf, hrecsAdded,
     htrRecs, hrecs_wf, hrec_shape, hrules_nodup, hrules_ctor, hrules_ctorParams, hrule_shape,
-    hrules_closed, hrulesAdded, hrecShapes, hrecK, henvR, hequationsWF⟩ :=
+    hrulesAdded, hrecShapes, hrecK, henvR, hequationsWF⟩ :=
     E.assemblyRecursors wf Hchecked hnested B hBlowered hBperm Cstrip hV
   refine ⟨{
     decl := runDecl.withRecs recs
@@ -90,7 +90,6 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     rules_ctor := hrules_ctor
     rules_ctorParams := hrules_ctorParams
     rule_shape := hrule_shape
-    rules_closed := hrules_closed
     outVEnv := outVEnv
     rulesAdded := hrulesAdded
     recShapes := hrecShapes

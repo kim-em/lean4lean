@@ -990,7 +990,6 @@ theorem NestedRun.assemblyRecursors
         ru.nfields ≤ A.piArity ∧
         ru.rhs.RuleShape r.numParams r.numMotives r.numMinors ru.nfields
           (A.piArity - ru.nfields) j) ∧
-      (∀ r ∈ (sourceDecl.withRecs recs).recs, ∀ ru ∈ r.rules, ru.rhs.Closed) ∧
       (sourceDecl.withRecs recs).addRules envR = some outVEnv ∧
       (∀ rval ∈ E.restoration.rvals, RecursorShapesAt outEnv.constants outVEnv rval) ∧
       (∀ rval ∈ E.restoration.rvals, KLikeRecursor outEnv.constants outVEnv rval) ∧
@@ -1125,7 +1124,7 @@ theorem NestedRun.assemblyRecursors
         Hexpansion HkernelCtors owner hhead index hown
   refine ⟨recs, auxiliaries, restoredBlock sourceDecl C.sourceRecursors C.auxiliaryRecursors
     rules [], C.recursorVEnv, outVEnv, Hcert, Hdata.withRecs recs, ⟨?_, ?_, ?_⟩, hrecsAdded, ?_, ?_, ?_, ?_,
-    ?_, ?_, ?_, hclosed, hout, ?_, ?_, rfl, ?_⟩
+    ?_, ?_, ?_, hout, ?_, ?_, rfl, ?_⟩
   · -- RecsOf.recursors
     show recs.map (·.toVConstVal) = C.sourceRecursors ++ C.auxiliaryRecursors
     rw [hrecsVals, C.recursorValues]

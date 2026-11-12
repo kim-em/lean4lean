@@ -710,8 +710,6 @@ structure AuxiliaryFamilySource
   levelsWF : ∀ level ∈ levels, level.WF lparams.length
   sourceUvars : source.uvars = lparams.length
   sourceName : source.name = H.generated.auxName
-  targetType : sourceTypesVEnv.IsDefEqU lparams.length [] target.type
-    source.type
   familyType : sourceTypesVEnv.IsDefEqU lparams.length [] source.type
     (VExpr.wrapForalls sourceParams
       (VExpr.instantiateForallPrefix (containerFamily.type.instL levels)
@@ -1249,11 +1247,6 @@ theorem AuxiliaryFamilyContainer.auxiliaryFamilySource
     levelsWF := VLevel.WF.of_mapM_ofLevel Hlevels
     sourceUvars := by simp [source]
     sourceName := by simp [source]
-    targetType := by
-      have Htarget := HcheckedHeader.type.mono hbaseLE
-      have Hsource := HsourceHeader.type.mono hbaseLE
-      simpa [source, VLCtx.toCtx] using
-        Htarget.uniq henvTypes (.refl henvTypes (by trivial)) Hsource
     familyType := by
       simpa only [source, containerFamily, Ctypes,
         AuxiliaryFamilyContainer.mono]

@@ -473,7 +473,6 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
     recursorValues := replay.recursorValues
     formationAssembly := D
     formationExpanded := hD
-    checked := Hmetadata
     uvars := Hcore.uvars
     numParams := Hcore.nparams
     unsafeEq := Hcore.isUnsafe

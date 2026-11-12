@@ -106,8 +106,6 @@ structure RestoredBlock {c : AddInductive.Context} {Hc : ContextWF c} {nparams :
     r.type.piBinders[r.numParams + r.numMotives + j]? = some A ∧ A.MinorFor ru.ctor ∧
     ru.nfields ≤ A.piArity ∧
     ru.rhs.RuleShape r.numParams r.numMotives r.numMinors ru.nfields (A.piArity - ru.nfields) j
-  /-- Every restored reduct is closed, so the rule stage succeeds. -/
-  rules_closed : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ru.rhs.Closed
   /-- The output model: the rule stage. -/
   outVEnv : VEnv
   rulesAdded : decl.addRules envR = some outVEnv

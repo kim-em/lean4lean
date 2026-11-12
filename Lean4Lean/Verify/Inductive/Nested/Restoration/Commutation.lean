@@ -197,12 +197,6 @@ structure RestorationMapAgreement (r : Restoration)
           TrExprS targetEnv Us Δ H v →
           v = VExpr.mkApps (.const h.target (h.levels.map (·.inst levels)))
             (h.arguments.map fun arg => instantiateParams (arg.instL levels) params)
-  /-- The executable constructor renaming (`restoreCtorName`, a prefix
-  replacement by the container family's name) is the abstract head target. -/
-  ctorTarget : ∀ c nested auxI, result.aux2nested.find? c = none →
-    result.getNestedIfAuxCtor env c = some (nested, auxI) →
-    ∃ I ls, nested.getAppFn = .const I ls ∧
-      r.restoredHeadName c = c.replacePrefix auxI I
 
 theorem RestorationMapAgreement.notRecursor_of_head
     (A : RestorationMapAgreement r result env auxRec targetEnv Us auxLevels)
