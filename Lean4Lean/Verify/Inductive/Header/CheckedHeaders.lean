@@ -102,34 +102,6 @@ def snoc
     Htranslation, Hsynthesized, hlevel⟩]
   sourceOrder := by simp [H.sourceOrder]
 
-def headers
-    (H : CheckedHeaders env Us nparams params
-      commonLevel sources) :
-    HeaderTranslations env Us sources := by
-  have go : ∀ payloads : List (Sigma fun source =>
-      CheckedHeader env Us nparams params commonLevel
-        source),
-      List.Forall₂
-        (fun source target =>
-          TrSourceConst env Us source.name source.type target)
-        (payloads.map Sigma.fst)
-        (payloads.map fun payload => payload.2.target) := by
-    intro payloads
-    induction payloads with
-    | nil => exact .nil
-    | cons payload payloads ih =>
-      rcases payload with ⟨source, payload⟩
-      exact .cons payload.translation ih
-  refine {
-    targets := H.payloads.map fun payload => payload.2.target
-    translations := ?_ }
-  exact Eq.mp (congrArg (fun orderedSources =>
-    List.Forall₂
-      (fun source target =>
-        TrSourceConst env Us source.name source.type target)
-      orderedSources (H.payloads.map fun payload => payload.2.target))
-    H.sourceOrder) (go H.payloads)
-
 /-- The recovered `(numIndices, resultLevel)` of every family, in order. -/
 def metadata
     (H : CheckedHeaders env Us nparams params

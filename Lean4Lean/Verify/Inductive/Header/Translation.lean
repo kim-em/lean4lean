@@ -4,8 +4,8 @@ import Lean4Lean.Verify.Inductive.Header.Block
 # Checked header translations
 
 Upgrades the raw header translations of `Header/RawTranslation.lean` to `TrSourceConst`
-once the header telescope and result sort have been checked (`HeaderTranslations`, and the
-`ClosedHeaderCheck.checked*` lemmas for the terminal, first and later forall-headed cases).
+once the header telescope and result sort have been checked (the `ClosedHeaderCheck.checked*`
+lemmas for the terminal, first and later forall-headed cases).
 -/
 
 namespace Lean4Lean
@@ -14,27 +14,6 @@ open Lean hiding Environment Exception
 open Kernel
 
 namespace VerifyInductive
-
-/-- Ordered abstract header targets after the executable telescope/result
-checks have established the `VConstVal.WF` facts deliberately absent from
-`RawHeaderTranslations`. -/
-structure HeaderTranslations (env : VEnv) (Us : List Name)
-    (sources : List InductiveType) where
-  targets : List VConstVal
-  translations : List.Forall₂
-    (fun source target =>
-      TrSourceConst env Us source.name source.type target)
-    sources targets
-
-namespace HeaderTranslations
-
-def raw (H : HeaderTranslations env Us sources) :
-    RawHeaderTranslations env Us sources where
-  targets := H.targets
-  translations := Lean4Lean.List.Forall₂.imp
-    (fun _ _ h => h.raw) H.translations
-
-end HeaderTranslations
 
 namespace TrSourceConstRaw
 

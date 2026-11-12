@@ -138,14 +138,6 @@ structure
   fieldDomains : List VExpr
   fieldDomains_length : fieldDomains.length = A.rule.allArgs.size
   front : runtime.frontSourceDomains = fieldDomains
-  forwardDomains : List VExpr
-  forwardResidual : VExpr
-  forwardDomains_length : forwardDomains.length = A.rule.allArgs.size
-  forwardTarget :
-    (VExpr.wrapForalls A.typing.fieldTelescope.domains
-      A.typing.targetTarget).lift'
-        (A.typing.fieldRootExtension.shift.consN 0) =
-      VExpr.wrapForalls forwardDomains forwardResidual
   /-- The field frame's scope is aligned with the checker context in which the
   fields were opened. -/
   checkAlign : 0 < A.rule.allArgs.size →
@@ -2339,10 +2331,6 @@ theorem
   rcases A.scopedFieldRuntimeScope with
     ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase,
       ⟨fieldDomains, hfieldDomains, hfieldFront⟩, hcheckAlign⟩
-  rcases A.typing.fieldContextDefEqMono with
-    ⟨_sourceDomains, _sourceResidual, forwardDomains, forwardResidual,
-      _hsourceDomains, hforwardDomains, _Hsource, hforwardTarget,
-      _Hcontexts⟩
   exact ⟨{
     fieldScope := fieldScope
     runtime := HfieldScope
@@ -2351,10 +2339,6 @@ theorem
     fieldDomains := fieldDomains
     fieldDomains_length := hfieldDomains
     front := hfieldFront
-    forwardDomains := forwardDomains
-    forwardResidual := forwardResidual
-    forwardDomains_length := hforwardDomains
-    forwardTarget := hforwardTarget
     checkAlign := hcheckAlign }⟩
 
 

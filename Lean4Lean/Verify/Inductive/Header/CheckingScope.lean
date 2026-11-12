@@ -157,15 +157,6 @@ theorem SourceTelescope.noBV (H : SourceTelescope env Us scope) : scope.bvars = 
   | nil => rfl
   | cons _ _ _ _ _ ih => simpa [VLCtx.bvars] using ih
 
-@[simp] theorem SourceTelescope.closeSource_mono
-    {env env' : VEnv} (henv : env ≤ env')
-    (H : SourceTelescope env Us scope) (body : Expr) :
-    (H.mono henv).closeSource body = H.closeSource body := by
-  induction H generalizing body with
-  | nil => rfl
-  | cons tail name binderInfo domain translation ih =>
-    exact ih _
-
 @[simp] theorem SourceTelescope.closeSource_nil
     (body : Expr) :
     (SourceTelescope.nil : SourceTelescope env Us []).closeSource body =
@@ -185,20 +176,6 @@ theorem _root_.Lean4Lean.VLCtx.WF.append_right {env : VEnv} {U : Nat} :
     ∀ {A B : VLCtx}, VLCtx.WF env U (A ++ B) → VLCtx.WF env U B
   | [], _, h => h
   | _ :: A, _, h => VLCtx.WF.append_right (A := A) h.1
-
-/-- Recover the exact source telescope of an executable context containing
-only lambda declarations.  Each `MLCtx` node already retains the strict
-translation used to install its abstract domain. -/
-def MLCtxOnlyLams.sources
-    {m : TypeChecker.MLCtx} (H : MLCtxOnlyLams m)
-    (Hwf : m.WF env Us) : SourceTelescope env Us m.vlctx :=
-  match m with
-  | .nil => .nil
-  | .vlam _fv name type _type' bi _tail =>
-    .cons (MLCtxOnlyLams.sources H.tail_vlam Hwf.1)
-      name bi type Hwf.2.2.1
-  | .vlet _fv _name _type _value _type' _value' _tail =>
-    False.elim H.vlet_false
 
 /-- Local invariant for the first header's common-parameter branch. -/
 structure ParameterCachePrefix (env : VEnv) (Us : List Name) (Δ : VLCtx)
@@ -791,19 +768,6 @@ structure ScopeEmbedding (env : VEnv) (Us : List Name)
   sourceTelescope : SourceTelescope env Us scope
   wf : scope.WF env Us.length
 
-def ScopeEmbedding.mono {env env' : VEnv} (henv : env ≤ env')
-    (H : ScopeEmbedding env Us scope runtime) :
-    ScopeEmbedding env' Us scope runtime where
-  expanded := H.expanded
-  shift := H.shift
-  lift := H.lift
-  context := H.context.mono henv
-  upset := H.upset
-  noBV := H.noBV
-  declarations := H.declarations
-  sourceTelescope := H.sourceTelescope.mono henv
-  wf := H.wf.mono henv
-
 theorem ScopeEmbedding.scopeWF
     (H : ScopeEmbedding env Us scope runtime)
     (_henv : env.WF) : scope.WF env Us.length :=
@@ -813,20 +777,6 @@ theorem ScopeEmbedding.fvars_length
     (H : ScopeEmbedding env Us scope runtime) :
     scope.fvars.length = scope.length :=
   List.Forall₂.length_eq H.declarations
-
-theorem VLCtx.fvars_length_of_noBV {scope : VLCtx} (H : scope.NoBV) :
-    scope.fvars.length = scope.length := by
-  induction scope with
-  | nil => rfl
-  | cons entry scope ih =>
-    rcases entry with ⟨ofv, decl⟩
-    cases ofv with
-    | none =>
-      change VLCtx.bvars scope + 1 = 0 at H
-      omega
-    | some fv =>
-      change VLCtx.bvars scope = 0 at H
-      simp [ih H]
 
 theorem ScopeEmbedding.toCtx_length
     (H : ScopeEmbedding env Us scope runtime) :
@@ -1186,127 +1136,6 @@ theorem MLCtxOnlyLams.declarations {m : TypeChecker.MLCtx}
   | vlam fv name type type' bi tail ih =>
     exact .cons ⟨_, _, rfl⟩ (ih H.tail_vlam)
   | vlet => exact H.vlet_false.elim
-
-/-- Closing over all declarations of an all-lambda context through its own
-source telescope is the local-context `mkForall`. -/
-theorem MLCtxOnlyLams.sources_closeSource {m : TypeChecker.MLCtx}
-    {env : VEnv} {Us : List Name}
-    (H : MLCtxOnlyLams m) (Hwf : m.WF env Us) (body : Expr) :
-    (MLCtxOnlyLams.sources H Hwf).closeSource body =
-      m.lctx.mkForall
-        (m.vlctx.fvars.reverse.map Expr.fvar).toArray body := by
-  induction m generalizing body with
-  | nil =>
-    change body = ({} : LocalContext).mkForall #[] body
-    exact (LocalContext.mkForall_empty {} body).symm
-  | @vlam fv name type type' bi tail ih =>
-    have HtailWF := Hwf.1
-    have hfresh := Hwf.2.1
-    change (MLCtxOnlyLams.sources H.tail_vlam HtailWF).closeSource
-        (.forallE name type (body.abstractN [fv]) bi) = _
-    rw [ih H.tail_vlam HtailWF]
-    have holdDecls : ∀ other ∈ tail.vlctx.fvars.reverse,
-        ∃ decl, tail.lctx.find? other = some decl := fun other hother =>
-      HtailWF.tr.find?_eq_some.2 (List.mem_reverse.mp hother)
-    have holdNodup : tail.vlctx.fvars.reverse.Nodup :=
-      List.nodup_reverse.mpr HtailWF.tr.wf.fvars_nodup
-    have Happ := LocalContext.mkForall_append_fresh
-      HtailWF.tr.1 hfresh holdDecls holdNodup
-      (body := body) (name := name) (type := type) (bi := bi)
-    simpa [TypeChecker.MLCtx.lctx, List.reverse_cons] using Happ.symm
-  | vlet => exact H.vlet_false.elim
-
-/-- A dependency-closed scope of a free-variable weakening: the selected
-declarations only depend on selected declarations. -/
-theorem _root_.Lean4Lean.VLCtx.FVLift'.upsetScope {Δ Δ' : VLCtx}
-    {dk k : Nat} {n : Lift} {env : VEnv} {U : Nat}
-    (W : VLCtx.FVLift' Δ Δ' dk n k) (hwf : Δ'.WF env U) :
-    IsFVarUpSet (· ∈ Δ.fvars) Δ' := by
-  induction W with
-  | refl => exact IsFVarUpSet.fvars hwf.fvwf
-  | skip_fvar fv d W ih =>
-    obtain ⟨fv, deps⟩ := fv
-    refine ⟨ih hwf.1, fun h => ?_⟩
-    exact ((hwf.2.1 _ _ rfl).1 (W.fvars_sublist.subset h)).elim
-  | cons_fvar fv d hd W ih =>
-    obtain ⟨fv, deps⟩ := fv
-    refine ⟨(IsFVarUpSet.congr hwf.1.fvwf fun x hx => ?_).1 (ih hwf.1), ?_⟩
-    · simp only [VLCtx.fvars_cons_some, List.mem_cons]
-      constructor
-      · exact Or.inr
-      · rintro (rfl | h)
-        · exact ((hwf.2.1 _ _ rfl).1 hx).elim
-        · exact h
-    · intro _ dep hdep
-      simp only [VLCtx.fvars_cons_some, List.mem_cons]
-      exact Or.inr (hd hdep)
-  | cons_bvar d W ih => exact ih hwf.1
-
-/-- A checker `MLCtx` embedded in a runtime context is a dependency-selected
-scope of it, with its own source telescope. -/
-theorem ScopeEmbedding.ofEmbedding {m : TypeChecker.MLCtx}
-    {env : VEnv} {Us : List Name} {runtime : VLCtx}
-    (Hm : m.WF env Us) (Honly : MLCtxOnlyLams m)
-    (hemb : ChkEmbeds env Us.length m.vlctx runtime) :
-    ∃ Hs : ScopeEmbedding env Us m.vlctx runtime,
-      Hs.sourceTelescope = MLCtxOnlyLams.sources Honly Hm := by
-  obtain ⟨Δ', n, W, hD⟩ := hemb
-  exact ⟨{
-    expanded := Δ'
-    shift := n
-    lift := W
-    context := hD
-    upset := hD.isFVarUpSet.1 (W.upsetScope hD.wf)
-    noBV := m.noBV
-    declarations := MLCtxOnlyLams.declarations Honly
-    sourceTelescope := MLCtxOnlyLams.sources Honly Hm
-    wf := Hm.tr.wf }, rfl⟩
-
-/-- The checker context of `Hc`, aligned with a semantic scope, supplies an
-independent source-aware scope without restricting any runtime
-translation. -/
-theorem FrontScopeEmbedding.independentSourceScopeOfCheck
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx) :
-    ∃ sourceScope,
-      ∃ Hsource : ScopeEmbedding Hc.venv c.lparams sourceScope
-          Hc.mlctx.vlctx,
-        sourceScope.fvars = scope.fvars ∧
-        ∀ body,
-          Hsource.sourceTelescope.closeSource body =
-            Hc.mlctx.lctx.mkForall
-              (sourceScope.fvars.reverse.map Expr.fvar).toArray body := by
-  obtain ⟨Hsource, hsources⟩ := ScopeEmbedding.ofEmbedding
-    Hc.check.wf Hc.check.onlyLams Hc.check.embed
-  refine ⟨Hc.chk.vlctx, Hsource, halign.fvars.symm, fun body => ?_⟩
-  rw [hsources, MLCtxOnlyLams.sources_closeSource, Hc.lctx_eq]
-  have hmem : ∀ fv ∈ Hc.chk.vlctx.fvars.reverse,
-      ∃ d, c.checkLCtx.find? fv = some d := by
-    intro fv hfv
-    rw [← Hc.check.lctx_eq]
-    exact Hc.check.wf.tr.find?_eq_some.2 (List.mem_reverse.mp hfv)
-  rw [Hc.checkSub.mkForall_eq hmem body]
-  exact congrArg (fun l : LocalContext => l.mkForall _ body) Hc.check.lctx_eq
-
-/-- The full source-aware scope of an all-lambda context: the context
-itself, with its own source telescope. -/
-theorem MLCtxOnlyLams.fullSourceScope
-    {c : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
-    (H : MLCtxOnlyLams c) (henv : env.WF) (Hwf : c.WF env Us) :
-    ∃ scope,
-      ∃ Hscope : ScopeEmbedding env Us scope c.vlctx,
-        scope.fvars = c.vlctx.fvars.filter (· ∈ c.vlctx.fvars) ∧
-        ∀ body,
-          Hscope.sourceTelescope.closeSource body =
-            c.lctx.mkForall
-              (scope.fvars.reverse.map Expr.fvar).toArray body := by
-  obtain ⟨Hscope, hsources⟩ := ScopeEmbedding.ofEmbedding Hwf H
-    (ChkEmbeds.refl henv.orderedStrong Hwf.tr.wf)
-  refine ⟨c.vlctx, Hscope, ?_, fun body => ?_⟩
-  · exact (List.filter_mem_eq_of_sublist_nodup (.refl _)
-      Hwf.tr.wf.fvars_nodup).symm
-  · rw [hsources]
-    exact MLCtxOnlyLams.sources_closeSource H Hwf body
 
 /-- At the parameter/index boundary, discard the ambient prefix retained
 from previously checked mutual headers and keep the exact cached-parameter

@@ -976,34 +976,6 @@ theorem MinorPremiseType.hypotheses_size_eq_rule
   rw [M.hypotheses_size, ← hrecursive]
   exact T.recursiveFields_size_eq_rule S hpositions
 
-/-- The exact constructor-field suffix, closed back into the semantic context
-that preceded `loopCtorArgs`.  Both sides are deliberately retained: the
-forall telescope types the constructor target, while the lambda telescope
-types the constructor application used as the iota major premise. -/
-structure RecursorRuleSyntax.Semantics.FieldTelescope
-    {H : RecursorRuleSyntax indTypes stats motives minors lvls
-      sourceCtor minorIdx sourceRule}
-    {semanticRoot : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF semanticRoot recLparams}
-    (S : H.Semantics Rroot decl expectedOwnerIdx) where
-  domains : List VExpr
-  domains_length : domains.length = H.allArgs.size
-  target_translation : TrExprS S.fieldRootContext.venv recLparams
-    S.fieldRootContext.mlctx.vlctx
-    (H.root.lctx.mkForall H.allArgs H.target)
-    (VExpr.wrapForalls domains S.targetTarget)
-  target_type : S.fieldRootContext.venv.IsType recLparams.length
-    S.fieldRootContext.mlctx.vlctx.toCtx
-    (VExpr.wrapForalls domains S.targetTarget)
-  major_translation : TrExprS S.fieldRootContext.venv recLparams
-    S.fieldRootContext.mlctx.vlctx
-    (H.root.lctx.mkLambda H.allArgs H.sourceConstructorMajor)
-    (VExpr.wrapLams domains S.constructorTarget)
-  major_typing : S.fieldRootContext.venv.HasType recLparams.length
-    S.fieldRootContext.mlctx.vlctx.toCtx
-    (VExpr.wrapLams domains S.constructorTarget)
-    (VExpr.wrapForalls domains S.targetTarget)
-
 /-- The terminal constructor target mentions only the exact fields opened by
 the constructor traversal and the cached inductive parameters. -/
 theorem RecursorRuleSyntax.Semantics.targetFVarsIn
@@ -1019,80 +991,6 @@ theorem RecursorRuleSyntax.Semantics.targetFVarsIn
   rw [S.fieldOpening.fvars_eq_bound
     S.fieldsRecent.toFVarArrayAfter.toFVarArrayIn] at hscope
   exact hscope
-
-/-- Recover the typed field telescope directly from the consecutive-suffix
-certificate retained by the executable constructor traversal. -/
-def RecursorRuleSyntax.Semantics.fieldTelescope
-    {H : RecursorRuleSyntax indTypes stats motives minors lvls
-      sourceCtor minorIdx sourceRule}
-    {semanticRoot : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF semanticRoot recLparams}
-    (S : H.Semantics Rroot decl expectedOwnerIdx) :
-    S.FieldTelescope := by
-  let domains := MLCtxForallDomains S.context.mlctx H.allArgs.size
-    S.fieldsRecent.size_le
-  have Htarget := S.fieldsRecent.mkForallExact S.target_translation
-    S.target_type
-  have Hmajor := S.fieldsRecent.mkLambda S.constructor_translation
-    S.constructor_typing
-  exact {
-    domains := domains
-    domains_length := by
-      exact S.context.onlyLams.forallDomains_length H.allArgs.size
-        S.fieldsRecent.size_le
-    target_translation := by simpa [domains] using Htarget.1
-    target_type := by simpa [domains] using Htarget.2
-    major_translation := by simpa [domains] using Hmajor.1
-    major_typing := by simpa [domains] using Hmajor.2 }
-
-/-- Transport the field-context conversion of the minor pass forward to the
-rule's recursor context.  The field telescope is exposed after the
-exact free-variable lift retained by `fieldRootExtension`; no equality of
-the two local contexts is assumed. -/
-theorem RecursorRuleSyntax.Semantics.fieldContextDefEqMono
-    {H : RecursorRuleSyntax indTypes stats motives minors lvls
-      sourceCtor minorIdx sourceRule}
-    {semanticRoot : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF semanticRoot recLparams}
-    (S : H.Semantics Rroot decl expectedOwnerIdx) :
-    ∃ sourceDomains sourceResidual consumedDomains consumedResidual,
-      sourceDomains.length = H.allArgs.size ∧
-      consumedDomains.length = H.allArgs.size ∧
-      TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx S.parameterTail
-        (VExpr.wrapForalls sourceDomains sourceResidual) ∧
-      (VExpr.wrapForalls S.fieldTelescope.domains S.targetTarget).lift'
-          (S.fieldRootExtension.shift.consN 0) =
-        VExpr.wrapForalls consumedDomains consumedResidual ∧
-      VEnv.IsDefEqCtx Rroot.venv recLparams.length []
-        (sourceDomains.reverse ++ Rroot.mlctx.vlctx.toCtx)
-        (consumedDomains.reverse ++ Rroot.mlctx.vlctx.toCtx) := by
-  have Hparameter := S.fieldRootExtension.weakTrExprS S.parameterTranslation
-  rcases TrExprS.forallTelescope_shape S.fieldOpening.telescope Hparameter with
-    ⟨sourceDomains, sourceResidual, hsourceLength, hsourceTarget⟩
-  let F := S.fieldTelescope
-  rcases VExpr.lift'_wrapForalls_shape F.domains S.targetTarget
-      (S.fieldRootExtension.shift.consN 0) with
-    ⟨consumedDomains, consumedResidual, hconsumedLength, hconsumedTarget⟩
-  have hconsumedLength' : consumedDomains.length = H.allArgs.size :=
-    hconsumedLength.trans F.domains_length
-  have HfieldTarget : S.fieldRootContext.venv.IsDefEqU recLparams.length
-      S.fieldRootContext.mlctx.vlctx.toCtx S.parameterTarget
-      (VExpr.wrapForalls F.domains S.targetTarget) := by
-    simpa [F, RecursorRuleSyntax.Semantics.fieldTelescope,
-      TypeChecker.MLCtx.mkForall'_eq_wrapForalls] using S.fieldTargetDefEq
-  have Htarget := S.fieldRootExtension.weakDefEqU HfieldTarget
-  rw [hsourceTarget, hconsumedTarget] at Htarget
-  have Hsource : TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx
-      S.parameterTail (VExpr.wrapForalls sourceDomains sourceResidual) := by
-    rw [← hsourceTarget]
-    exact Hparameter
-  have Hbase : VEnv.IsDefEqCtx Rroot.venv recLparams.length []
-      Rroot.mlctx.vlctx.toCtx Rroot.mlctx.vlctx.toCtx :=
-    .refl Rroot.mlctx_wf.tr.wf.toCtx
-  exact ⟨sourceDomains, sourceResidual, consumedDomains, consumedResidual,
-    hsourceLength, hconsumedLength', Hsource, hconsumedTarget,
-    VEnv.IsDefEqU.wrapForalls_context Rroot.checking.tr.wf Hbase
-      (hsourceLength.trans hconsumedLength'.symm) Htarget⟩
 
 /-- Duplicate-free declaration names identify the first family selected by
 `isValidIndApp?` with the constructor owner certified by the earlier checker

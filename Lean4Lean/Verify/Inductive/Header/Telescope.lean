@@ -10,8 +10,8 @@ header introduces the common parameters and is described by `HeaderTelescope`; a
 reuses the cached parameters and is described in its own scope, which excludes the indices
 left by earlier families (`ScopedHeaderTelescope`, `ReusedParameterScope`). Each header
 yields a `HeaderFormation`: its arity, result universe and the definitional agreement of the
-source type with the synthesized telescope, together with the concrete source telescope
-(`HeaderSourceTelescope`).
+source type with the synthesized telescope, together with its normalized parameter and
+index domains (`HeaderSourceTelescope`).
 -/
 
 namespace Lean4Lean
@@ -584,66 +584,16 @@ theorem HeaderTelescope.formationTypeShape
     rfl
   · exact hsort
 
-/-- How the normalized semantic parameter/index telescope sits in the
-executable header context, as selected by a source-aware scope.  The first header occupies the full context; later mutual headers
-can skip indices left by earlier families. -/
-inductive HeaderSourceScopeAlignment (env : VEnv) (Us : List Name)
-    (sourceScope runtime : VLCtx) (ownParams indices : List VExpr) : Type
-  | full
-      (sourceFVars : sourceScope.fvars = runtime.fvars)
-      (semanticContext : VEnv.IsDefEqCtx env Us.length []
-        (indices.reverse ++ ownParams.reverse) runtime.toCtx) :
-      HeaderSourceScopeAlignment env Us sourceScope runtime ownParams indices
-  | embedded
-      (semanticScope : VLCtx)
-      (sourceFVars : sourceScope.fvars = semanticScope.fvars)
-      (semantic : FrontScopeEmbedding env Us semanticScope runtime)
-      (semanticContext : semanticScope.toCtx =
-        indices.reverse ++ ownParams.reverse) :
-      HeaderSourceScopeAlignment env Us sourceScope runtime ownParams indices
-
-/-- Concrete source telescope retained only once the header has been
-checked.  Keeping this separate from `ScopedHeaderTelescope` is
-essential: constructor replay universe-instantiates that generic certificate
-with abstract levels for which there need not be corresponding Lean source
-syntax. -/
+/-- The normalized parameter and index domains of a checked header.  The
+parameters are convertible to the common parameters of the block. -/
 structure HeaderSourceTelescope (env : VEnv) (Us : List Name)
     (commonParams : List VExpr) (nparams nindices : Nat) : Type where
-  runtime : VLCtx
-  sourceScope : VLCtx
-  source : ScopeEmbedding env Us sourceScope runtime
-  sourceLctx : LocalContext
-  sourceClosure : ∀ body,
-    source.sourceTelescope.closeSource body =
-      sourceLctx.mkForall
-        (sourceScope.fvars.reverse.map Expr.fvar).toArray body
-  abstractScope : VLCtx
-  abstractSources : SourceTelescope env Us abstractScope
-  abstractScopeWF : abstractScope.WF env Us.length
   ownParams : List VExpr
   indices : List VExpr
   parameterCount : ownParams.length = nparams
   indexCount : indices.length = nindices
-  sourceLength : sourceScope.length = nparams + nindices
   parameters : VEnv.IsDefEqCtx env Us.length []
     commonParams.reverse ownParams.reverse
-  abstractContext : VEnv.IsDefEqCtx env Us.length []
-    (indices.reverse ++ ownParams.reverse) abstractScope.toCtx
-  alignment : HeaderSourceScopeAlignment env Us sourceScope runtime
-    ownParams indices
-
-def HeaderSourceScopeAlignment.mono {env env' : VEnv}
-    (henv : env ≤ env')
-    (H : HeaderSourceScopeAlignment env Us sourceScope runtime
-      ownParams indices) :
-    HeaderSourceScopeAlignment env' Us sourceScope runtime
-      ownParams indices := by
-  cases H with
-  | full sourceFVars semanticContext =>
-    exact .full sourceFVars (semanticContext.mono henv)
-  | embedded semanticScope sourceFVars semantic semanticContext =>
-    exact .embedded semanticScope sourceFVars (semantic.mono henv)
-      semanticContext
 
 def HeaderSourceTelescope.mono {env env' : VEnv}
     (henv : env ≤ env')
@@ -651,24 +601,11 @@ def HeaderSourceTelescope.mono {env env' : VEnv}
       nparams nindices) :
     HeaderSourceTelescope env' Us commonParams
       nparams nindices where
-  runtime := H.runtime
-  sourceScope := H.sourceScope
-  source := H.source.mono henv
-  sourceLctx := H.sourceLctx
-  sourceClosure := by
-    intro body
-    simpa [ScopeEmbedding.mono] using H.sourceClosure body
-  abstractScope := H.abstractScope
-  abstractSources := H.abstractSources.mono henv
-  abstractScopeWF := H.abstractScopeWF.mono henv
   ownParams := H.ownParams
   indices := H.indices
   parameterCount := H.parameterCount
   indexCount := H.indexCount
-  sourceLength := H.sourceLength
   parameters := H.parameters.mono henv
-  abstractContext := H.abstractContext.mono henv
-  alignment := H.alignment.mono henv
 
 /-- Persistent result of checking one metadata-free source header.  The final
 mutual declaration need not exist yet; only its two block-wide counters are
@@ -710,14 +647,6 @@ theorem ScopedHeaderTelescope.headerFormationWithParams
     (H : ScopedHeaderTelescope env Us source scope current
       nparams nindices)
     (henv : env.WF)
-    (Hruntime : FrontScopeEmbedding env Us scope runtime)
-    (Hsource : ScopeEmbedding env Us sourceScope runtime)
-    (hsourceFVars : sourceScope.fvars = scope.fvars)
-    (sourceLctx : LocalContext)
-    (hsourceClosure : ∀ body,
-      Hsource.sourceTelescope.closeSource body =
-        sourceLctx.mkForall
-          (sourceScope.fvars.reverse.map Expr.fvar).toArray body)
     (huvars : Us.length = uvars)
     (hparams : VEnv.IsDefEqCtx env uvars []
       commonParams.reverse H.params.reverse)
@@ -730,57 +659,19 @@ theorem ScopedHeaderTelescope.headerFormationWithParams
   levelCount := huvars
   normalizedSource := by
     exact ⟨{
-      runtime := runtime
-      sourceScope := sourceScope
-      source := Hsource
-      sourceLctx := sourceLctx
-      sourceClosure := hsourceClosure
-      abstractScope := scope
-      abstractSources := Hruntime.sourceTelescope
-      abstractScopeWF := Hruntime.scopeWF henv
       ownParams := H.params
       indices := H.indices
       parameterCount := H.parameterCount
       indexCount := H.indexCount
-      sourceLength := by
-        calc
-          sourceScope.length = sourceScope.fvars.length :=
-            Hsource.fvars_length.symm
-          _ = scope.fvars.length := congrArg List.length hsourceFVars
-          _ = scope.length := VLCtx.fvars_length_of_noBV Hruntime.noBV
-          _ = nparams + nindices := H.scopeLength
-      parameters := by simpa [huvars] using hparams
-      abstractContext := by
-        simpa [H.scopeCtx] using
-          (VEnv.IsDefEqCtx.refl H.scopeWF.toCtx)
-      alignment := .embedded scope hsourceFVars Hruntime H.scopeCtx }⟩
+      parameters := by simpa [huvars] using hparams }⟩
   normalizedShape := by
     let sourceTelescope : HeaderSourceTelescope env Us
         commonParams nparams nindices := {
-      runtime := runtime
-      sourceScope := sourceScope
-      source := Hsource
-      sourceLctx := sourceLctx
-      sourceClosure := hsourceClosure
-      abstractScope := scope
-      abstractSources := Hruntime.sourceTelescope
-      abstractScopeWF := Hruntime.scopeWF henv
       ownParams := H.params
       indices := H.indices
       parameterCount := H.parameterCount
       indexCount := H.indexCount
-      sourceLength := by
-        calc
-          sourceScope.length = sourceScope.fvars.length :=
-            Hsource.fvars_length.symm
-          _ = scope.fvars.length := congrArg List.length hsourceFVars
-          _ = scope.length := VLCtx.fvars_length_of_noBV Hruntime.noBV
-          _ = nparams + nindices := H.scopeLength
-      parameters := by simpa [huvars] using hparams
-      abstractContext := by
-        simpa [H.scopeCtx] using
-          (VEnv.IsDefEqCtx.refl H.scopeWF.toCtx)
-      alignment := .embedded scope hsourceFVars Hruntime H.scopeCtx }
+      parameters := by simpa [huvars] using hparams }
     rcases TrExpr.sort_result henv H.scopeWF.toCtx hsort with
       ⟨resultLevel', hlevel', Hresult⟩
     have hresultLevel : resultLevel' = resultLevel := by
@@ -819,84 +710,20 @@ theorem HeaderTelescope.headerFormation
   parameterCount := H.parameterCount
   levelCount := huvars
   normalizedSource := by
-    have hup := IsFVarUpSet.suffixFVars Hc.mlctx.vlctx ([] : VLCtx)
-      (by simpa using Hc.mlctx_wf.tr.wf)
-    rcases MLCtxOnlyLams.fullSourceScope Hc.onlyLams
-        Hc.checking.tr.wf Hc.mlctx_wf with
-      ⟨sourceScope, Hsource, hsourceFVars, hsourceClosure⟩
-    have hfilter : Hc.mlctx.vlctx.fvars.filter
-        (· ∈ Hc.mlctx.vlctx.fvars) = Hc.mlctx.vlctx.fvars :=
-      List.filter_mem_eq_of_sublist_nodup (.refl _)
-        Hc.mlctx_wf.tr.wf.fvars_nodup
     exact ⟨{
-      runtime := Hc.mlctx.vlctx
-      sourceScope := sourceScope
-      source := Hsource
-      sourceLctx := Hc.mlctx.lctx
-      sourceClosure := hsourceClosure
-      abstractScope := Hc.mlctx.vlctx
-      abstractSources := MLCtxOnlyLams.sources Hc.onlyLams Hc.mlctx_wf
-      abstractScopeWF := Hc.mlctx_wf.tr.wf
       ownParams := H.params
       indices := H.indices
       parameterCount := H.parameterCount
       indexCount := H.indexCount
-      sourceLength := by
-        calc
-          sourceScope.length = sourceScope.fvars.length :=
-            Hsource.fvars_length.symm
-          _ = Hc.mlctx.vlctx.fvars.length :=
-            congrArg List.length (hsourceFVars.trans hfilter)
-          _ = Hc.mlctx.length := Hc.onlyLams.fvars_length
-          _ = Hc.mlctx.vlctx.toCtx.length :=
-            Hc.onlyLams.toCtx_length.symm
-          _ = (H.indices.reverse ++ H.params.reverse).length :=
-            H.context.length_eq.symm
-          _ = nparams + nindices := by
-            simp [H.parameterCount, H.indexCount, Nat.add_comm]
-      parameters := .refl (OnCtx.of_append H.context.isType)
-      abstractContext := H.context
-      alignment := .full (hsourceFVars.trans hfilter) H.context }⟩
+      parameters := .refl (OnCtx.of_append H.context.isType) }⟩
   normalizedShape := by
-    have hup := IsFVarUpSet.suffixFVars Hc.mlctx.vlctx ([] : VLCtx)
-      (by simpa using Hc.mlctx_wf.tr.wf)
-    rcases MLCtxOnlyLams.fullSourceScope Hc.onlyLams
-        Hc.checking.tr.wf Hc.mlctx_wf with
-      ⟨sourceScope, Hsource, hsourceFVars, hsourceClosure⟩
-    have hfilter : Hc.mlctx.vlctx.fvars.filter
-        (· ∈ Hc.mlctx.vlctx.fvars) = Hc.mlctx.vlctx.fvars :=
-      List.filter_mem_eq_of_sublist_nodup (.refl _)
-        Hc.mlctx_wf.tr.wf.fvars_nodup
     let sourceTelescope : HeaderSourceTelescope Hc.venv c.lparams
         H.params nparams nindices := {
-      runtime := Hc.mlctx.vlctx
-      sourceScope := sourceScope
-      source := Hsource
-      sourceLctx := Hc.mlctx.lctx
-      sourceClosure := hsourceClosure
-      abstractScope := Hc.mlctx.vlctx
-      abstractSources := MLCtxOnlyLams.sources Hc.onlyLams Hc.mlctx_wf
-      abstractScopeWF := Hc.mlctx_wf.tr.wf
       ownParams := H.params
       indices := H.indices
       parameterCount := H.parameterCount
       indexCount := H.indexCount
-      sourceLength := by
-        calc
-          sourceScope.length = sourceScope.fvars.length :=
-            Hsource.fvars_length.symm
-          _ = Hc.mlctx.vlctx.fvars.length :=
-            congrArg List.length (hsourceFVars.trans hfilter)
-          _ = Hc.mlctx.length := Hc.onlyLams.fvars_length
-          _ = Hc.mlctx.vlctx.toCtx.length :=
-            Hc.onlyLams.toCtx_length.symm
-          _ = (H.indices.reverse ++ H.params.reverse).length :=
-            H.context.length_eq.symm
-          _ = nparams + nindices := by
-            simp [H.parameterCount, H.indexCount, Nat.add_comm]
-      parameters := .refl (OnCtx.of_append H.context.isType)
-      abstractContext := H.context
-      alignment := .full (hsourceFVars.trans hfilter) H.context }
+      parameters := .refl (OnCtx.of_append H.context.isType) }
     rcases TrExpr.sort_result Hc.checking.tr.wf Hc.mlctx_wf.tr.wf.toCtx
         hsort with ⟨resultLevel', hlevel', Hresult⟩
     have hresultLevel : resultLevel' = resultLevel := by

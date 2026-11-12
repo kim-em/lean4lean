@@ -13,8 +13,7 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- Ordered raw abstract constructor targets for one source family.  This is
-the constructor-side counterpart of `RawHeaderTranslations`: target
+/-- Ordered raw abstract constructor targets for one source family.  The target
 constants are outputs of the executable closed-type checks, not inputs
 chosen by a declaration skeleton. -/
 structure RawCtorTranslations (env : VEnv) (Us : List Name)
