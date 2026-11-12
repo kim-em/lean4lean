@@ -26,8 +26,6 @@ structure ConstructorMatchesMinor
   recursivePositions : (InductiveSignature.Instance.recursiveFields (s := s) ctor).map Prod.fst =
     traversal.recursivePositions
   hypotheses : MinorInductionHypothesisTypes S.sourceFullContext S.recursiveFields S.hypotheses
-  hypotheses_eq : S.hypothesis_type_origins = some hypotheses
-  recursiveCount : (InductiveSignature.Instance.recursiveFields (s := s) ctor).length = S.hypotheses.size
   recursive : ∀ j (hj : j < (InductiveSignature.Instance.recursiveFields (s := s) ctor).length),
     ∃ root sourceType,
       ∃ O : InductionHypothesisType hypotheses.stats hypotheses.recInfos
@@ -118,12 +116,9 @@ theorem RecursorConstruction.signature_origins
     fields := ?_
     recursivePositions := ?_
     hypotheses := origins
-    hypotheses_eq := horig
-    recursiveCount := ?_
     recursive := ?_ }⟩
   · simp [RecursorConstruction.constructorAt, H.sourceFields_length, hfieldsT]
   · rw [hrec]; exact hspec.1 traversal htrav
-  · rw [hrec]; exact hspec.2.1
   · intro j hj
     have hj' : j < (H.recursiveShapes HU owner howner localIndex hlocal).length := by
       rw [hrec] at hj; exact hj

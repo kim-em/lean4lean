@@ -163,11 +163,6 @@ structure
   resultBody : VExpr
   resultType : VExpr
   templateTarget : VExpr
-  equation_length :
-    (H.parameterSuffix.parameterDecls.toCtx.reverse ++
-      T.motives ++ T.minors ++
-        (liftContextPrefix (T.motives ++ T.minors).length
-          B.fieldDomains.reverse).reverse).length = A.rule.binders.length
   local_length : localDomains.length = frame.semantic.generated.localArgs.size
   equation_context :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -314,7 +309,6 @@ theorem
     resultBody := resultBody
     resultType := resultType
     templateTarget := templateTarget
-    equation_length := hequation
     local_length := hlocal
     equation_context := HequationCtx
     local_forall_translation := HlocalForall
@@ -828,8 +822,6 @@ structure RecursorInstallation.RuleAlignment.HypothesisSource where
   sourceType : Expr
   origin : InductionHypothesisType origins.stats origins.recInfos
     originRoot shape.recursiveFields[j]! sourceType
-  origins_eq :
-    shape.hypothesis_type_origins = some origins
   stats_eq :
     origins.stats = stats
   motives_eq :
@@ -837,46 +829,14 @@ structure RecursorInstallation.RuleAlignment.HypothesisSource where
     H.recInfos.map (·.motive)
   owner_lt :
     origin.ownerIdx < H.recInfos.size
-  motive_snapshot :
-    origins.recInfos[origin.ownerIdx]!.motive =
-    H.recInfos[origin.ownerIdx]!.motive
-  motive_position :
-    (let sourceBinders := H.params.fvars ++
-      H.bindings.motives.fvars ++
-        H.bindings.flatMinors.fvars.take (recursorMinorOffset indTypes owner + i)
-    let position := A.rule.allArgs.size + j
-    let motivePosition := H.params.fvars.length + origin.ownerIdx
-    ∃ motiveFVar,
-      H.recInfos[origin.ownerIdx]!.motive = .fvar motiveFVar ∧
-      (Expr.fvar motiveFVar).abstractList sourceBinders position =
-        .bvar (position +
-          (sourceBinders.length - 1 - motivePosition)))
   traversal_eq :
     shape.traversal = some traversal
   fields_eq :
     traversal.fields = shape.fields
-  recursive_fields_eq :
-    traversal.recursiveFields = shape.recursiveFields
-  traversal_stats_eq :
-    traversal.stats = stats
-  parameter_tail_eq :
-    traversal.parameterTail = A.typing.parameterTail
-  recursive_positions_eq :
-    traversal.recursivePositions = A.typing.recursivePositions
-  source_selected :
-    shape.recursiveFields[j]! =
-    shape.fields[A.typing.recursivePositions[j]!]!
-  rule_selected :
-    A.rule.recursiveArgs[j]! =
-    A.rule.allArgs[A.typing.recursivePositions[j]!]!
-  local_index_eq :
-    shape.localIndex = i
   source_fields_length :
     shape.fields.size = A.rule.allArgs.size
   source_hypotheses_length :
     shape.hypotheses.size = A.rule.recursiveArgs.size
-  context_le :
-    BindingContextLE shape.sourceFullContext H.localContext
   semantic :
     Nonempty (TypedMinorTraversalAt H.recursorWF shape
     H.parameterSuffix.parameterDecls)
@@ -911,38 +871,6 @@ These fields compare their alpha-closed local telescopes before typed context
 transport; they do not replace the typing obligations below. -/
 structure RecursorInstallation.RuleAlignment.HypothesisReplay
     (source : RecursorInstallation.RuleAlignment.HypothesisSource A j T) : Prop where
-  source_major_eq :
-    source.origin.outerAbstractedField source.shape.fields_bound.fvars =
-    mkAppN
-      (.bvar (source.origin.args.size +
-        (source.shape.fields_bound.fvars.length - 1 -
-          A.typing.recursivePositions[j]!)))
-      (source.origin.localIndices.map Expr.bvar).toArray
-  generated_major_eq :
-    E.frame.semantic.generated.outerAbstractedMajor A.rule.binders =
-    mkAppN
-      (.bvar (E.frame.semantic.generated.localArgs.size +
-        (A.rule.allArgs.size - 1 -
-          A.typing.recursivePositions[j]!)))
-      (E.frame.semantic.generated.localIndices.map Expr.bvar).toArray
-  replay_eq :
-    source.origin.replayTrace source.shape.fields_bound.fvars =
-    E.frame.semantic.generated.replayTrace
-      A.rule.all_args_bound.fvars
-  local_telescope_eq :
-    (source.origin.current.lctx.mkForall source.origin.args (.sort .zero)).abstractList
-      source.shape.fields_bound.fvars =
-    (E.frame.semantic.generated.current.lctx.mkForall
-        E.frame.semantic.generated.localArgs (.sort .zero)).abstractList
-      A.rule.all_args_bound.fvars
-  lambda_prefix :
-    Expr.SameLambdaPrefix E.localDomains.length
-    (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
-    ((E.frame.semantic.generated.current.lctx.mkLambda
-        E.frame.semantic.generated.localArgs
-        (mkAppN A.rule.recursiveArgs[j]
-          E.frame.semantic.generated.localArgs)).abstractList
-      A.rule.binders)
   forall_prefix :
     (∀ left right,
     Expr.SameForallPrefix source.origin.args.size
@@ -951,29 +879,6 @@ structure RecursorInstallation.RuleAlignment.HypothesisReplay
       ((E.frame.semantic.generated.current.lctx.mkForall
           E.frame.semantic.generated.localArgs right).abstractList
         A.rule.all_args_bound.fvars))
-  motive_replay_eq :
-    ((source.origins.recInfos[source.origin.ownerIdx]!.motive.abstractList
-        source.origin.arguments_bound.fvars).abstractList
-      source.shape.fields_bound.fvars source.origin.args.size) =
-    ((((H.recInfos.map
-          (fun info : AddInductive.RecInfo => info.motive))[
-          E.frame.semantic.generated.ownerIdx]!).abstractList
-        E.frame.semantic.generated.arguments_bound.fvars).abstractList
-      A.rule.all_args_bound.fvars
-        E.frame.semantic.generated.localArgs.size)
-  indices_replay_eq :
-    (((source.origin.exposedType.getAppArgs[
-        source.origins.stats.params.size:] : Array Expr).map
-      fun index =>
-        (index.abstractList source.origin.arguments_bound.fvars).abstractList
-          source.shape.fields_bound.fvars source.origin.args.size) =
-    ((E.frame.semantic.generated.exposedType.getAppArgs[
-          stats.params.size:] : Array Expr).map
-      fun index =>
-        (index.abstractList
-          E.frame.semantic.generated.arguments_bound.fvars).abstractList
-            A.rule.all_args_bound.fvars
-            E.frame.semantic.generated.localArgs.size))
   owner_eq :
     source.origin.ownerIdx = E.frame.semantic.generated.ownerIdx
   local_length_eq :
@@ -1054,50 +959,6 @@ structure RecursorInstallation.RuleAlignment.HypothesisResidual
         (source.shape.hypotheses_bound.fvars.take j) source.origin.args.size).abstractList
       source.shape.fields_bound.fvars (source.origin.args.size + j)).abstractList
     source.binders (source.origin.args.size + source.position))
-  structured_eq :
-    sourceResidual =
-    ((((Expr.app
-        (mkAppN
-          (source.origins.recInfos[source.origin.ownerIdx]!.motive.abstractList
-            source.origin.arguments_bound.fvars)
-          (((source.origin.exposedType.getAppArgs[
-              source.origins.stats.params.size:] : Array Expr)
-            ).map fun index =>
-            index.abstractList source.origin.arguments_bound.fvars))
-        source.origin.abstractedField).abstractList
-      (source.shape.hypotheses_bound.fvars.take j) source.origin.args.size).abstractList
-    source.shape.fields_bound.fvars (source.origin.args.size + j)).abstractList
-    source.binders (source.origin.args.size + source.position))
-  normalized_eq :
-    sourceResidual =
-    ((source.origin.outerAbstractedMotiveApp
-        source.shape.fields_bound.fvars).liftLooseBVars'
-      source.origin.args.size j).abstractList source.binders
-        (source.origin.args.size + source.position)
-  outer_transport_eq :
-    sourceResidual =
-    ((source.origin.outerAbstractedMotiveApp
-        source.shape.fields_bound.fvars).abstractList source.binders
-      (source.origin.args.size + source.shape.fields.size)).liftLooseBVars'
-        source.origin.args.size j
-  generated_prefix_eq :
-    sourceResidual =
-    ((E.frame.semantic.generated.outerAbstractedMotiveApp
-        A.rule.all_args_bound.fvars).abstractList
-      (A.rule.params_bound.fvars ++
-        A.rule.motives_bound.fvars ++
-          A.rule.minors_bound.fvars.take (recursorMinorOffset indTypes owner + i))
-      (E.frame.semantic.generated.localArgs.size +
-        A.rule.allArgs.size)).liftLooseBVars'
-          E.frame.semantic.generated.localArgs.size j
-  full_transport_eq :
-    sourceResidual.liftLooseBVars'
-      (E.frame.semantic.generated.localArgs.size +
-        A.rule.allArgs.size + j)
-      (A.rule.minors_bound.fvars.drop (recursorMinorOffset indTypes owner + i)).length =
-    (E.frame.semantic.generated.outerAbstractedMotiveApp
-      A.rule.binders).liftLooseBVars'
-        E.frame.semantic.generated.localArgs.size j
   hypothesis_translation :
     (let hypothesisInner :=
       ((source.fieldDomains ++ source.hypothesisDomains).take source.position) ++
@@ -1145,14 +1006,6 @@ structure RecursorInstallation.RuleAlignment.HypothesisResidual
         (abstractForallContext
           (T.params ++ T.motives ++ T.minors.take (recursorMinorOffset indTypes owner + i)) [])))
     sourceResidual hypothesisResidual
-  residual_type :
-    H.outVEnv.IsType (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
-    (abstractForallContext hypothesisLocalDomains
-      (abstractForallContext
-        ((source.fieldDomains ++ source.hypothesisDomains).take source.position)
-        (abstractForallContext
-          (T.params ++ T.motives ++ T.minors.take (recursorMinorOffset indTypes owner + i)) []))).toCtx
-    hypothesisResidual
 
 /-- Named implementation view of the selected hypothesis comparison. -/
 structure RecursorInstallation.RuleAlignment.HypothesisFrame where
@@ -1937,24 +1790,13 @@ theorem RecursorInstallation.RuleAlignment.installedHypothesisFrame :
     originRoot := originRoot
     sourceType := D.type
     origin := O
-    origins_eq := hhypothesisOrigins
     stats_eq := rfl
     motives_eq := hhypothesisRecInfos
     owner_lt := hownerRecInfos
-    motive_snapshot := hmotiveSnapshot
-    motive_position := ⟨motiveFVar, hmotiveFinal, hmotiveNormal⟩
     traversal_eq := htraversal
     fields_eq := htraversalFields
-    recursive_fields_eq := htraversalRecursiveFields
-    traversal_stats_eq := htraversalStats
-    parameter_tail_eq := hparameterTail
-    recursive_positions_eq := hpositions
-    source_selected := hsourceSelected
-    rule_selected := hruleSelected
-    local_index_eq := hlocal
     source_fields_length := hsourceFields
     source_hypotheses_length := hsourceHypotheses
-    context_le := hsourceContext
     semantic := HminorSemantic
     fields_length := hfields
     hypotheses_length := hhypotheses
@@ -1964,14 +1806,7 @@ theorem RecursorInstallation.RuleAlignment.installedHypothesisFrame :
   refine ⟨{
     source := source
     replay := {
-      source_major_eq := by simpa [fieldPosition] using houterField
-      generated_major_eq := hrecursiveMajor
-      replay_eq := Hreplay
-      local_telescope_eq := HlocalTelescopeReplay
-      lambda_prefix := HlocalLambdaReplay
       forall_prefix := HlocalForallReplay
-      motive_replay_eq := hmotiveReplay
-      indices_replay_eq := hindicesReplay
       owner_eq := hownerReplay
       local_length_eq := hlocalArity
       major_eq := hmajorAlignment
@@ -1993,17 +1828,6 @@ theorem RecursorInstallation.RuleAlignment.installedHypothesisFrame :
       source_eq := by
         simpa [source, sourceBinders, position, Nat.add_comm, Nat.add_left_comm,
           Nat.add_assoc] using hsourceResidual
-      structured_eq := by
-        simpa [source, sourceBinders, position, Nat.add_comm, Nat.add_left_comm,
-          Nat.add_assoc] using hsourceResidualStructured
-      normalized_eq := by
-        simpa [sourceBinders, position] using hsourceResidualNormalized
-      outer_transport_eq := by
-        simpa [sourceBinders] using hsourceResidualOuterTransport
-      generated_prefix_eq := by
-        simpa using hsourceResidualGeneratedPrefix
-      full_transport_eq := by
-        simpa [remainingMinorFVars] using hsourceResidualFullTransport
       hypothesis_translation := by
         simpa [hypothesisInner, remainingMinorDomains,
           liftedHypothesisInner] using HhypothesisResidualFull
@@ -2012,7 +1836,6 @@ theorem RecursorInstallation.RuleAlignment.installedHypothesisFrame :
               liftedCanonicalLocals] using HcanonicalResultTypeFull
       hypothesis_domain_eq := hhypothesisDomain
       residual_translation := HhypothesisResidual
-      residual_type := HhypothesisResidualType
     }
   }⟩
 
@@ -2140,17 +1963,6 @@ structure RecursorInstallation.RuleAlignment.HypothesisDomainFrame where
     frame.residualSource
     (frame.residual.hypothesisResidual.liftN frame.remaining.length
       (frame.source.position + frame.residual.hypothesisLocalDomains.length))
-  canonical_residual_translation :
-    TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-    (abstractForallContext
-      (frame.equationDomains ++ frame.liftedPrevious ++ frame.liftedCanonicalLocals) [])
-    frame.residualSource
-    (E.resultType.liftN frame.liftedPrevious.length E.localDomains.length)
-  canonical_residual_type :
-    H.outVEnv.IsType (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
-    (abstractForallContext
-      (frame.equationDomains ++ frame.liftedPrevious ++ frame.liftedCanonicalLocals) []).toCtx
-    (E.resultType.liftN frame.liftedPrevious.length E.localDomains.length)
 
 /-- Build the implementation view consumed by recursive-result application. -/
 theorem RecursorInstallation.RuleAlignment.installedHypothesisDomains :
@@ -2730,27 +2542,6 @@ theorem RecursorInstallation.RuleAlignment.installedHypothesisDomains :
       exact HwholePrefix
     hypothesis_residual_translation := by
       exact HinstalledResidual
-    canonical_residual_translation := by
-      change
-        TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-        (abstractForallContext
-          (equationDomains ++ liftedPrevious ++ liftedCanonicalLocals) [])
-        residualSource
-        (E.resultType.liftN liftedPrevious.length E.localDomains.length)
-      simpa [equationDomains, liftedCanonicalLocals,
-      liftedPrevious, hliftedPreviousLength₀, hpreviousLength₀,
-      hhypotheses, remaining, previous] using
-        HcanonicalResidual
-    canonical_residual_type := by
-      change
-        H.outVEnv.IsType (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
-        (abstractForallContext
-          (equationDomains ++ liftedPrevious ++ liftedCanonicalLocals) []).toCtx
-        (E.resultType.liftN liftedPrevious.length E.localDomains.length)
-      simpa [equationDomains, liftedCanonicalLocals,
-      liftedPrevious, hliftedPreviousLength₀, hpreviousLength₀,
-      hhypotheses, remaining, previous] using
-        HcanonicalResidualType
   }⟩
 
 end HypothesisDomainComparison

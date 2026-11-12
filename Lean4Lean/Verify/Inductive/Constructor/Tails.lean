@@ -317,8 +317,6 @@ structure ConstructorTails
     (indTypes : Array InductiveType) (classes : List (List (List Bool))) : Prop where
   size_eq : indTypes.size = decl.types.length
   classes_length : classes.length = indTypes.size
-  row_length : ∀ (familyIdx : Nat), familyIdx < indTypes.size →
-    classes[familyIdx]!.length = indTypes[familyIdx]!.ctors.length
   replay : ∀ (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
       (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length),
     CheckedConstructorTailAt env Us scope stats decl
@@ -338,9 +336,6 @@ theorem ConstructorTails.ofAll
     ConstructorTails env Us scope stats decl indTypes classes where
   size_eq := hsize
   classes_length := hclasses
-  row_length familyIdx hfamily := by
-    rw [getElem!_pos indTypes familyIdx hfamily]
-    exact (H familyIdx hfamily).1
   replay familyIdx hfamily ctorIdx hctor := (H familyIdx hfamily).2 ctorIdx hctor
 
 /-- The owner normal form of a constructor type: its maximal forall telescope ends in a

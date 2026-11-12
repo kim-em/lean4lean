@@ -72,7 +72,6 @@ structure
       fv ∈ ExprArrayFVarIds stats.params
   replay : sourceOrigin.replayTrace sourceShape.fields_bound.fvars =
     semantic.generated.replayTrace A.rule.all_args_bound.fvars
-  typing_eq : HEq semantic (A.minorReplayAt j hj).semantic
   producerReplay_eq :
     (A.minorReplayAt j hj).semantic.generated.replayTrace
         A.rule.all_args_bound.fvars =
@@ -157,7 +156,6 @@ theorem
     motiveLookup := Hproducer.motiveLookup
     root_scope := P.root_scope
     replay := P.replay
-    typing_eq := HEq.rfl
     producerReplay_eq := rfl
     entry_lt := hentry
     telescope := T

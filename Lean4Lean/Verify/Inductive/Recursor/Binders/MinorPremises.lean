@@ -999,7 +999,6 @@ theorem inductionHypothesisTypeOriginOfInferredScope
       terminal_type := Hterminal
       appliedFieldTarget := appliedTarget
       applied_field_translation := Happlied
-      applied_field_typing := HappliedType
       validated := Hvalidated
       commonDomains := commonDomains
       commonDomains_length :=
@@ -1015,7 +1014,6 @@ theorem inductionHypothesisTypeOriginOfInferredScope
       fieldTarget := fieldTarget
       domain := domain
       field_translation := hfield
-      field_typing := hfieldTyping
       owner_lt := htargetDecl
       recursive := hrecursive }
     refine ⟨S, rfl, ?_, ?_⟩
@@ -3110,7 +3108,6 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
     parameterPrefix := hprefix
     fieldFVars := Hopening.fvars
     fields_eq := Hopening.expressions
-    fieldFVars_nodup := Hopening.nodup
     fieldResidual := Hopening.residual
     fieldTelescope := Hopening.telescope
     fieldClosed := Hopening.closed
@@ -3133,7 +3130,6 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
     stats := stats
     recInfos := recInfos
     fieldRoot := current
-    fieldRoot_wf := Rargs.toBindingContextWF
     hypotheses_outer_fresh := inductionHypothesesOuterFresh Hparams Hbindings
       HextArgs.contextLE HhypothesesRecent
     entry := by

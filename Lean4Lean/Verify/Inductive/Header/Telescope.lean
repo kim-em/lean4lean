@@ -617,7 +617,6 @@ structure HeaderFormation (env : VEnv) (Us : List Name)
     (params : List VExpr) (source : VInductiveTypeSkeleton)
     (numIndices : Nat) (resultLevel : VLevel) : Prop where
   parameterCount : params.length = nparams
-  levelCount : Us.length = uvars
   normalizedSource : Nonempty
     (HeaderSourceTelescope env Us params nparams numIndices)
   /-- The retained concrete source telescope and the semantic header shape
@@ -656,7 +655,6 @@ theorem ScopedHeaderTelescope.headerFormationWithParams
       nindices resultLevel where
   parameterCount := by
     simpa [H.parameterCount] using hparams.length_eq
-  levelCount := huvars
   normalizedSource := by
     exact ⟨{
       ownParams := H.params
@@ -708,7 +706,6 @@ theorem HeaderTelescope.headerFormation
     HeaderFormation Hc.venv c.lparams uvars nparams H.params source
       nindices resultLevel where
   parameterCount := H.parameterCount
-  levelCount := huvars
   normalizedSource := by
     exact ⟨{
       ownParams := H.params

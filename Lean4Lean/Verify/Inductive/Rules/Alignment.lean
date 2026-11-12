@@ -116,8 +116,6 @@ structure RecursorInstallation.RuleAlignment
   sourceCtor_lt : i < indTypes[owner].ctors.length
   abstractOwner_lt : owner < decl.types.length
   abstractCtor_lt : i < decl.types[owner].ctors.length
-  ownerTranslation : TrInductiveType sourceEnv R.headerVEnv
-    c.lparams indTypes[owner] decl.types[owner]
   ctorTranslation : TrSourceConst R.headerVEnv c.lparams
     indTypes[owner].ctors[i].name indTypes[owner].ctors[i].type
     decl.types[owner].ctors[i]
@@ -132,8 +130,6 @@ structure RecursorInstallation.RuleAlignment
     H.recursorWF decl owner
   parameterDecls_eq : typing.parameterSuffix.parameterDecls =
     H.parameterSuffix.parameterDecls
-  motiveOrigins : Nonempty (rule.MotiveAt typing
-    H.recInfos H.elimLevel)
   minorOrigins : Nonempty (rule.MinorAt typing
     H.recInfos H.elimLevel H.origins owner i)
   typing_owner : typing.ownerIdx = owner
@@ -220,13 +216,11 @@ theorem RecursorInstallation.ruleAlignment
     sourceCtor_lt := hsourceCtor
     abstractOwner_lt := habstractOwner
     abstractCtor_lt := constructor.target_lt
-    ownerTranslation := family.translation
     ctorTranslation := constructor.translation
     sourceRule_lt := hsourceRule
     rule := Hrule
     typing := Hsemantic
     parameterDecls_eq := Hsemantic.parameterDecls_eq.trans hparameterDecls
-    motiveOrigins := Hmotive
     minorOrigins := ⟨Horigin⟩
     typing_owner := hsemanticOwner }⟩
 

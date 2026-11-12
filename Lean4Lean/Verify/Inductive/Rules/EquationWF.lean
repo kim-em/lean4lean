@@ -194,8 +194,6 @@ structure RecursorInstallation.RuleAlignment.EquationFrame
   rhsBody : VExpr
   typeBody : VExpr
   fieldDomains_length : fieldDomains.length = A.rule.allArgs.size
-  hypothesisDomains_length :
-    hypothesisDomains.length = A.rule.recursiveArgs.size
   minor_eq : telescope.minors[recursorMinorOffset indTypes owner + i]! =
     VExpr.wrapForalls (fieldDomains ++ hypothesisDomains) targetResidual
   fields_defeq :
@@ -560,7 +558,6 @@ theorem
     rhsBody := rhsBody
     typeBody := lhsType
     fieldDomains_length := hfields
-    hypothesisDomains_length := hhypotheses
     minor_eq := hminorType
     fields_defeq := by
       simpa [equationPrefix, installedPrefix, installedFields,
@@ -801,7 +798,6 @@ theorem
     rhsBody := rhsBody
     typeBody := lhsType
     fieldDomains_length := by simp [hfieldsZero]
-    hypothesisDomains_length := by simp [hhypothesesZero]
     minor_eq := by simp [VExpr.wrapForalls, minorIdx]
     fields_defeq := by
       simpa [hframeFields, liftContextPrefix, liftContextPrefixAt, inserted,

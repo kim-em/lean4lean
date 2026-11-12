@@ -80,8 +80,6 @@ def ConstructorCheck.motivePassHeaderAt
     targetAt := by simp [htarget]
     checked := R.recursorHeaders
     sourceTranslation := Hsource
-    sourceTranslationUses := HsourceUses
-    recursorSourceTranslationRestricted := HrecursorSource
     targetLookup := ?_
     lparamsNodup := hlparams }
   have hheaderLookup : R.headerVEnv.constants decl.types[familyIdx].name =

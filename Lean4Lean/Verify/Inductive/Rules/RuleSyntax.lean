@@ -349,7 +349,6 @@ structure RecursorRuleSyntax
   Retained first-pass rules may have produced their constructor fields before
   later minors were introduced, so this context need not be `root`. -/
   outerRoot : AddInductive.Context
-  root_wf : BindingContextWF root
   outer_wf : BindingContextWF outerRoot
   root_le_outer : BindingContextLE root outerRoot
   target : Expr
@@ -367,7 +366,6 @@ structure RecursorRuleSyntax
   recursive_args_bound : FVarArrayIn root recursiveArgs
   recursive_args_sublist : recursiveArgs.toList.Sublist allArgs.toList
   all_args_nodup : all_args_bound.fvars.Nodup
-  recursive_args_nodup : recursive_args_bound.fvars.Nodup
   all_args_outer_fresh : ∀ fv ∈ all_args_bound.fvars,
     fv ∉ (params_bound.fvars ++ motives_bound.fvars) ++ minors_bound.fvars
   recursive_calls : RecursiveCallsPrefix indTypes stats motives

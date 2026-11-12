@@ -794,10 +794,7 @@ structure ProjectionRegistryAlignmentAt
   nindices : familyInfo.numIndices = info.nindices
   constructorInfo : ConstructorVal
   constructor_lookup : C.find? constructorName = some (.ctorInfo constructorInfo)
-  constructor_induct : constructorInfo.induct = familyName
-  constructor_levelParams : constructorInfo.levelParams = familyInfo.levelParams
   constructor_numParams : constructorInfo.numParams = familyInfo.numParams
-  constructor_isUnsafe : constructorInfo.isUnsafe = familyInfo.isUnsafe
   constructor_numFields : constructorInfo.numFields = info.numFields
   /-- The field count is the syntactic arity of the stored constructor type beyond the
   parameters (`AddInductive.constructorInfo`); the projection walk reads it to know that the

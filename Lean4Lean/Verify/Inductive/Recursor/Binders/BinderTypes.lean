@@ -730,7 +730,6 @@ structure ConstructorFieldTraversal where
   parameterPrefix : ParameterPrefix stats 0 constructor.type parameterTail
   fieldFVars : List FVarId
   fields_eq : fields = (fieldFVars.map Expr.fvar).toArray
-  fieldFVars_nodup : fieldFVars.Nodup
   fieldResidual : Expr
   fieldTelescope : Expr.ForallTelescope parameterTail fields.size fieldResidual
   fieldClosed : terminal.abstractList fieldFVars = fieldResidual

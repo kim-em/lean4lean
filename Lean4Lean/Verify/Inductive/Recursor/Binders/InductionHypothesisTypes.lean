@@ -342,7 +342,6 @@ structure MinorInductionHypothesisTypes
   stats : AddInductive.InductiveStats
   recInfos : Array AddInductive.RecInfo
   fieldRoot : AddInductive.Context
-  fieldRoot_wf : BindingContextWF fieldRoot
   hypotheses_outer_fresh : ∀ fv,
     fv ∈ ExprArrayFVarIds stats.params ++
         ExprArrayFVarIds (recInfos.map (·.motive)) →

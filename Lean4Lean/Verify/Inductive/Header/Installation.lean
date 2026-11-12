@@ -355,10 +355,6 @@ structure InstalledHeaders {c c' : AddInductive.Context} {Hc : ContextWF c} {npa
   contextMLCtx : context.mlctx = Hc'.mlctx
   le : Hc'.venv ≤ context.venv
   typesAdded : Hc'.venv.addConstVals P.headers.targets = some context.venv
-  /-- Each kernel header translates to its checked target. -/
-  trInfos : List.Forall₂ (fun info v =>
-      TrConstVal c'.safety Hc'.venv (.inductInfo info) v ∧ v.toVConstant.WF Hc'.venv)
-    infos P.headers.targets
   parameters : HeaderParameterContext context stats P.commonParams P.depth
   /-- Every constructor a header of the source environment lists is present there. -/
   sourcePresent : ListedConstructorsPresent c'.env
@@ -448,7 +444,6 @@ theorem AddInductive.declareInductiveTypes.installedWF
     contextMLCtx := rfl
     le := hle
     typesAdded := htypes
-    trInfos := Hentries
     parameters := P.parameters.withEnv hV @hS @hI hle
     sourcePresent := hpresent }⟩
 

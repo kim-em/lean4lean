@@ -2372,8 +2372,6 @@ structure TypedRecursiveCall
   applied_field_translation : TrExprS current_context.venv recLparams
     current_context.mlctx.vlctx
     (mkAppN field generated.localArgs) appliedFieldTarget
-  applied_field_typing : current_context.venv.HasType recLparams.length
-    current_context.mlctx.vlctx.toCtx appliedFieldTarget terminalTarget
   /-- The validated inductive application produced at this call site. -/
   validated : RecursorValidatedIndAppAt current_context.venv recLparams
     current_context.mlctx.vlctx stats decl
@@ -2404,8 +2402,6 @@ structure TypedRecursiveCall
   domain : VExpr
   field_translation : TrExprS R.venv recLparams R.mlctx.vlctx
     field fieldTarget
-  field_typing : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
-    fieldTarget domain
   owner_lt : generated.ownerIdx < decl.types.length
   recursive : decl.RecursiveArgAtTarget R.venv recLparams.length
     (decl.types[generated.ownerIdx]'owner_lt).name
@@ -2420,20 +2416,14 @@ structure TypedRecursiveCall.AppliedFieldTelescope
     (S : TypedRecursiveCall indTypes stats motives minors
       lvls R decl depth field value) where
   domains : List VExpr
-  domains_length : domains.length = S.generated.localArgs.size
   exposed_translation : TrExprS R.venv recLparams R.mlctx.vlctx
     (S.generated.current.lctx.mkForall S.generated.localArgs
       S.generated.exposedType)
-    (VExpr.wrapForalls domains S.exposedTarget)
-  exposed_type : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
     (VExpr.wrapForalls domains S.exposedTarget)
   applied_translation : TrExprS R.venv recLparams R.mlctx.vlctx
     (S.generated.current.lctx.mkLambda S.generated.localArgs
       (mkAppN field S.generated.localArgs))
     (VExpr.wrapLams domains S.appliedFieldTarget)
-  applied_typing : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
-    (VExpr.wrapLams domains S.appliedFieldTarget)
-    (VExpr.wrapForalls domains S.exposedTarget)
 
 /-- The recursive field syntax recorded by the successful traversal has no
 ambient loose variables. -/
@@ -2456,11 +2446,8 @@ def TypedRecursiveCall.appliedFieldTelescope
       lvls R decl depth field value) :
     S.AppliedFieldTelescope where
   domains := S.commonDomains
-  domains_length := S.commonDomains_length
   exposed_translation := S.common_exposed_translation
-  exposed_type := S.common_exposed_type
   applied_translation := S.common_applied_translation
-  applied_typing := S.common_applied_typing
 
 def RecursiveCall.body
     (H : RecursiveCall indTypes stats motives minors lvls

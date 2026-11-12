@@ -97,7 +97,6 @@ structure RecursorConstruction
   motiveTelescopes : RecInfoMotiveTelescopes recursorWF stats decl
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       elimLevelAdmissible).parameterDecls.toCtx recInfos elimLevel
-  indexRows : TrBinderTypesPerFamily recursorWF origins.indexTypes
   params : FVarArrayIn localContext stats.params
   noAlias : RecInfoBindings.NoAlias stats.params recInfos
   outerOrder : RecInfoOuterOrder recursorWF params bindings

@@ -610,10 +610,7 @@ theorem projectionRegistryCoherent (H : InstalledBlocks safety env venv st)
     nindices := FA.numIndices
     constructorInfo := c
     constructor_lookup := hconstructor
-    constructor_induct := hinduct
-    constructor_levelParams := D.levelParams
     constructor_numParams := D.numParams.trans (C.numParams F hF).symm
-    constructor_isUnsafe := D.isUnsafe.trans (C.isUnsafe F hF).symm
     constructor_numFields := by
       rw [DA.numFields, VProjectionInfo.numFields, A.nparams]
     constructor_arity := by rw [D.numFields, D.numParams]

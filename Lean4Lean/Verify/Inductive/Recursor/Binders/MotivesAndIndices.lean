@@ -93,24 +93,6 @@ structure MotivePassHeaderAt
     Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth
   sourceTranslation : TrSourceConst Hc.venv c.lparams source.name
     source.type target.toVConstVal
-  /-- The header translation was produced before this declaration's own
-  constants were installed.  Recording this fact lets
-  nested restoration transport only the index prefix without asserting
-  a false global preservation theorem. -/
-  sourceTranslationUses : sourceTranslation.type.Avoids
-    (fun name => name ∈ decl.sourceNames)
-  /-- The same restriction after applying the
-  recursor universe policy.  This is recorded at formation time, before the
-  installed block can become an apparent dependency. -/
-  recursorSourceTranslationRestricted : ∀ elimLevel
-      (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel),
-    ∃ targetType,
-      ∃ translation : TrExprS Hc.venv
-        (AddInductive.getRecLevelParams elimLevel c.lparams) []
-        source.type targetType,
-      translation.Avoids (fun name => name ∈ decl.sourceNames) ∧
-        targetType = (recursorTargetSkeletonOf target c.lparams elimLevel
-          Helim).type
   targetLookup : Hc.venv.constants target.name = some target.toVConstant
   lparamsNodup : c.lparams.Nodup
 

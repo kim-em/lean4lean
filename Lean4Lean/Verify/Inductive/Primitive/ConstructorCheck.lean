@@ -535,10 +535,6 @@ theorem PrimitiveHeaderEnvironment.constructorTails
       hdeclUvars hdeclParams htargetUvars hnindices htargetLookup htargetType
     refine { size_eq := by rw [hindTypes]; simp [hdeclTypes],
              classes_length := by rw [hindTypes]; simp [primitiveFieldClasses],
-             row_length := by
-               intro i hi; rw [hindTypes] at hi ⊢
-               have : i = 0 := by simpa using hi
-               subst this; simp [primitiveFieldClasses],
              replay := ?_ }
     intro familyIdx hfamily ctorIdx hctor
     have hfamilyIdx : familyIdx = 0 := by
@@ -632,10 +628,6 @@ theorem PrimitiveHeaderEnvironment.constructorTails
       hresultLevel htargetLookup htargetType
     refine { size_eq := by rw [hindTypes]; simp [hdeclTypes],
              classes_length := by rw [hindTypes]; simp [primitiveFieldClasses],
-             row_length := by
-               intro i hi; rw [hindTypes] at hi ⊢
-               have : i = 0 := by simpa using hi
-               subst this; simp [primitiveFieldClasses],
              replay := ?_ }
     intro familyIdx hfamily ctorIdx hctor
     have hfamilyIdx : familyIdx = 0 := by

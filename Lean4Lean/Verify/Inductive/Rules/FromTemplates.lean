@@ -223,7 +223,6 @@ theorem RuleTemplateMatchesMinor.boundGeneratedRule
       (B.instantiate indTypes stats motives minors lvls outerRoot.lctx) := {
     root := fieldRoot
     outerRoot := outerRoot
-    root_wf := HfieldWF
     outer_wf := HouterWF
     root_le_outer := HfieldOuter
     target := traversal.terminal
@@ -240,7 +239,6 @@ theorem RuleTemplateMatchesMinor.boundGeneratedRule
     recursive_args_bound := Hrecursive
     recursive_args_sublist := hrecursive
     all_args_nodup := HfieldsNodup
-    recursive_args_nodup := HrecursiveNodup
     all_args_outer_fresh := hfieldsFresh
     recursive_calls := Hcalls
     ctor_eq := by

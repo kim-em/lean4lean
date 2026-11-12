@@ -454,7 +454,6 @@ structure ReusedParameterScope
   parameterDecls : Hsuffix.parameterDecls =
     newer ++ (some (fv, deps), .vlam paramType) :: older
   newerLength : newer.length = stats.params.size - 1 - i
-  addedEq : added = Hsuffix.ambientDecls ++ newer
   context : S.mlctx.vlctx =
     added ++ (some (fv, deps), .vlam paramType) :: older
   parameter : stats.params[i]! = .fvar fv
@@ -736,7 +735,6 @@ noncomputable def ReusedParameterScope.ofNoFVars
       paramType := paramType
       parameterDecls := hdecls
       newerLength := hnewer
-      addedEq := hadd
       context := hcontext
       parameter := by
         simpa [Array.getElem!_eq_getD, hi] using hparam
@@ -801,7 +799,6 @@ noncomputable def ReusedParameterScope.next
       paramType := paramType
       parameterDecls := hdecls
       newerLength := hnewer
-      addedEq := hadd
       context := hcontext
       parameter := by
         simpa [Array.getElem!_eq_getD, hi] using hparam

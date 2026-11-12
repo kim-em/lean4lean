@@ -249,7 +249,6 @@ theorem ConstructorCheck.recursorInstallationWF
     motiveTypes := HmotiveTypes
     motiveShapes := HmotiveShapes
     motiveTelescopes := Htelescopes
-    indexRows := HindexRows
     params := Hparams
     noAlias := hnoalias
     outerOrder := houterOrder
