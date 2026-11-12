@@ -61,17 +61,43 @@ theorem constMotive_mem {x : 𝕋.S} (hx : x ∈ₛ 𝕋.El 𝕋.tT) :
     𝕋.constMotive x ∈ₛ 𝕋.El (𝕋.motiveTy (.succ .zero) 𝕋.tT x) := by
   have hT : 𝕋.tT ∈ₛ 𝕋.El (𝕋.sortDen (.succ .zero)) := tT_mem_sort1
   have hTr : 𝕋.Rel (𝕋.sortDen (.succ .zero)) 𝕋.tT 𝕋.tT := rel_sortDen_of_tyRel hT hT rfl
+  have hinner : ∀ z, (𝕋.mkLam (𝕋.cand (𝕋.eqCand 𝕋.tT x z)) fun _ => 𝕋.tT) ∈ₛ
+      𝕋.El (𝕋.fibTy (.succ .zero) 𝕋.tT x z) := fun z =>
+    mkLam_mem_mkPi (n := 1) (fun _ _ => (sortDen_valid (.succ .zero)))
+      (fun _ _ => hT) (fun d d' hd h => (rel_cand hd).1 h) (fun _ _ _ _ => hTr)
+      (fun h => (h ⟨_, rfl⟩).elim)
+  have hfv : ∀ y, 𝕋.Valid (𝕋.fibTy (.succ .zero) 𝕋.tT x y) := fun y =>
+    ⟨1, fibTy_valid (v := .succ .zero) (n := 1) (Nat.le_refl 1) 𝕋.tT x y⟩
+  have hu : ¬ 𝕋.IsCand 𝕋.tT →
+      (¬ ∀ d, d ∈ₛ 𝕋.El 𝕋.tT → 𝕋.IsCand (𝕋.fibTy (.succ .zero) 𝕋.tT x d)) →
+      𝕋.PiUnif 𝕋.tT (𝕋.fibTy (.succ .zero) 𝕋.tT x)
+        (𝕋.fn (𝕋.El 𝕋.tT) fun y => 𝕋.mkLam (𝕋.cand (𝕋.eqCand 𝕋.tT x y)) fun _ => 𝕋.tT) :=
+    fun hDc hall => piUnif_of_unif_mk (fun y _ => hfv y) (fun y _ => hinner y)
+      (unif_mkLam (I := PUnit) (D := fun _ => 𝕋.tT)
+        (F := fun _ y => 𝕋.fibTy (.succ .zero) 𝕋.tT x y)
+        (f := fun _ y => 𝕋.mkLam (𝕋.cand (𝕋.eqCand 𝕋.tT x y)) fun _ => 𝕋.tT)
+        (fun _ y _ => hfv y) (fun _ y _ => hinner y)
+        ((motiveTy_valid (v := .succ .zero) (n := 1) (Nat.le_refl 1) .tT x).tame_const 0 _)
+        (fun m' _ I' φ a ha hu' hTr =>
+          (unif_mkLam (D := fun i' => 𝕋.cand (𝕋.eqCand 𝕋.tT x (a i')))
+            (F := fun _ _ => 𝕋.sortDen (.succ .zero)) (f := fun _ _ => 𝕋.tT)
+            (fun _ _ _ => ⟨_, sortDen_valid (.succ .zero)⟩) (fun _ _ _ => hT) hTr
+            (fun m'' _ I'' _ _ _ _ _ =>
+              (sortDen_valid (.succ .zero)).unif_const I'' hT m'' (Nat.zero_le _)))
+            m' (Nat.le_refl _))) hDc hall
   refine mkLam_mem_mkPi (n := 1)
     (fun y _ => fibTy_valid (v := .succ .zero) (n := 1) (Nat.le_refl 1) 𝕋.tT x y)
-    (fun y hy => ?_) (fun y y' hy h => (rel_tT_iff hy).1 h) (fun y y' hy h => ?_)
+    (fun y hy => ?_) (fun y y' hy h => (rel_tT_iff hy).1 h) (fun y y' hy h => ?_) hu
   · exact mkLam_mem_mkPi (n := 1) (fun _ _ => (sortDen_valid (.succ .zero)))
       (fun _ _ => hT) (fun d d' hd h => (rel_cand hd).1 h) (fun _ _ _ _ => hTr)
+      (fun h => (h ⟨_, rfl⟩).elim)
   · have hy' := (rel_tT_iff hy).1 h
     have hmem : ∀ z, z ∈ₛ 𝕋.El 𝕋.tT →
         (𝕋.mkLam (𝕋.cand (𝕋.eqCand 𝕋.tT x z)) fun _ => 𝕋.tT) ∈ₛ
           𝕋.El (𝕋.fibTy (.succ .zero) 𝕋.tT x z) := fun z _ =>
       mkLam_mem_mkPi (n := 1) (fun _ _ => (sortDen_valid (.succ .zero)))
         (fun _ _ => hT) (fun d d' hd h => (rel_cand hd).1 h) (fun _ _ _ _ => hTr)
+      (fun h => (h ⟨_, rfl⟩).elim)
     have hT2 : 𝕋.TyRel (𝕋.fibTy (.succ .zero) 𝕋.tT x y) (𝕋.fibTy (.succ .zero) 𝕋.tT x y') :=
       fibTy_tyRel (n := 1) (v := .succ .zero) (Nat.le_refl 1) (ValidAny.tT (lower := 𝕋.univList 1)).isPER hy h
     have same := (fibTy_valid (𝕋 := 𝕋) (n := 1) (v := .succ .zero) (Nat.le_refl 1) 𝕋.tT x y).tyRel_same

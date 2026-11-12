@@ -365,7 +365,7 @@ theorem flat_tProp : 𝕋.Flat 𝕋.tProp := .base (.inr (.inr kind_tProp))
 theorem flat_tT : 𝕋.Flat 𝕋.tT := .base (.inr (.inl kind_tT))
 theorem flat_cand (c : Candidate) : 𝕋.Flat (𝕋.cand c) := .base (.inl (kind_cand c))
 
-theorem mkPi_eq_tPi {D : 𝕋.S} {F : 𝕋.S → 𝕋.S} (hDc : ¬ 𝕋.IsCand D)
+theorem mkPi_eq_tPi_of_data {D : 𝕋.S} {F : 𝕋.S → 𝕋.S} (hDc : ¬ 𝕋.IsCand D)
     (hall : ¬ ∀ d, d ∈ₛ 𝕋.El D → 𝕋.IsCand (F d)) : 𝕋.mkPi D F = 𝕋.tPi D F := by
   rw [mkPi, if_neg hDc, if_neg hall]
 
@@ -375,7 +375,7 @@ theorem piUnif_of_flat {n : Nat} {D : 𝕋.S} {F : 𝕋.S → 𝕋.S} (g : 𝕋.
     (hv : 𝕋.ValidAny (𝕋.univList n) (𝕋.mkPi D F)) (hfl : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.Flat (F d))
     (hDc : ¬ 𝕋.IsCand D) (hall : ¬ ∀ d, d ∈ₛ 𝕋.El D → 𝕋.IsCand (F d)) : 𝕋.PiUnif D F g := by
   have hfl' := flat_mkPi hfl
-  rw [mkPi_eq_tPi hDc hall] at hv hfl'
+  rw [mkPi_eq_tPi_of_data hDc hall] at hv hfl'
   exact piUnif_of_unif (unif_of_flat (hv.tame_const 0 _) (fun _ => hfl') _)
 
 /-! ### Uniform families of fibres -/
@@ -397,6 +397,18 @@ theorem famUnif_const {n : Nat} {D X : 𝕋.S} (hX : 𝕋.ValidAny (𝕋.univLis
 theorem famUnif_of_bound {D : 𝕋.S} {F : 𝕋.S → 𝕋.S} {k : Nat}
     (h : ∀ d, d ∈ₛ 𝕋.El D → ∀ m, 𝕋.DpLe m (F d) k) : 𝕋.FamUnif D F :=
   fun m _ _ ha _ => ⟨k, fun i _ => h _ (ha i) m⟩
+
+/-- Uniformity of an abstraction, in the form the element set of a Π record asks for. -/
+theorem piUnif_of_unif_mk {D : 𝕋.S} {F f : 𝕋.S → 𝕋.S}
+    (hFv : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.Valid (F d)) (hf : ∀ d, d ∈ₛ 𝕋.El D → f d ∈ₛ 𝕋.El (F d))
+    (h : 𝕋.Unif 0 PUnit (fun _ => 𝕋.mkPi D F) (fun _ => 𝕋.mkLam D f))
+    (hDc : ¬ 𝕋.IsCand D) (hall : ¬ ∀ d, d ∈ₛ 𝕋.El D → 𝕋.IsCand (F d)) :
+    𝕋.PiUnif D F (𝕋.fn (𝕋.El D) f) := by
+  obtain ⟨d₀, hd₀, hc₀⟩ : ∃ d₀, d₀ ∈ₛ 𝕋.El D ∧ ¬ 𝕋.IsCand (F d₀) :=
+    Classical.byContradiction fun hn => hall fun d hd =>
+      Classical.byContradiction fun hc => hn ⟨d, hd, hc⟩
+  rw [mkPi_eq_tPi_of_data hDc hall, mkLam_eq_fn (F := F) hd₀ (hFv _ hd₀) hc₀ (hf _ hd₀)] at h
+  exact piUnif_of_unif h
 
 end UniverseTower
 end VEnv.Strengthening
