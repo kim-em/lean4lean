@@ -73,6 +73,11 @@ theorem semDU_of_base {Γ : List VExpr} {d : (Nat → 𝕋.S) → 𝕋.S} {A : V
     (h : ∀ ρ w, 𝕋.ValOK Γ ρ w → 𝕋.IsBase (𝕋.den ρ A)) : 𝕋.SemDU Γ d A :=
   fun _ _ _ _ hρ _ => unif_of_small (fun i => .inl (h _ _ (hρ i))) _
 
+/-- A term of type `Prop` satisfies the clause: its values are propositions. -/
+theorem semU_prop {Γ : List VExpr} (a : VExpr) : 𝕋.SemU Γ a (.sort .zero) :=
+  semDU_of_base (d := fun ρ => 𝕋.den ρ a) fun _ _ _ =>
+    show 𝕋.IsBase 𝕋.tProp from .inr (.inr kind_tProp)
+
 theorem sortDen_leaf (l : VLevel) : 𝕋.IsBase (𝕋.sortDen l) ∨ 𝕋.kind (𝕋.sortDen l) = 𝕋.tagN 3 := by
   rcases sortDen_cases (𝕋 := 𝕋) l with e | ⟨j, e⟩
   · rw [e]; exact .inl (.inr (.inr kind_tProp))

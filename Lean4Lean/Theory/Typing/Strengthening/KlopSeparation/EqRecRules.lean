@@ -126,6 +126,51 @@ theorem Sem.fibApp {Γ : List VExpr} {α a M b t : VExpr} {u v : VLevel}
   rw [hden, hden']
   exact (fib_rel (Nat.le_max_right ..) hαv ham hMm hMM' hbm hab hbb').2
 
+/-- The uniformity clause for the fibre of a motive. -/
+theorem SemU.fibApp {Γ : List VExpr} {α a M b t : VExpr} {u v : VLevel}
+    (Hα : 𝕋.Sem Γ α α (.sort u)) (Ha : 𝕋.Sem Γ a a α)
+    (HM : 𝕋.Sem Γ M M (motiveOf v u α a)) (Hb : 𝕋.Sem Γ b b α)
+    (Ht : 𝕋.Sem Γ t t (eqS u α a b))
+    (HMU : 𝕋.SemU Γ M (motiveOf v u α a)) (HbU : 𝕋.SemU Γ b α) :
+    𝕋.SemU Γ (.app (.app M b) t) (.sort v) := by
+  have facts : ∀ ρ w, 𝕋.ValOK Γ ρ w →
+      𝕋.den ρ (.app (.app M b) t) = 𝕋.Fib (𝕋.den ρ M) (𝕋.den ρ b) ∧
+      𝕋.ValidAny (𝕋.univList (recLv u v)) (𝕋.den ρ α) ∧
+      𝕋.mem (𝕋.den ρ a) (𝕋.El (𝕋.den ρ α)) ∧
+      𝕋.mem (𝕋.den ρ M) (𝕋.El (𝕋.motiveTy v (𝕋.den ρ α) (𝕋.den ρ a))) ∧
+      𝕋.mem (𝕋.den ρ b) (𝕋.El (𝕋.den ρ α)) ∧
+      𝕋.Rel (𝕋.den ρ α) (𝕋.den ρ a) (𝕋.den ρ b) ∧
+      𝕋.den ρ (motiveOf v u α a) = 𝕋.motiveTy v (𝕋.den ρ α) (𝕋.den ρ a) := by
+    intro ρ w hρ
+    obtain ⟨-, -, hαm, -, -⟩ := Hα ρ w hρ
+    obtain ⟨-, -, ham, -, -⟩ := Ha ρ w hρ
+    obtain ⟨-, -, hMm, -, -⟩ := HM ρ w hρ
+    obtain ⟨-, -, hbm, -, -⟩ := Hb ρ w hρ
+    obtain ⟨-, -, htm, -, -⟩ := Ht ρ w hρ
+    have hαv : 𝕋.ValidAny (𝕋.univList (recLv u v)) (𝕋.den ρ α) :=
+      (mem_sortDen hαm).1.mono (Nat.le_max_left ..)
+    have hmo := den_motiveOf (v := v) hαm ham
+    rw [hmo] at hMm
+    have hE : 𝕋.den ρ (eqS u α a b) =
+        𝕋.cand (𝕋.eqCand (𝕋.den ρ α) (𝕋.den ρ a) (𝕋.den ρ b)) := den_eqApp hαm ham hbm
+    rw [hE] at htm
+    obtain ⟨hts, hne⟩ := 𝕋.mem_El_cand.1 htm
+    refine ⟨?_, hαv, ham, hMm, hbm, ((eqCand_nonempty_iff hαv.isPER).1 hne).2, hmo⟩
+    show 𝕋.mkApp (𝕋.mkApp _ _) (𝕋.den ρ t) = _
+    rw [hts]; rfl
+  intro n I ρ w hρ hctx
+  have f := fun i => facts _ _ (hρ i)
+  have e1 : (fun i => 𝕋.den (ρ i) (.app (.app M b) t)) =
+      fun i => 𝕋.Fib (𝕋.den (ρ i) M) (𝕋.den (ρ i) b) := funext fun i => (f i).1
+  have hMu := HMU n I ρ w hρ hctx
+  have e2 : (fun i => 𝕋.den (ρ i) (motiveOf v u α a)) =
+      fun i => 𝕋.motiveTy v (𝕋.den (ρ i) α) (𝕋.den (ρ i) a) :=
+    funext fun i => (f i).2.2.2.2.2.2
+  rw [e2] at hMu
+  rw [e1]
+  exact unif_fib (u := u) (fun i => (f i).2.1) (fun i => (f i).2.2.1) (fun i => (f i).2.2.2.1)
+    (fun i => (f i).2.2.2.2.1) (fun i => (f i).2.2.2.2.2.1) hMu (HbU n I ρ w hρ hctx)
+
 end UniverseTower
 end VEnv.Strengthening
 end Lean4Lean
