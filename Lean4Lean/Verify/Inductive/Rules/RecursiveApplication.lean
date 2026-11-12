@@ -37,7 +37,7 @@ theorem
     (F : A.RecursiveCallFrame j hj)
     (B : A.FieldFrame :=
       Classical.choice A.fieldFrame) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
       (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
@@ -214,7 +214,7 @@ theorem
     (F : A.RecursiveCallFrame j hj)
     (B : A.FieldFrame :=
       Classical.choice A.fieldFrame) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
       (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
@@ -293,7 +293,7 @@ theorem
                 F.semantic.current_context.mlctx.vlctx.toCtx
                 F.semantic.appliedFieldTarget
                 (narrowMajor.lift' Hscope.shift) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let selectedOwner := F.semantic.generated.ownerIdx
   let sourceIndices :=
     (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
@@ -436,15 +436,10 @@ theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.insertedCallArgumentFrame
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (B : A.FieldFrame :=
       Classical.choice A.fieldFrame) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
       (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
@@ -534,7 +529,7 @@ theorem
                 F.semantic.current_context.mlctx.vlctx.toCtx
                 F.semantic.appliedFieldTarget
                 (narrowMajor.lift' Hscope.shift) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let selectedOwner := F.semantic.generated.ownerIdx
   let sourceIndices :=
     (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
@@ -682,7 +677,7 @@ recursor selected from the mutual batch have the same arity. -/
 theorem RecursorInstallation.recursorUvarsAt
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
-    (AddInductive.getRecLevelParams H.elimLevel c.lparams).length =
+    H.recLparams.length =
       H.entries[owner].2.uvars := by
   let E := H.generated.entry owner howner
   have htranslated : E.info.levelParams.length =
@@ -694,7 +689,7 @@ theorem RecursorInstallation.recursorUvarsAt
 /-- Rule-local specialization of `recursorUvarsAt`. -/
 theorem RecursorInstallation.RuleAlignment.recursorUvars
     (_A : H.RuleAlignment owner howner i hctor) :
-    (AddInductive.getRecLevelParams H.elimLevel c.lparams).length =
+    H.recLparams.length =
       H.entries[owner].2.uvars := by
   exact H.recursorUvarsAt owner howner
 
@@ -705,13 +700,13 @@ theorem RecursorInstallation.installedRecursorHeadTranslationAt
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length)
     (Delta : VLCtx) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let recursor := H.entries[owner].2
     TrExprS H.outVEnv Us Delta
       (.const (Lean.mkRecName indTypes[owner]!.name)
         (AddInductive.getRecLevels H.elimLevel stats.levels))
       (.const recursor.name (VLevel.params Us.length)) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let recursor := H.entries[owner].2
   let E := H.generated.entry owner howner
   have hmem : recursor ∈ H.entries.map Prod.snd := by
@@ -746,7 +741,7 @@ theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.headTranslation
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj) (Delta : VLCtx) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let recursor := (H.entries[selectedOwner]'F.entry_lt).2
     TrExprS H.outVEnv Us Delta
@@ -764,7 +759,7 @@ theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.prefixTyping
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let recursor := (H.entries[selectedOwner]'F.entry_lt).2
     H.outVEnv.HasType Us.length
@@ -780,7 +775,7 @@ theorem
       (VExpr.wrapForalls
         (F.telescope.indices ++ F.telescope.major)
         F.telescope.result) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let selectedOwner := F.semantic.generated.ownerIdx
   let recursor := (H.entries[selectedOwner]'F.entry_lt).2
   have huvars := H.recursorUvarsAt selectedOwner F.entry_lt
@@ -799,18 +794,13 @@ theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.prefixTypingInEquationContext
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr)
     (Hctx : OnCtx
       (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
       (H.outVEnv.IsType
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length)) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+        H.recLparams.length)) :
+    let Us := H.recLparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let recursor := (H.entries[selectedOwner]'F.entry_lt).2
     H.outVEnv.HasType Us.length
@@ -825,7 +815,7 @@ theorem
       ((VExpr.wrapForalls
         (F.telescope.indices ++ F.telescope.major)
         F.telescope.result).liftN fieldDomains.length 0) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let selectedOwner := F.semantic.generated.ownerIdx
   let recursor := (H.entries[selectedOwner]'F.entry_lt).2
   let ownerOuter := T.params ++ T.motives ++ T.minors
@@ -869,7 +859,7 @@ theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.ownerMotiveDomain
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let selectedOwner := F.semantic.generated.ownerIdx
     ∃ S : MotiveDecl H.recursorWF stats decl
         selectedOwner H.recInfos[selectedOwner]! H.elimLevel,
@@ -882,7 +872,7 @@ theorem
         F.telescope.motives[selectedOwner]!
         (S.canonical.motiveType.liftN
           (F.telescope.motives.take selectedOwner).length 0) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let selectedOwner := F.semantic.generated.ownerIdx
   rcases H.installedOwnerMotiveDomainAt selectedOwner F.entry_lt with
     ⟨T, S, hparameters, Hdomain⟩
@@ -900,7 +890,7 @@ theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.ownerMotiveSuffixContextAlignment
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let selectedOwner := F.semantic.generated.ownerIdx
     ∃ S : MotiveDecl H.recursorWF stats decl
         selectedOwner H.recInfos[selectedOwner]! H.elimLevel,
@@ -921,7 +911,7 @@ theorem
         VEnv.IsDefEqCtx H.outVEnv Us.length []
           (suffix.reverse ++ outer.reverse)
           (expected.reverse ++ outer.reverse) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let selectedOwner := F.semantic.generated.ownerIdx
   rcases H.installedOwnerMotiveTelescopeShapeForAt selectedOwner F.entry_lt
       F.telescope with
@@ -950,8 +940,8 @@ theorem
       (((F.telescope.params ++ F.telescope.motives ++
           F.telescope.minors) ++ frontDomains).reverse)
       (H.outVEnv.IsType
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length)) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+        H.recLparams.length)) :
+    let Us := H.recLparams
     let selectedOwner := F.semantic.generated.ownerIdx
     ∃ motiveDomains resultLevel,
       motiveDomains.length = H.recInfos[selectedOwner]!.indices.size + 1 ∧
@@ -970,7 +960,7 @@ theorem
           frontDomains.reverse ++ outer.reverse)
         (liftContextPrefix frontDomains.length expected.reverse ++
           frontDomains.reverse ++ outer.reverse) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let selectedOwner := F.semantic.generated.ownerIdx
   rcases F.ownerMotiveSuffixContextAlignment with
     ⟨_S, _hparameters, motiveDomains, resultLevel,
@@ -1005,7 +995,7 @@ theorem
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
     (frontDomains : List VExpr) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let selectedOwner := F.semantic.generated.ownerIdx
     ∃ motiveDomains resultLevel,
       motiveDomains.length = H.recInfos[selectedOwner]!.indices.size + 1 ∧
@@ -1024,7 +1014,7 @@ theorem
         (VExpr.wrapForalls
           ((liftContextPrefix frontDomains.length expected.reverse).reverse)
           (.sort resultLevel)) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let selectedOwner := F.semantic.generated.ownerIdx
   rcases H.installedOwnerMotiveTelescopeShapeForAt selectedOwner F.entry_lt
       F.telescope with
@@ -1069,16 +1059,16 @@ theorem
       (((F.telescope.params ++ F.telescope.motives ++
           F.telescope.minors) ++ frontDomains).reverse)
       (H.outVEnv.IsType
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length))
+        H.recLparams.length))
     (Hprefix : H.outVEnv.HasType
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      H.recLparams.length
       (((F.telescope.params ++ F.telescope.motives ++
           F.telescope.minors) ++ frontDomains).reverse)
       prefixTarget
       ((VExpr.wrapForalls
         (F.telescope.indices ++ F.telescope.major)
         F.telescope.result).liftN frontDomains.length 0)) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let selectedOwner := F.semantic.generated.ownerIdx
     ∃ motiveDomains resultLevel,
       motiveDomains.length = H.recInfos[selectedOwner]!.indices.size + 1 ∧
@@ -1100,7 +1090,7 @@ theorem
           frontDomains.length 0)
         (VExpr.wrapForalls expectedDomains
           (F.telescope.result.liftN frontDomains.length suffix.length)) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let selectedOwner := F.semantic.generated.ownerIdx
   rcases F.ownerMotiveSuffixAlignmentUnderFront frontDomains hctx with
     ⟨motiveDomains, resultLevel, hdomainLength, hmotive, Haligned⟩
@@ -1179,16 +1169,16 @@ theorem
       (((F.telescope.params ++ F.telescope.motives ++
           F.telescope.minors) ++ frontDomains).reverse)
       (H.outVEnv.IsType
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length))
+        H.recLparams.length))
     (Hprefix : H.outVEnv.HasType
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      H.recLparams.length
       (((F.telescope.params ++ F.telescope.motives ++
           F.telescope.minors) ++ frontDomains).reverse)
       prefixTarget
       ((VExpr.wrapForalls
         (F.telescope.indices ++ F.telescope.major)
         F.telescope.result).liftN frontDomains.length 0)) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let selectedOuter := F.telescope.params ++ F.telescope.motives ++
       F.telescope.minors
@@ -1216,7 +1206,7 @@ theorem
           (VExpr.wrapForalls expectedDomains
             (F.telescope.result.liftN frontDomains.length suffix.length))
           (VExpr.wrapForalls expectedDomains (.sort resultLevel)) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let selectedOwner := F.semantic.generated.ownerIdx
   let selectedOuter := F.telescope.params ++ F.telescope.motives ++
     F.telescope.minors
@@ -1279,19 +1269,19 @@ theorem
       let selectedOuter := F.telescope.params ++ F.telescope.motives ++
         F.telescope.minors
       VEnv.IsDefEqCtx H.outVEnv
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+        H.recLparams.length []
         (frontDomains.reverse ++ selectedOuter.reverse)
         (frontDomains.reverse ++ cachedBase))
     (HprefixSelected :
       let selectedOuter := F.telescope.params ++ F.telescope.motives ++
         F.telescope.minors
       H.outVEnv.HasType
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+        H.recLparams.length
         (frontDomains.reverse ++ selectedOuter.reverse) prefixTarget
         ((VExpr.wrapForalls
           (F.telescope.indices ++ F.telescope.major)
           F.telescope.result).liftN frontDomains.length 0)) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let selectedOwner := F.semantic.generated.ownerIdx
     ∃ motiveDomains resultLevel,
       motiveDomains.length = H.recInfos[selectedOwner]!.indices.size + 1 ∧
@@ -1317,7 +1307,7 @@ theorem
           (VExpr.wrapForalls expectedDomains
             (F.telescope.result.liftN frontDomains.length suffix.length))
           (VExpr.wrapForalls expectedDomains (.sort resultLevel)) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let selectedOwner := F.semantic.generated.ownerIdx
   let selectedOuter := F.telescope.params ++ F.telescope.motives ++
     F.telescope.minors
@@ -1349,7 +1339,7 @@ theorem
     RecursorInstallation.RuleAlignment.installedConstructorHeadTranslation
     (A : H.RuleAlignment owner howner i hctor)
     (Delta : VLCtx) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let sourceCtor :=
       (indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt
     TrExprS H.outVEnv Us Delta
@@ -1357,7 +1347,7 @@ theorem
       (.const sourceCtor.name
         (recursorDeclarationAbstractLevels c.lparams
           H.elimLevelAdmissible)) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let sourceCtor :=
     (indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt
   let ctorVal :=
@@ -1395,7 +1385,7 @@ index/major suffix cannot accidentally choose a different telescope witness. -/
 theorem
     RecursorInstallation.RuleAlignment.installedRecursorPrefixEquationContextWithFrame
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let recursor := H.entries[owner].2
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
@@ -1454,7 +1444,7 @@ theorem
             (recursorDeclarationAbstractLevels c.lparams
               H.elimLevelAdmissible))
           (bvarSpine stats.params.size) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let recursor := H.entries[owner].2
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext

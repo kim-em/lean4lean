@@ -40,12 +40,7 @@ theorem
     (hinstalledHypotheses :
       installedHypothesisDomains.length = A.rule.recursiveArgs.size)
     (B : A.FieldFrame)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (htarget :
       T.minors[recursorMinorOffset indTypes owner + i]! =
         VExpr.wrapForalls
@@ -56,7 +51,7 @@ theorem
     (canonicalPrevious : List VExpr)
     (hcanonicalPreviousLength : canonicalPrevious.length = j)
     (Hbase :
-      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let Us := H.recLparams
       let minorIdx := recursorMinorOffset indTypes owner + i
       let position := A.rule.allArgs.size + j
       let prior :=
@@ -76,7 +71,7 @@ theorem
     ∃ hypothesisResidual : VExpr,
       installedHypothesisDomains[j]! =
         VExpr.wrapForalls hypothesisLocalDomains hypothesisResidual ∧
-      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let Us := H.recLparams
       let minorIdx := recursorMinorOffset indTypes owner + i
       let position := A.rule.allArgs.size + j
       let prior :=
@@ -192,24 +187,14 @@ array order and fixed to one recursor telescope and one field frame. -/
 structure
     RecursorInstallation.RuleAlignment.RecursiveResults
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (B : A.FieldFrame) where
   resultAt : ∀ j (hj : j < A.rule.recursiveArgs.size),
     A.RecursiveResult T B j hj
 
 def
     RecursorInstallation.RuleAlignment.RecursiveResults.bodies
-    {T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner}
+    {T : H.TypeTelescope owner howner}
     {B : A.FieldFrame}
     (C : A.RecursiveResults T B) : List VExpr :=
   List.ofFn fun j : Fin A.rule.recursiveArgs.size =>
@@ -222,12 +207,7 @@ each recursive-result term is applied at exactly the same ordinal as the
 installed minor hypothesis it discharges. -/
 def
     RecursorInstallation.RuleAlignment.RecursiveResults.bodyTypes
-    {T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner}
+    {T : H.TypeTelescope owner howner}
     {B : A.FieldFrame}
     (C : A.RecursiveResults T B) : List VExpr :=
   List.ofFn fun j : Fin A.rule.recursiveArgs.size =>
@@ -236,12 +216,7 @@ def
 
 @[simp] theorem
     RecursorInstallation.RuleAlignment.RecursiveResults.bodies_length
-    {T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner}
+    {T : H.TypeTelescope owner howner}
     {B : A.FieldFrame}
     (C : A.RecursiveResults T B) :
     C.bodies.length = A.rule.recursiveArgs.size := by
@@ -249,12 +224,7 @@ def
 
 @[simp] theorem
     RecursorInstallation.RuleAlignment.RecursiveResults.bodyTypes_length
-    {T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner}
+    {T : H.TypeTelescope owner howner}
     {B : A.FieldFrame}
     (C : A.RecursiveResults T B) :
     C.bodyTypes.length = A.rule.recursiveArgs.size := by
@@ -266,16 +236,11 @@ for translation constructors, while this theorem retains the dependent type
 required by the application spine. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveResults.bodyTyping
-    {T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner}
+    {T : H.TypeTelescope owner howner}
     {B : A.FieldFrame}
     (C : A.RecursiveResults T B)
     (j : Nat) (hj : j < C.bodies.length) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -294,15 +259,10 @@ theorem
 domain application fold. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveResults.bodyTypings
-    {T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner}
+    {T : H.TypeTelescope owner howner}
     {B : A.FieldFrame}
     (C : A.RecursiveResults T B) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -322,12 +282,7 @@ theorem
 higher-order result type weakened below the `j` earlier hypotheses. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveResults.liftClosedBodyType_getElem
-    {T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner}
+    {T : H.TypeTelescope owner howner}
     {B : A.FieldFrame}
     (C : A.RecursiveResults T B)
     (j : Nat) (hj : j < C.bodyTypes.length) :
@@ -353,12 +308,7 @@ theorem
     RecursorInstallation.RuleAlignment.installedRecursiveHypothesisContext
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (C : A.RecursiveResults T B)
     (fieldDomains hypothesisDomains : List VExpr)
     (targetResidual : VExpr)
@@ -378,10 +328,10 @@ theorem
             (liftContextPrefix (T.motives ++ T.minors).length
               B.fieldDomains.reverse).reverse
       VEnv.IsDefEqCtx H.outVEnv
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+        H.recLparams.length []
         (T.params ++ T.motives ++ T.minors ++ installedFields).reverse
         equationDomains.reverse) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     let remaining := T.minors.drop minorIdx
     let installedHypotheses :=
@@ -397,7 +347,7 @@ theorem
       ((VExpr.liftClosedDomains C.bodyTypes 0).reverse ++
         equationDomains.reverse) := by
   dsimp only at Hbase ⊢
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   let remaining := T.minors.drop minorIdx
   let installedFields :=
@@ -543,18 +493,13 @@ context.  The same `resultAt` witness determines the source array position,
 the target body, and the retained typing used by `bodyTyping`. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveResults.bodyTranslationOfTemplate
-    {T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner}
+    {T : H.TypeTelescope owner howner}
     {B : A.FieldFrame}
     (C : A.RecursiveResults T B)
     (j : Nat) (hj : j < C.bodies.length)
     (templateTarget : VExpr)
     (Htemplate :
-      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let Us := H.recLparams
       let equationDomains :=
         H.parameterSuffix.parameterDecls.toCtx.reverse ++
           T.motives ++ T.minors ++
@@ -570,7 +515,7 @@ theorem
               E.frame.semantic.generated.localArgs)).abstractList
           A.rule.binders)
         (VExpr.wrapLams E.localDomains templateTarget)) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -590,16 +535,11 @@ theorem
 canonical closed body in the fixed equation context. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveResults.bodyTranslation
-    {T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner}
+    {T : H.TypeTelescope owner howner}
     {B : A.FieldFrame}
     (C : A.RecursiveResults T B)
     (j : Nat) (hj : j < C.bodies.length) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -618,15 +558,10 @@ theorem
 spine. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveResults.bodyTranslations
-    {T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner}
+    {T : H.TypeTelescope owner howner}
     {B : A.FieldFrame}
     (C : A.RecursiveResults T B) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -653,16 +588,11 @@ fixed equation context shared by the entire rule.  This is the list-level
 typing invariant used by the minor-application fold. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveResults.bodyWF
-    {T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner}
+    {T : H.TypeTelescope owner howner}
     {B : A.FieldFrame}
     (C : A.RecursiveResults T B)
     (j : Nat) (hj : j < C.bodies.length) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -670,7 +600,7 @@ theorem
             B.fieldDomains.reverse).reverse
     VExpr.WF H.outVEnv Us.length
       (abstractForallContext equationDomains []).toCtx C.bodies[j] := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let equationDomains :=
     H.parameterSuffix.parameterDecls.toCtx.reverse ++
       T.motives ++ T.minors ++
@@ -693,12 +623,7 @@ theorem
 theorem
     RecursorInstallation.RuleAlignment.recursiveResults
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (B : A.FieldFrame) :
     Nonempty (A.RecursiveResults T B) := by
   classical
@@ -713,7 +638,7 @@ drift after this boundary. -/
 theorem
     RecursorInstallation.RuleAlignment.installedMinorApplicationFrame
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     ∃ B : A.FieldFrame,
       ∃ T : RecursorTypeTelescope H.outVEnv Us
@@ -772,7 +697,7 @@ theorem
             VExpr.WF H.outVEnv Us.length
               (abstractForallContext equationDomains []).toCtx C.bodies[j] := by
   dsimp only
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   rcases A.fieldFrame with ⟨B⟩
   rcases A.installedScopedSelectedMinorTypeFrame B with
@@ -856,12 +781,7 @@ theorem
     RecursorInstallation.RuleAlignment.installedMinorFieldContextOfApplication
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains hypothesisDomains : List VExpr)
     (targetResidual : VExpr)
     (hfields : fieldDomains.length = A.rule.allArgs.size)
@@ -869,7 +789,7 @@ theorem
       T.minors[recursorMinorOffset indTypes owner + i]! = VExpr.wrapForalls
         (fieldDomains ++ hypothesisDomains) targetResidual)
     (HfieldContext :
-      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let Us := H.recLparams
       let minorIdx := recursorMinorOffset indTypes owner + i
       let inserted := T.motives ++ T.minors
       let equationFieldDomains :=
@@ -882,7 +802,7 @@ theorem
       VEnv.IsDefEqCtx H.outVEnv Us.length []
         (equationFieldDomains.reverse ++ outer)
         (installedEquationFields.reverse ++ outer)) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     let inserted := T.motives ++ T.minors
     let equationFieldDomains :=
@@ -909,7 +829,7 @@ theorem
         (VExpr.wrapForalls installedEquationHypotheses
           installedEquationResidual) := by
   dsimp only at HfieldContext ⊢
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   let inserted := T.motives ++ T.minors
   let equationFieldDomains :=
@@ -1016,7 +936,7 @@ theorem
     RecursorInstallation.RuleAlignment.installedMinorApplicationPositiveArity
     (A : H.RuleAlignment owner howner i hctor)
     (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     ∃ B : A.FieldFrame,
       ∃ T : RecursorTypeTelescope H.outVEnv Us
@@ -1071,7 +991,7 @@ theorem
               (VExpr.wrapForalls installedEquationHypotheses
                 installedEquationResidual) := by
   dsimp only
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   rcases A.installedMinorApplicationFrame with
     ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
@@ -1195,12 +1115,7 @@ theorem
     RecursorInstallation.RuleAlignment.installedMinorRecursiveApplicationOfContext
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (C : A.RecursiveResults T B)
     (fieldDomains hypothesisDomains : List VExpr)
     (targetResidual : VExpr)
@@ -1217,9 +1132,9 @@ theorem
           equationFields
       OnCtx (abstractForallContext equationDomains []).toCtx
         (H.outVEnv.IsType
-          (AddInductive.getRecLevelParams H.elimLevel c.lparams).length))
+          H.recLparams.length))
     (Hfield :
-      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let Us := H.recLparams
       let minorIdx := recursorMinorOffset indTypes owner + i
       let inserted := T.motives ++ T.minors
       let equationFields :=
@@ -1232,7 +1147,7 @@ theorem
         (equationFields.reverse ++ outer)
         (installedFields.reverse ++ outer))
     (Hpartial :
-      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let Us := H.recLparams
       let minorIdx := recursorMinorOffset indTypes owner + i
       let inserted := T.motives ++ T.minors
       let equationFields :=
@@ -1251,7 +1166,7 @@ theorem
         (VExpr.mkApps (.bvar (equationFields.length + later.length))
           (bvarSpine equationFields.length))
         (VExpr.wrapForalls installedHypotheses installedResidual)) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     let inserted := T.motives ++ T.minors
     let equationFields :=
@@ -1272,7 +1187,7 @@ theorem
       (abstractForallContext equationDomains []).toCtx
       (VExpr.mkApps fn C.bodies) finalType := by
   dsimp only at Hctx Hfield Hpartial ⊢
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   let inserted := T.motives ++ T.minors
   let equationFields :=
@@ -1366,7 +1281,7 @@ theorem
     RecursorInstallation.RuleAlignment.installedMinorApplicationZeroArity
     (A : H.RuleAlignment owner howner i hctor)
     (hzero : A.rule.allArgs.size + A.rule.recursiveArgs.size = 0) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     ∃ B : A.FieldFrame,
       ∃ T : RecursorTypeTelescope H.outVEnv Us
@@ -1423,7 +1338,7 @@ theorem
     RecursorInstallation.RuleAlignment.installedRhsPositiveArityDetailed
     (A : H.RuleAlignment owner howner i hctor)
     (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     ∃ B : A.FieldFrame,
       ∃ T : RecursorTypeTelescope H.outVEnv Us
@@ -1488,7 +1403,7 @@ theorem
             (abstractForallContext equationDomains []).toCtx
             rhsBody typeBody := by
   dsimp only
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   rcases A.installedMinorApplicationPositiveArity hpositive with
     ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,

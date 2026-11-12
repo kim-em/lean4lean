@@ -32,12 +32,7 @@ This is the shared context-length invariant for all canonical equation-body
 translations. -/
 theorem RecursorInstallation.RuleAlignment.canonicalEquationDomains_length
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr)
     (hfields : fieldDomains.length = A.rule.allArgs.size) :
     ((T.params ++ T.motives ++ T.minors) ++ fieldDomains).length =
@@ -68,12 +63,7 @@ This is the length invariant used by the generator's equation. -/
 theorem
     RecursorInstallation.RuleAlignment.cachedEquationDomains_length
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr)
     (hfields : fieldDomains.length = A.rule.allArgs.size) :
     let parameterDecls :=
@@ -116,15 +106,10 @@ fields. -/
 theorem
     RecursorInstallation.RuleAlignment.equationBinderTranslations
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr)
     (hfields : fieldDomains.length = A.rule.allArgs.size) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
     List.Forall₂
         (TrExprS H.outVEnv Us (abstractForallContext domains []))
@@ -156,7 +141,7 @@ theorem
             (((A.rule.params_bound.fvars ++
               A.rule.motives_bound.fvars) ++
               A.rule.minors_bound.fvars).length + i))) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
   have hdomains := A.canonicalEquationDomains_length T fieldDomains hfields
   exact ⟨A.rule.abstractedParamsTranslation domains [] hdomains,
@@ -170,12 +155,7 @@ the generated telescope beneath minors and constructor fields. -/
 theorem
     RecursorInstallation.RuleAlignment.ownerMotiveBvarIndex
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr)
     (hfields : fieldDomains.length = A.rule.allArgs.size) :
     A.rule.binders.length - 1 -
@@ -208,22 +188,17 @@ context construction. -/
 theorem
     RecursorInstallation.RuleAlignment.allArgsTranslation
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr)
     (hfields : fieldDomains.length = A.rule.allArgs.size) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
     List.Forall₂
       (TrExprS H.outVEnv Us (abstractForallContext domains []))
       ((A.rule.allArgs.map fun arg =>
         arg.abstractList A.rule.binders).toList)
       (bvarSpine fieldDomains.length) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
   dsimp only
   have hdomains := A.canonicalEquationDomains_length T fieldDomains hfields
@@ -267,13 +242,8 @@ theorem
     RecursorInstallation.RuleAlignment.installedScopedEquationFieldTranslationsFor
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    (T : H.TypeTelescope owner howner) :
+    let Us := H.recLparams
     let inserted := T.motives ++ T.minors
     let equationFieldDomains :=
       (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
@@ -285,7 +255,7 @@ theorem
       ((A.rule.allArgs.map fun arg =>
         arg.abstractList A.rule.binders).toList)
       (bvarSpine equationFieldDomains.length) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let inserted := T.motives ++ T.minors
   let equationFieldDomains :=
     (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
@@ -358,15 +328,10 @@ major in the canonical equation context. -/
 theorem
     RecursorInstallation.RuleAlignment.constructorArgsTranslation
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr)
     (hfields : fieldDomains.length = A.rule.allArgs.size) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
     List.Forall₂
       (TrExprS H.outVEnv Us (abstractForallContext domains []))
@@ -379,7 +344,7 @@ theorem
           arg.liftN
             ((T.motives ++ T.minors).length + fieldDomains.length) 0))
         (bvarSpine fieldDomains.length)) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
   dsimp only
   rcases A.equationBinderTranslations T fieldDomains hfields with
@@ -434,12 +399,7 @@ arguments in the full equation context. -/
 theorem
     RecursorInstallation.RuleAlignment.constructorMajor_eq
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr) (introTarget : VExpr)
     (hfields : fieldDomains.length = A.rule.allArgs.size)
     (HintroShape : introTarget = VExpr.mkApps
@@ -477,20 +437,15 @@ the exact checked abstract major retained by the constructor phase. -/
 theorem
     RecursorInstallation.RuleAlignment.constructorMajorResidualTranslation
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr) (fieldResult introTarget : VExpr)
     (hfields : fieldDomains.length = A.rule.allArgs.size)
     (Hctx : OnCtx
       (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
       (H.outVEnv.IsType
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length))
+        H.recLparams.length))
     (Hmajor : H.outVEnv.HasType
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      H.recLparams.length
       (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
       ((VExpr.mkApps
           (introTarget.liftN A.rule.allArgs.size 0)
@@ -504,7 +459,7 @@ theorem
         (recursorDeclarationAbstractLevels c.lparams
           H.elimLevelAdmissible))
       (bvarSpine stats.params.size)) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
     TrExprS H.outVEnv Us (abstractForallContext domains [])
       (mkAppN
@@ -520,7 +475,7 @@ theorem
           (introTarget.liftN A.rule.allArgs.size 0)
           (bvarSpine A.rule.allArgs.size)).liftN
         (T.motives ++ T.minors).length A.rule.allArgs.size) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
   dsimp only
   let directMajor := VExpr.mkApps
@@ -586,15 +541,10 @@ is the exact argument list appearing in the weakened prefix typing theorem. -/
 theorem
     RecursorInstallation.RuleAlignment.recursorPrefixTranslation
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr)
     (hfields : fieldDomains.length = A.rule.allArgs.size) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
     List.Forall₂
       (TrExprS H.outVEnv Us (abstractForallContext domains []))
@@ -607,7 +557,7 @@ theorem
       ((bvarSpine
         (T.params ++ T.motives ++ T.minors).length).map fun arg =>
           arg.liftN fieldDomains.length 0) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
   dsimp only
   have hdomains := A.canonicalEquationDomains_length T fieldDomains hfields
@@ -677,32 +627,27 @@ premise required by `TrExprS`. -/
 theorem
     RecursorInstallation.RuleAlignment.recursorPrefixResidualTranslation
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr)
     (hfields : fieldDomains.length = A.rule.allArgs.size)
     (Hctx : OnCtx
       (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
       (H.outVEnv.IsType
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length))
+        H.recLparams.length))
     (Hprefix : H.outVEnv.HasType
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      H.recLparams.length
       (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
       ((VExpr.mkApps
           ((VExpr.const H.entries[owner].2.name
             (VLevel.params
-              (AddInductive.getRecLevelParams H.elimLevel c.lparams).length)).liftN
+              H.recLparams.length)).liftN
             (T.params ++ T.motives ++ T.minors).length 0)
           (bvarSpine
             (T.params ++ T.motives ++ T.minors).length)).liftN
         fieldDomains.length 0)
       ((VExpr.wrapForalls (T.indices ++ T.major) T.result).liftN
         fieldDomains.length 0)) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
     TrExprS H.outVEnv Us (abstractForallContext domains [])
       (mkAppN
@@ -723,7 +668,7 @@ theorem
           (bvarSpine
             (T.params ++ T.motives ++ T.minors).length)).liftN
         fieldDomains.length 0) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
   dsimp only
   have Hhead := H.installedRecursorHeadTranslationAt owner howner
@@ -783,7 +728,7 @@ theorem
   have go : ∀ {sources : List Expr} {targets : List VExpr},
       List.Forall₂
         (TrExprS A.typing.context.venv
-          (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+          H.recLparams
           A.typing.context.mlctx.vlctx) sources targets →
       Expr.fvar fv ∈ sources →
       fv ∈ A.typing.context.mlctx.vlctx.fvars := by
@@ -1046,12 +991,7 @@ theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.insertedIndexSources_eq
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner) :
+    (T : H.TypeTelescope owner howner) :
     let sourceIndices :=
       (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
     let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
@@ -1086,7 +1026,7 @@ theorem
       _Hmajor, _Hexposed, _Htyping, _HindexEq, _HmajorEq⟩
   have Htranslated' : List.Forall₂
       (TrExprS H.outVEnv
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+        H.recLparams
         (abstractForallContext (fieldDomains ++ localDomains)
           H.parameterSuffix.parameterDecls))
       closedSources _narrowIndices := by
@@ -1186,12 +1126,7 @@ theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.insertedExposedSource_eq
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner) :
+    (T : H.TypeTelescope owner howner) :
     let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
     let inserted := T.motives ++ T.minors
     (((((F.semantic.generated.exposedType.abstractList
@@ -1308,12 +1243,7 @@ theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.insertedMajorSource_eq
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner) :
+    (T : H.TypeTelescope owner howner) :
     let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
     let inserted := T.motives ++ T.minors
     (((F.semantic.generated.outerAbstractedMajor
@@ -1446,12 +1376,7 @@ theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.insertedLocalForallSource_eq
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (B : A.FieldFrame :=
       Classical.choice A.fieldFrame) :
     let inserted := T.motives ++ T.minors
@@ -1566,15 +1491,10 @@ theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.canonicalInsertedCallArgumentFrame
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (B : A.FieldFrame :=
       Classical.choice A.fieldFrame) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
       (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
@@ -1700,15 +1620,10 @@ theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.insertedExposedSpine
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (B : A.FieldFrame :=
       Classical.choice A.fieldFrame) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
       (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
@@ -1778,7 +1693,7 @@ theorem
               (abstractForallContext
                 (equationDomains ++ localDomains) []).toCtx spine exact)
             spineIndexTargets exactIndexTargets := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let selectedOwner := F.semantic.generated.ownerIdx
   let sourceIndices :=
     (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList

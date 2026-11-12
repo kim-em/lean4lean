@@ -1200,7 +1200,7 @@ theorem RecursorInstallation.ruleRhsSyn {outEnv : Environment}
     (o : Nat) (ho : o < H.entries.length)
     (i : Nat) (hi : i < (H.generated.entry o ho).info.rules.length) :
     ∃ hk : recursorMinorOffset indTypes o + i < H.generator.signature.constructors.size,
-      TrSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
+      TrSyn H.recLparams []
         ((H.generated.entry o ho).info.rules[i]).rhs
         (H.generator.generation.equation ⟨recursorMinorOffset indTypes o + i, hk⟩).rhs := by
   have howner : o < H.recInfos.size := by simpa [H.generated.length] using ho
@@ -1219,7 +1219,7 @@ theorem RecursorInstallation.ruleRhsTyped {outEnv : Environment}
     (H : RecursorInstallation R outEnv)
     (o : Nat) (ho : o < H.entries.length)
     (i : Nat) (hi : i < (H.generated.entry o ho).info.rules.length) :
-    ∃ X, TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
+    ∃ X, TrExprS H.outVEnv H.recLparams []
       ((H.generated.entry o ho).info.rules[i]).rhs X := by
   have howner : o < H.recInfos.size := by simpa [H.generated.length] using ho
   have hlocal : i < H.origins.minorTypes[o]!.size := by
@@ -1253,10 +1253,10 @@ theorem RecursorInstallation.ruleRhsTranslation {outEnv : Environment}
     (H : RecursorInstallation R outEnv)
     (o : Nat) (ho : o < H.entries.length)
     (i : Nat) (hi : i < (H.generated.entry o ho).info.rules.length)
-    (htyped : ∃ X, TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
+    (htyped : ∃ X, TrExprS H.outVEnv H.recLparams []
       ((H.generated.entry o ho).info.rules[i]).rhs X) :
     ∃ hk : recursorMinorOffset indTypes o + i < H.generator.signature.constructors.size,
-      TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
+      TrExprS H.outVEnv H.recLparams []
         ((H.generated.entry o ho).info.rules[i]).rhs
         (H.generator.generation.equation ⟨recursorMinorOffset indTypes o + i, hk⟩).rhs := by
   obtain ⟨hk, Hsyn⟩ := H.ruleRhsSyn o ho i hi

@@ -34,7 +34,7 @@ the same flattened minor position. -/
 theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorShape
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -261,7 +261,7 @@ is preserved from the first pass. -/
 theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorSharedTail
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
@@ -286,11 +286,11 @@ theorem
     exact H.installed.le
   have Htarget' := Htarget.mono hrootLE
   have HtargetAtParameters : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       H.parameterSuffix.parameterDecls A.typing.parameterTail target := by
     simpa only [HS.parameterDecls_eq, htail] using Htarget'
   have HtargetFinal : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
       A.typing.parameterTail target := by
@@ -304,7 +304,7 @@ parameter context. -/
 theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorSharedTailDefEq
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
@@ -336,7 +336,7 @@ theorem
     simpa only [ContextWF.toAdmissibleRecursorContextWF_venv] using
       H.installed.le
   have HparameterWF : VLCtx.WF H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      H.recLparams.length
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
@@ -353,7 +353,7 @@ different, convertible representatives. -/
 theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorSharedFieldContext
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
@@ -384,7 +384,7 @@ theorem
       Hminor with
     ⟨minorFieldDomains, minorFieldResult, hminorLength, htarget⟩
   have Hsame' : H.outVEnv.IsDefEqU
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      H.recLparams.length
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls.toCtx
       (VExpr.wrapForalls minorFieldDomains minorFieldResult)
@@ -397,13 +397,13 @@ theorem
     simpa only [ContextWF.toAdmissibleRecursorContextWF_venv] using
       H.installed.le
   have HparameterWF : VLCtx.WF H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      H.recLparams.length
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterWF.mono hbaseLE
   have Hbase : VEnv.IsDefEqCtx H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+      H.recLparams.length []
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls.toCtx
       (R.recursorHeaders.parameterSuffix.toRecursorContext
@@ -424,7 +424,7 @@ cardinalities. -/
 theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorTypedTelescope
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -489,7 +489,7 @@ theorem
   have Habstract := Hsource.abstractList sourceBinders
   rw [hfieldCount, hhypotheses] at Habstract
   have Hdomain' : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       (abstractForallContext
         (T.params ++ T.motives ++
           T.minors.take (recursorMinorOffset indTypes owner + i)) [])
@@ -514,7 +514,7 @@ theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorExactClosedTelescope
     (A : H.RuleAlignment owner howner i hctor)
     (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars.take minorIdx
@@ -565,7 +565,7 @@ theorem
           (A.rule.allArgs.size + A.rule.recursiveArgs.size)
           T.minors[minorIdx]! := by
   dsimp only
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take minorIdx
@@ -660,7 +660,7 @@ binder-by-binder source/target translation certificate. -/
 theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorTypedSplit
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -755,7 +755,7 @@ reconstructed constructor motive on the LHS. -/
 theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorAlignedResidual
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars.take minorIdx
@@ -833,7 +833,7 @@ theorem
   have Habstract := Hsource.abstractList sourceBinders
   rw [hsourceFields, hsourceHypotheses] at Habstract
   have Hdomain' : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       (abstractForallContext
         (T.params ++ T.motives ++ T.minors.take minorIdx) [])
       (S.origin.abstractList sourceBinders) T.minors[minorIdx]! := by
@@ -1463,7 +1463,7 @@ in the eventual minor application. -/
 theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorTargetContext
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -1508,7 +1508,7 @@ theorem
     (Γ' := (T.minors.drop minorIdx).reverse) Hprefix
   have Hbase : OnCtx (abstractForallContext base []).toCtx
       (H.outVEnv.IsType
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length) := by
+        H.recLparams.length) := by
     rw [abstractForallContext_toCtx]
     rw [show VLCtx.toCtx ([] : VLCtx) = [] by rfl]
     simpa [base, List.reverse_append, List.append_assoc] using HbaseRaw
@@ -1526,7 +1526,7 @@ theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorHypothesisDomainAt
     (A : H.RuleAlignment owner howner i hctor)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -1632,7 +1632,7 @@ theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorHypothesisDeclarationDomainAt
     (A : H.RuleAlignment owner howner i hctor)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type

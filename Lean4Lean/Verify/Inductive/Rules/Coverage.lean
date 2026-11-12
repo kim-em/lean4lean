@@ -89,7 +89,7 @@ def RecursorInstallation.RuleRhsTranslations
   ∀ owner (howner : owner < H.entries.length) (i : Nat)
     (hi : i < (H.generated.entry owner howner).info.rules.length)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size),
-    TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
+    TrExprS H.outVEnv H.recLparams []
       ((H.generated.entry owner howner).info.rules[i]).rhs
       (H.canonicalGeneration.equation ⟨recursorMinorOffset indTypes owner + i, hk⟩).rhs
 

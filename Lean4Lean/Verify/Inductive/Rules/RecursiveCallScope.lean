@@ -53,7 +53,7 @@ structure
       sourceShape.sourceFullContext.env.isTypeAnnotationWrapper)
   originRoot : AddInductive.Context
   originContext : RecursorContextWF originRoot
-    (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    H.recLparams
   priorHypotheses : Array Expr
   originRecent : FVarSuffix A.typing.context.toSemantics
     originContext.toSemantics priorHypotheses
@@ -79,7 +79,7 @@ structure
       semantic.generated.replayTrace A.rule.all_args_bound.fvars
   entry_lt : semantic.generated.ownerIdx < H.entries.length
   telescope : RecursorTypeTelescope H.outVEnv
-    (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    H.recLparams
     (H.generated.entry semantic.generated.ownerIdx entry_lt).info.type
     H.entries[semantic.generated.ownerIdx].2.type
     stats.params.size (H.recInfos.map (·.motive)).size
@@ -526,7 +526,7 @@ theorem
       F.semantic.current_context.toSemantics :=
     F.originExtension.trans F.semantic.recent.contextExtension
   have HexposedType : F.semantic.current_context.venv.IsType
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      H.recLparams.length
       F.semantic.current_context.mlctx.vlctx.toCtx
       F.semantic.exposedTarget :=
     VEnv.IsType.defeqU_l F.semantic.current_context.checking.tr.wf
@@ -551,7 +551,7 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let parameterDecls := A.typing.parameterSuffix.parameterDecls
     ∃ fieldScope,
       ∃ HfieldScope : checkInductiveTypes.loopType.FrontScopeEmbedding
@@ -567,7 +567,7 @@ theorem
         (0 < A.rule.allArgs.size →
           VLCtx.IsDefEq A.typing.fieldRootContext.venv Us.length
             fieldScope A.typing.context.chk.vlctx) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let parameterDecls := A.typing.parameterSuffix.parameterDecls
   let Hparameter := A.typing.parameterSuffix.parameterEmbedding
   rcases A.typing.context.onlyLams.lamPrefix

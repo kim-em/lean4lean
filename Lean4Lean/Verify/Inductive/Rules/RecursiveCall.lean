@@ -106,7 +106,7 @@ structure
   fieldScope : VLCtx
   runtime : checkInductiveTypes.loopType.FrontScopeEmbedding
     A.typing.fieldRootContext.venv
-    (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    H.recLparams
     fieldScope A.typing.context.mlctx.vlctx
   scope_fvars : fieldScope.fvars =
     A.typing.fieldsRecent.fvars.reverse ++
@@ -120,7 +120,7 @@ structure
   fields were opened. -/
   checkAlign : 0 < A.rule.allArgs.size →
     VLCtx.IsDefEq A.typing.fieldRootContext.venv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      H.recLparams.length
       fieldScope A.typing.context.chk.vlctx
 
 /-- The rule-wide field frame is literally the constructor-field
@@ -229,7 +229,7 @@ theorem
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
     (B : A.FieldFrame) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     ∃ scope,
       ∃ _Hscope : checkInductiveTypes.loopType.FVarCheckingScopeCore H.outVEnv Us
           scope F.semantic.current_context.mlctx.vlctx,
@@ -250,7 +250,7 @@ theorem
                 (VExpr.wrapForalls localDomains target)) ∧
           ChkEmbeds H.outVEnv Us.length
             F.semantic.current_context.chk.vlctx scope := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let Hfield := B.core
   rcases F.originContext.onlyLams.lamPrefix
       F.priorHypotheses.size F.originRecent.size_le with
@@ -408,7 +408,7 @@ theorem
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
     (B : A.FieldFrame) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
       (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
@@ -446,7 +446,7 @@ theorem
           narrowIndices evidence.indices ∧
         ChkEmbeds H.outVEnv Us.length
           F.semantic.current_context.chk.vlctx scope := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let selectedOwner := F.semantic.generated.ownerIdx
   let sourceIndices :=
     (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
@@ -523,7 +523,7 @@ theorem
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
     (B : A.FieldFrame) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
       (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
@@ -587,7 +587,7 @@ theorem
           F.semantic.current_context.mlctx.vlctx.toCtx
           F.semantic.appliedFieldTarget
           (narrowMajor.lift' Hscope.shift) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let sourceIndices :=
     (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
   let parameterDecls := H.parameterSuffix.parameterDecls
@@ -1113,7 +1113,7 @@ theorem
       (abstractForallContext B.fieldDomains
         A.typing.parameterSuffix.parameterDecls).toCtx
       (H.outVEnv.IsType
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length) := by
+        H.recLparams.length) := by
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
     exact H.constructorVEnv_le
@@ -1131,28 +1131,23 @@ them form a contiguous free-variable weakening. -/
 theorem
     RecursorInstallation.RuleAlignment.installedPrefixParameterBase
     (_A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     {outerScope : VLCtx}
     (Houter : checkInductiveTypes.loopType.ScopeEmbedding H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       outerScope H.recursorWF.mlctx.vlctx)
     (restBinders : List FVarId) (Trest : List VExpr)
     (houterFVars : outerScope.fvars = (H.params.fvars ++ restBinders).reverse)
     (HouterPrefix : VEnv.IsDefEqCtx H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+      H.recLparams.length []
       outerScope.toCtx (T.params ++ Trest).reverse) :
     VLCtx.IsDefEq H.outVEnv
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+        H.recLparams.length
         H.parameterSuffix.parameterDecls
         (outerScope.drop Trest.length) ∧
       VLCtx.FVLift (outerScope.drop Trest.length)
         outerScope 0 Trest.length 0 := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let P := H.parameterSuffix.parameterDecls
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
@@ -1253,17 +1248,12 @@ tail agrees with the parameter-scope translation. -/
 theorem
     RecursorInstallation.RuleAlignment.installedInstalledCheckedFieldLink
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size)
     (checkedDomains : List VExpr) (checkedResidual : VExpr)
     (hchecked : checkedDomains.length = A.rule.allArgs.size)
     (Hchecked : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       H.parameterSuffix.parameterDecls A.typing.parameterTail
       (VExpr.wrapForalls checkedDomains checkedResidual))
     (fieldDomains hypothesisDomains : List VExpr) (targetResidual : VExpr)
@@ -1271,7 +1261,7 @@ theorem
     (hminorType :
       T.minors[recursorMinorOffset indTypes owner + i]! = VExpr.wrapForalls
         (fieldDomains ++ hypothesisDomains) targetResidual) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     let base := T.params ++ T.motives ++ T.minors.take minorIdx
     VEnv.IsDefEqCtx H.outVEnv Us.length []
@@ -1279,7 +1269,7 @@ theorem
           checkedDomains.reverse ++ base.reverse)
       (fieldDomains.reverse ++ base.reverse) := by
   dsimp only
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take minorIdx
@@ -1510,7 +1500,7 @@ theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorScopedFieldAlignment
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     ∃ S : MinorPremiseType,
       ∃ _HS : TypedMinorTraversalAt H.recursorWF S
           H.parameterSuffix.parameterDecls,
@@ -1524,7 +1514,7 @@ theorem
               H.parameterSuffix.parameterDecls.toCtx)
             (B.fieldDomains.reverse ++
               H.parameterSuffix.parameterDecls.toCtx) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   rcases A.installedSelectedMinorSource with
     ⟨S, HS, _hlocal, htail⟩
   rcases HS.semantic.parameterTranslationAtSuffix with
@@ -1594,7 +1584,7 @@ theorem
     RecursorInstallation.RuleAlignment.installedCheckedScopedFieldAlignment
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     ∃ checkedDomains checkedResidual,
       checkedDomains.length = A.rule.allArgs.size ∧
       TrExprS H.outVEnv Us H.parameterSuffix.parameterDecls
@@ -1605,7 +1595,7 @@ theorem
           H.parameterSuffix.parameterDecls.toCtx)
         (B.fieldDomains.reverse ++
           H.parameterSuffix.parameterDecls.toCtx) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   rcases A.installedSelectedMinorSharedFieldContext with
     ⟨_S₁, _HS₁, minorDomains, minorResidual,
       checkedDomains, checkedResidual, _hlocal₁, _htail₁,
@@ -1659,7 +1649,7 @@ theorem
     RecursorInstallation.RuleAlignment.installedCheckedScopedEquationContextAlignment
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
@@ -1677,7 +1667,7 @@ theorem
               B.fieldDomains.reverse) ++
             (T.motives ++ T.minors).reverse ++
               H.parameterSuffix.parameterDecls.toCtx) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   rcases A.installedCheckedConstructorFieldFrame with
     ⟨T, checkedDomains, checkedResidual, _introTarget, hparams,
       hchecked, Hchecked, _HfieldResidual, _HtailType,
@@ -1768,13 +1758,8 @@ theorem
     RecursorInstallation.RuleAlignment.installedCheckedScopedEquationContextAlignmentFor
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    (T : H.TypeTelescope owner howner) :
+    let Us := H.recLparams
     ∃ checkedDomains equationFieldDomains : List VExpr,
       checkedDomains.length = A.rule.allArgs.size ∧
       equationFieldDomains =
@@ -1806,25 +1791,20 @@ theorem
     RecursorInstallation.RuleAlignment.installedCheckedScopedEquationContextAlignmentFromFrameFor
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (checkedDomains : List VExpr) (checkedResidual : VExpr)
     (hparams : VEnv.IsDefEqCtx H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+      H.recLparams.length []
       T.params.reverse H.parameterSuffix.parameterDecls.toCtx)
     (hchecked : checkedDomains.length = A.rule.allArgs.size)
     (Hchecked : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       H.parameterSuffix.parameterDecls A.typing.parameterTail
       (VExpr.wrapForalls checkedDomains checkedResidual))
     (HcheckedContext : OnCtx (checkedDomains.reverse ++ T.params.reverse)
       (H.outVEnv.IsType
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length)) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+        H.recLparams.length)) :
+    let Us := H.recLparams
     let inserted := T.motives ++ T.minors
     ∃ equationFieldDomains : List VExpr,
       equationFieldDomains =
@@ -1835,7 +1815,7 @@ theorem
         ((liftContextPrefix inserted.length B.fieldDomains.reverse) ++
           inserted.reverse ++ H.parameterSuffix.parameterDecls.toCtx) := by
   dsimp only
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   rcases A.installedCheckedScopedFieldAlignment B with
     ⟨otherCheckedDomains, otherCheckedResidual, hotherChecked,
       HotherChecked, HotherNarrow⟩
@@ -1917,7 +1897,7 @@ theorem
     RecursorInstallation.RuleAlignment.installedScopedSelectedMinorFrame
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -1944,7 +1924,7 @@ theorem
           H.outVEnv.HasType Us.length fixedContext (.bvar minorVar)
             (T.minors[minorIdx]!.liftN
               (later.length + 1 + fixedFieldRecent.length) 0) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   rcases A.installedCheckedScopedEquationContextAlignment B with
     ⟨T, checkedDomains, equationFieldDomains, hchecked,
@@ -2018,7 +1998,7 @@ theorem
     RecursorInstallation.RuleAlignment.installedScopedSelectedMinorTypeFrame
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -2042,7 +2022,7 @@ theorem
             ((VExpr.wrapForalls (fieldDomains ++ hypothesisDomains)
               targetResidual).liftN
                 (later.length + 1 + fixedFieldRecent.length) 0) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   rcases A.installedSelectedMinorTargetContext with
     ⟨T, fieldDomains, hypothesisDomains, targetResidual,

@@ -38,15 +38,10 @@ only its higher-order local telescope varies with the recursive field. -/
 theorem
     RecursorInstallation.RuleAlignment.recursiveResultTypingFor
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (B : A.FieldFrame)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -90,7 +85,7 @@ theorem
           (abstractForallContext equationDomains []).toCtx
           (VExpr.wrapLams localDomains resultBody)
           (VExpr.wrapForalls localDomains resultType) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let equationDomains :=
     H.parameterSuffix.parameterDecls.toCtx.reverse ++
       T.motives ++ T.minors ++
@@ -143,12 +138,7 @@ and forall type both live in the single context shared by the whole RHS. -/
 structure
     RecursorInstallation.RuleAlignment.RecursiveResult
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (B : A.FieldFrame)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) where
   frame : A.RecursiveCallFrame j hj
@@ -158,7 +148,7 @@ structure
   templateTarget : VExpr
   local_length : localDomains.length = frame.semantic.generated.localArgs.size
   equation_context :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -167,7 +157,7 @@ structure
     OnCtx (abstractForallContext equationDomains []).toCtx
       (H.outVEnv.IsType Us.length)
   local_forall_translation :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -198,7 +188,7 @@ structure
         (mkAppN A.rule.recursiveArgs[j]
           frame.semantic.generated.localArgs)).abstractList A.rule.binders)
   residual_translation :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -210,7 +200,7 @@ structure
       A.rule.binders frame.semantic.generated.localArgs.size)
       resultBody
   template_residual_translation :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -221,7 +211,7 @@ structure
       (frame.semantic.generated.outerAbstractedMajor A.rule.binders)
       templateTarget
   result_type_translation :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -232,7 +222,7 @@ structure
       (frame.semantic.generated.outerAbstractedMotiveApp A.rule.binders)
       resultType
   result_type_isType :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -242,7 +232,7 @@ structure
       (abstractForallContext (equationDomains ++ localDomains) []).toCtx
       resultType
   closed_typing :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -256,12 +246,7 @@ structure
 theorem
     RecursorInstallation.RuleAlignment.recursiveResult
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (B : A.FieldFrame)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
     Nonempty (A.RecursiveResult T B j hj) := by
@@ -311,16 +296,11 @@ exact complete higher-order domain produced by the recursive-call replay,
 closed over the executable's full rule binder list. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveResult.fullForallTranslation
-    {T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner}
+    {T : H.TypeTelescope owner howner}
     {B : A.FieldFrame}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (E : A.RecursiveResult T B j hj) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -338,7 +318,7 @@ theorem
         E.frame.semantic.generated.localArgs motiveApp).abstractList
           A.rule.binders)
       (VExpr.wrapForalls E.localDomains E.resultType) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let equationDomains :=
     H.parameterSuffix.parameterDecls.toCtx.reverse ++
       T.motives ++ T.minors ++
@@ -430,17 +410,12 @@ domain.  Both its dependent local domains and its real residual are lifted
 at their exact respective cutoffs. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveResult.fullForallTranslationAfter
-    {T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner}
+    {T : H.TypeTelescope owner howner}
     {B : A.FieldFrame}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (E : A.RecursiveResult T B j hj)
     (previous : List VExpr) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -461,7 +436,7 @@ theorem
           A.rule.binders).liftLooseBVars' 0 previous.length)
       (VExpr.wrapForalls liftedLocals
         (E.resultType.liftN previous.length E.localDomains.length)) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let equationDomains :=
     H.parameterSuffix.parameterDecls.toCtx.reverse ++
       T.motives ++ T.minors ++
@@ -489,16 +464,11 @@ translations for the eta-expanded recursive-field lambda over the same local
 selection. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveResult.templateTranslation
-    {T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner}
+    {T : H.TypeTelescope owner howner}
     {B : A.FieldFrame}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (E : A.RecursiveResult T B j hj) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -512,7 +482,7 @@ theorem
             E.frame.semantic.generated.localArgs)).abstractList
         A.rule.binders)
       (VExpr.wrapLams E.localDomains E.templateTarget) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let equationDomains :=
     H.parameterSuffix.parameterDecls.toCtx.reverse ++
       T.motives ++ T.minors ++
@@ -576,18 +546,13 @@ derivations; the actual recursive-call residual is the independently checked
 one retained by `RecursiveResult`. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveResult.fullTranslationOfTemplate
-    {T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner}
+    {T : H.TypeTelescope owner howner}
     {B : A.FieldFrame}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (E : A.RecursiveResult T B j hj)
     (templateTarget : VExpr)
     (Htemplate :
-      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let Us := H.recLparams
       let equationDomains :=
         H.parameterSuffix.parameterDecls.toCtx.reverse ++
           T.motives ++ T.minors ++
@@ -601,7 +566,7 @@ theorem
               E.frame.semantic.generated.localArgs)).abstractList
           A.rule.binders)
         (VExpr.wrapLams E.localDomains templateTarget)) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
         T.motives ++ T.minors ++
@@ -686,13 +651,13 @@ theorem RecursorInstallation.RuleAlignment.recursiveResultResidualAfter
         (liftContextPrefix (T.motives ++ T.minors).length
           B.fieldDomains.reverse).reverse
     let locals := (liftContextPrefix previous.length E.localDomains.reverse).reverse
-    TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    TrExprS H.outVEnv H.recLparams
       (abstractForallContext (equationDomains ++ previous ++ locals) [])
       ((E.frame.semantic.generated.outerAbstractedMotiveApp
         A.rule.binders).liftLooseBVars'
           E.frame.semantic.generated.localArgs.size previous.length)
       (E.resultType.liftN previous.length E.localDomains.length) ∧
-    H.outVEnv.IsType (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+    H.outVEnv.IsType H.recLparams.length
       (abstractForallContext (equationDomains ++ previous ++ locals) []).toCtx
       (E.resultType.liftN previous.length E.localDomains.length) := by
   dsimp only
@@ -703,7 +668,7 @@ theorem RecursorInstallation.RuleAlignment.recursiveResultResidualAfter
   let liftedCanonicalLocals :=
     (liftContextPrefix previous.length E.localDomains.reverse).reverse
   have HcanonicalResidual₀ : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       (abstractForallContext (equationDomains ++ E.localDomains) [])
       (E.frame.semantic.generated.outerAbstractedMotiveApp A.rule.binders)
       E.resultType := by
@@ -713,7 +678,7 @@ theorem RecursorInstallation.RuleAlignment.recursiveResultResidualAfter
       (outer := equationDomains) (inner := E.localDomains)
       H.outVEnvWF.orderedStrong HcanonicalResidual₀ previous
   have HcanonicalResidual : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       (abstractForallContext
         (equationDomains ++ previous ++ liftedCanonicalLocals) [])
       ((E.frame.semantic.generated.outerAbstractedMotiveApp
@@ -732,7 +697,7 @@ theorem RecursorInstallation.RuleAlignment.recursiveResultResidualAfter
     simpa [liftedCanonicalLocals, List.reverse_append,
       abstractForallContext_toCtx, VLCtx.toCtx, List.append_assoc] using W
   have HcanonicalResidualType : H.outVEnv.IsType
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      H.recLparams.length
       (abstractForallContext
         (equationDomains ++ previous ++ liftedCanonicalLocals) []).toCtx
       (E.resultType.liftN previous.length E.localDomains.length) := by
@@ -900,7 +865,7 @@ structure RecursorInstallation.RuleAlignment.HypothesisResidual
     let liftedHypothesisInner :=
       (liftContextPrefix remainingMinorDomains.length
         hypothesisInner.reverse).reverse
-    TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    TrExprS H.outVEnv H.recLparams
       (abstractForallContext
         (T.params ++ T.motives ++ T.minors ++
           liftedHypothesisInner) [])
@@ -919,7 +884,7 @@ structure RecursorInstallation.RuleAlignment.HypothesisResidual
     let liftedCanonicalLocals :=
       (liftContextPrefix previousHypothesisDomains.length
         E.localDomains.reverse).reverse
-    TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    TrExprS H.outVEnv H.recLparams
       (abstractForallContext
         (equationDomains ++ previousHypothesisDomains ++
           liftedCanonicalLocals) [])
@@ -932,7 +897,7 @@ structure RecursorInstallation.RuleAlignment.HypothesisResidual
     source.hypothesisDomains[j]! = VExpr.wrapForalls
     hypothesisLocalDomains hypothesisResidual
   residual_translation :
-    TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    TrExprS H.outVEnv H.recLparams
     (abstractForallContext hypothesisLocalDomains
       (abstractForallContext
         ((source.fieldDomains ++ source.hypothesisDomains).take source.position)
@@ -965,7 +930,7 @@ theorem RecursorInstallation.RuleAlignment.installedHypothesisFrame :
   have htelescope : T₀ = T := T₀.eq T
   subst T₀
   subst stats
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   have hjTraversal : j < traversal.recursiveFields.size := by
     rw [htraversalRecursiveFields, ← S.hypotheses_size,
       hsourceHypotheses]
@@ -1856,7 +1821,7 @@ structure RecursorInstallation.RuleAlignment.HypothesisDomainFrame where
   local_length :
     frame.residual.hypothesisLocalDomains.length = E.localDomains.length
   hypothesis_translation :
-    TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    TrExprS H.outVEnv H.recLparams
     (abstractForallContext
       (T.params ++ T.motives ++ T.minors ++ frame.liftedPrior) [])
     (frame.source.declarationDomain.liftLooseBVars' frame.source.position frame.remaining.length)
@@ -1864,7 +1829,7 @@ structure RecursorInstallation.RuleAlignment.HypothesisDomainFrame where
       (frame.residual.hypothesisResidual.liftN frame.remaining.length
         (frame.source.position + frame.residual.hypothesisLocalDomains.length)))
   canonical_translation :
-    TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    TrExprS H.outVEnv H.recLparams
     (abstractForallContext (frame.equationDomains ++ frame.liftedPrevious) [])
     (((E.frame.semantic.generated.current.lctx.mkForall
       E.frame.semantic.generated.localArgs frame.motiveApp).abstractList
@@ -1879,7 +1844,7 @@ structure RecursorInstallation.RuleAlignment.HypothesisDomainFrame where
       E.frame.semantic.generated.localArgs frame.motiveApp).abstractList
         A.rule.binders).liftLooseBVars' 0 frame.liftedPrevious.length)
   hypothesis_residual_translation :
-    TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    TrExprS H.outVEnv H.recLparams
     (abstractForallContext
       (T.params ++ T.motives ++ T.minors ++ frame.liftedPrior ++
         frame.liftedHypothesisLocals) [])
@@ -2005,7 +1970,7 @@ theorem RecursorInstallation.RuleAlignment.installedHypothesisDomains :
     simpa [liftedPrior, liftedFields, liftedPrevious, hpriorSplit] using
       liftContextPrefix_reverse_append remaining.length fieldDomains previous
   have HdomainFlat : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       (abstractForallContext
         ((T.params ++ T.motives ++ T.minors.take minorIdx) ++ prior) [])
       declarationDomain (VExpr.wrapForalls
@@ -2018,7 +1983,7 @@ theorem RecursorInstallation.RuleAlignment.installedHypothesisDomains :
       (outer := T.params ++ T.motives ++ T.minors.take minorIdx)
       (inner := prior) H.outVEnvWF.orderedStrong HdomainFlat remaining
   have Hinstalled : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       (abstractForallContext
         (T.params ++ T.motives ++ T.minors ++ liftedPrior) [])
       (declarationDomain.liftLooseBVars' position remaining.length)
@@ -2038,7 +2003,7 @@ theorem RecursorInstallation.RuleAlignment.installedHypothesisDomains :
       liftContextPrefix_reverse_append remaining.length prior
         hypothesisLocalDomains
   have HinstalledResidual : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       (abstractForallContext
         (T.params ++ T.motives ++ T.minors ++ liftedPrior ++
           liftedHypothesisLocals) [])
@@ -2048,7 +2013,7 @@ theorem RecursorInstallation.RuleAlignment.installedHypothesisDomains :
       (hypothesisResidual.liftN remaining.length
         (position + hypothesisLocalDomains.length)) := by
     have HinstalledResidual₀ : TrExprS H.outVEnv
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+        H.recLparams
         (abstractForallContext
           (T.params ++ T.motives ++ T.minors ++
             (liftContextPrefix remaining.length
@@ -2450,7 +2415,7 @@ theorem RecursorInstallation.RuleAlignment.installedHypothesisDomains :
       exact Hinstalled
     canonical_translation := by
       change
-        TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+        TrExprS H.outVEnv H.recLparams
         (abstractForallContext (equationDomains ++ liftedPrevious) [])
         (((E.frame.semantic.generated.current.lctx.mkForall
           E.frame.semantic.generated.localArgs motiveApp).abstractList

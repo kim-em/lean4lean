@@ -32,7 +32,7 @@ for consuming the target indices and major premise. -/
 theorem
     RecursorInstallation.RuleAlignment.installedRecursorPrefixFrame
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let recursor := H.entries[owner].2
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
@@ -128,7 +128,7 @@ theorem
               (introTarget.liftN A.rule.allArgs.size 0)
               (bvarSpine A.rule.allArgs.size)).liftN
             (T.motives ++ T.minors).length A.rule.allArgs.size) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let recursor := H.entries[owner].2
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
@@ -153,7 +153,7 @@ and constructor phases. -/
 theorem
     RecursorInstallation.RuleAlignment.installedCachedRecursorPrefixFrame
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let recursor := H.entries[owner].2
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
@@ -296,7 +296,7 @@ theorem
             (((AddInductive.getIIndices stats A.rule.target).2.map fun arg =>
               arg.abstractList A.rule.binders).toList)
             indexTargets := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let recursor := H.entries[owner].2
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
@@ -651,7 +651,7 @@ owner-motive application. -/
 theorem
     RecursorInstallation.RuleAlignment.installedCachedLhsBodyWithFrame
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
@@ -690,7 +690,7 @@ theorem
               (AddInductive.getIIndices stats A.rule.target).2)
             A.rule.sourceConstructorMajor).abstractList A.rule.binders)
           typeBody := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
@@ -930,13 +930,8 @@ context. -/
 theorem
     RecursorInstallation.RuleAlignment.installedCachedLhsBodyWithFrameFor
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    (T : H.TypeTelescope owner howner) :
+    let Us := H.recLparams
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
@@ -991,13 +986,8 @@ theorem
     RecursorInstallation.RuleAlignment.installedFixedLhsBodyFor
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    (T : H.TypeTelescope owner howner) :
+    let Us := H.recLparams
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
@@ -1019,7 +1009,7 @@ theorem
           A.rule.sourceConstructorMajor).abstractList A.rule.binders)
         typeBody := by
   dsimp only
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls

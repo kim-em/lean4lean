@@ -157,7 +157,7 @@ without reusing an executable `isDefEq` success as an assumption. -/
 theorem RecursorInstallation.installedPairedParameterAlignmentAt
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
@@ -167,7 +167,7 @@ theorem RecursorInstallation.installedPairedParameterAlignmentAt
           H.recInfos[owner]! H.elimLevel,
         VEnv.IsDefEqCtx H.outVEnv Us.length []
           T.params.reverse S.canonical.params.reverse := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   rcases H.installedRecursorParameterContextAt owner howner with
     ⟨T, hgenerated⟩
   have hrecInfo : owner < H.recInfos.size := by
@@ -190,7 +190,7 @@ theorem
     RecursorInstallation.installedOwnerMotiveFrameAt
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
@@ -283,7 +283,7 @@ theorem
     RecursorInstallation.installedOwnerMotiveDomainTranslationAt
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
@@ -320,7 +320,7 @@ translated recursor is exactly the declaration type recorded by the second
 theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorDomain
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -342,7 +342,7 @@ theorem
               (abstractForallContext
                 (T.params ++ T.motives ++ T.minors.take minorIdx) []).toCtx
               T.minors[minorIdx]! := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   rcases H.installedRecursorTelescopeTranslationAt owner howner with ⟨T⟩
   have hminor : minorIdx < T.minors.length := by
@@ -680,7 +680,7 @@ theorem
     (k : Nat)
     (hup : IsFVarUpSet (· ∈ (H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars).take k) H.recursorWF.mlctx.vlctx) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars
     ∃ scope,
@@ -705,7 +705,7 @@ theorem
                   H.recInfos[owner]!.major))))
           (outerBinders.length - k + (H.recInfos[owner]!.indices.size + 1)) t' := by
   dsimp only
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars
   rcases H.installedRecursorTelescopeTranslationAt owner howner with ⟨T⟩
@@ -910,7 +910,7 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars.take minorIdx
@@ -949,7 +949,7 @@ theorem
             (T.params ++ T.motives ++ T.minors.take minorIdx) []).toCtx
           T.minors[minorIdx]! := by
   dsimp only
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take minorIdx
@@ -1028,7 +1028,7 @@ whole-domain closing theorem. -/
 theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorExactPrefixSource
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars.take minorIdx
@@ -1066,7 +1066,7 @@ theorem
         scope.toCtx.reverse.length =
           (T.params ++ T.motives ++ T.minors.take minorIdx).length := by
   dsimp only
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take minorIdx
@@ -1360,7 +1360,7 @@ type the canonical rule right-hand side. -/
 theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorPrefixDefEqCtx
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars.take minorIdx
@@ -1382,7 +1382,7 @@ theorem
         VEnv.IsDefEqCtx H.outVEnv Us.length [] scope.toCtx
           (T.params ++ T.motives ++ T.minors.take minorIdx).reverse := by
   dsimp only
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take minorIdx

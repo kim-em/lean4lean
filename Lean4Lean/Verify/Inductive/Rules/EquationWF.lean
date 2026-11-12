@@ -183,7 +183,7 @@ structure RecursorInstallation.RuleAlignment.EquationFrame
     (A : H.RuleAlignment owner howner i hctor) where
   frame : A.FieldFrame
   telescope : RecursorTypeTelescope H.outVEnv
-    (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    H.recLparams
     (H.generated.entry owner howner).info.type H.entries[owner].2.type
     stats.params.size (H.recInfos.map (·.motive)).size
     (H.recInfos.flatMap (·.minors)).size
@@ -202,7 +202,7 @@ structure RecursorInstallation.RuleAlignment.EquationFrame
     let outer := inserted.reverse ++ H.parameterSuffix.parameterDecls.toCtx
     let later := telescope.minors.drop (recursorMinorOffset indTypes owner + i + 1)
     VEnv.IsDefEqCtx H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+      H.recLparams.length []
       ((liftContextPrefix inserted.length frame.fieldDomains.reverse).reverse.reverse ++
         outer)
       ((liftContextPrefix (later.length + 1) fieldDomains.reverse).reverse.reverse ++
@@ -210,21 +210,21 @@ structure RecursorInstallation.RuleAlignment.EquationFrame
   ctx : OnCtx
     (canonicalEquationDomains H.parameterSuffix.parameterDecls.toCtx.reverse
       telescope.motives telescope.minors frame.fieldDomains).reverse
-    (H.outVEnv.IsType (AddInductive.getRecLevelParams H.elimLevel c.lparams).length)
+    (H.outVEnv.IsType H.recLparams.length)
   lhs_translation : TrExprS H.outVEnv
-    (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    H.recLparams
     (abstractForallContext
       (canonicalEquationDomains H.parameterSuffix.parameterDecls.toCtx.reverse
         telescope.motives telescope.minors frame.fieldDomains) [])
     (A.rule.sourceLhsBody.abstractList A.rule.binders) lhsBody
   rhs_translation : TrExprS H.outVEnv
-    (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    H.recLparams
     (abstractForallContext
       (canonicalEquationDomains H.parameterSuffix.parameterDecls.toCtx.reverse
         telescope.motives telescope.minors frame.fieldDomains) [])
     (A.rule.sourceRhsBody.abstractList A.rule.binders) rhsBody
   type_translation : TrExprS H.outVEnv
-    (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    H.recLparams
     (abstractForallContext
       (canonicalEquationDomains H.parameterSuffix.parameterDecls.toCtx.reverse
         telescope.motives telescope.minors frame.fieldDomains) [])
@@ -234,12 +234,12 @@ structure RecursorInstallation.RuleAlignment.EquationFrame
       A.rule.sourceConstructorMajor).abstractList A.rule.binders)
     typeBody
   lhs_typing : H.outVEnv.HasType
-    (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+    H.recLparams.length
     (canonicalEquationDomains H.parameterSuffix.parameterDecls.toCtx.reverse
       telescope.motives telescope.minors frame.fieldDomains).reverse
     lhsBody typeBody
   rhs_typing : H.outVEnv.HasType
-    (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+    H.recLparams.length
     (canonicalEquationDomains H.parameterSuffix.parameterDecls.toCtx.reverse
       telescope.motives telescope.minors frame.fieldDomains).reverse
     rhsBody typeBody
@@ -250,7 +250,7 @@ theorem
     (A : H.RuleAlignment owner howner i hctor)
     (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
     Nonempty A.EquationFrame := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   rcases A.installedRhsPositiveArityDetailed hpositive with
     ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
@@ -568,7 +568,7 @@ theorem
     (A : H.RuleAlignment owner howner i hctor)
     (hzero : A.rule.allArgs.size + A.rule.recursiveArgs.size = 0) :
     Nonempty A.EquationFrame := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   have hfieldsZero : A.rule.allArgs.size = 0 := by omega
   have hhypothesesZero : A.rule.recursiveArgs.size = 0 := by omega
@@ -984,7 +984,7 @@ theorem RecursorInstallation.RuleAlignment.EquationFrame.domains_defeq
     (hnf : (H.generationSignature.constructors[recursorMinorOffset indTypes owner + i]).fields.length =
         A.rule.allArgs.size) :
     VEnv.IsDefEqCtx H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+      H.recLparams.length []
       (canonicalEquationDomains H.parameterSuffix.parameterDecls.toCtx.reverse
         F.telescope.motives F.telescope.minors F.frame.fieldDomains).reverse
       (H.canonicalGeneration.equationDomains
@@ -1022,17 +1022,17 @@ structure RecursorInstallation.RuleAlignment.EquationBodyTranslations
     (A : H.RuleAlignment owner howner i hctor)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size) :
     Prop where
-  lhs : TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+  lhs : TrExprS H.outVEnv H.recLparams
     (abstractForallContext
       (H.canonicalGeneration.equationDomains ⟨recursorMinorOffset indTypes owner + i, hk⟩) [])
     (A.rule.sourceLhsBody.abstractList A.rule.binders)
     (H.canonicalGeneration.equationLhsBody ⟨recursorMinorOffset indTypes owner + i, hk⟩)
-  rhs : TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+  rhs : TrExprS H.outVEnv H.recLparams
     (abstractForallContext
       (H.canonicalGeneration.equationDomains ⟨recursorMinorOffset indTypes owner + i, hk⟩) [])
     (A.rule.sourceRhsBody.abstractList A.rule.binders)
     (H.canonicalGeneration.equationRhsBody ⟨recursorMinorOffset indTypes owner + i, hk⟩)
-  type : TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+  type : TrExprS H.outVEnv H.recLparams
     (abstractForallContext
       (H.canonicalGeneration.equationDomains ⟨recursorMinorOffset indTypes owner + i, hk⟩) [])
     ((Expr.app
@@ -1057,7 +1057,7 @@ theorem RecursorInstallation.RuleAlignment.generatorEquationWF
   obtain ⟨_hk, -, hnf⟩ := A.generatedConstructor
   have D := F.domains_defeq hk hnf
   have huvars : H.canonicalGeneration.uvars =
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length :=
+      H.recLparams.length :=
     H.generator.uvars
   rw [InductiveSignature.Instance.equation_eq, huvars]
   exact VDefEq.WF.transportTranslatedWrapped H.outVEnvWF F.ctx F.lhs_typing F.rhs_typing D
@@ -1129,10 +1129,10 @@ theorem RecursorInstallation.RuleAlignment.rhsResidualOfClosed
     (A : H.RuleAlignment owner howner i hctor)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size)
     (hclosed : Closed A.rule.sourceRhsBody)
-    (Htr : TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
+    (Htr : TrExprS H.outVEnv H.recLparams []
       ((H.generated.entry owner howner).info.rules[i]'A.sourceRule_lt).rhs
       (H.canonicalGeneration.equation ⟨recursorMinorOffset indTypes owner + i, hk⟩).rhs) :
-    TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    TrExprS H.outVEnv H.recLparams
       (abstractForallContext
         (H.canonicalGeneration.equationDomains ⟨recursorMinorOffset indTypes owner + i, hk⟩) [])
       (A.rule.sourceRhsBody.abstractList A.rule.binders)

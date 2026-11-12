@@ -32,6 +32,22 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {owner : Nat} {howner : owner < H.entries.length}
   {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
 
+/-- The universe parameter names of the generated recursors: the declaration's, preceded by
+the elimination universe when the recursors eliminate into every sort. -/
+abbrev RecursorInstallation.recLparams (H : RecursorInstallation R outEnv) : List Name :=
+  AddInductive.getRecLevelParams H.elimLevel c.lparams
+
+/-- The telescope of the installed recursor type of the family `owner`, split into its
+parameters, motives, minors and indices. -/
+abbrev RecursorInstallation.TypeTelescope (H : RecursorInstallation R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length) :=
+  RecursorTypeTelescope H.outVEnv
+    (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    (H.generated.entry owner howner).info.type H.entries[owner].2.type
+    stats.params.size (H.recInfos.map (·.motive)).size
+    (H.recInfos.flatMap (·.minors)).size
+    H.recInfos[owner]!.indices.size owner
+
 /-- Pointwise projection used by abstract iota reconstruction.  It exposes
 the exact generated source rule together with its `Semantics` record from the
 same executable constructor iteration. -/
@@ -193,7 +209,7 @@ theorem RecursorInstallation.recursorTelescopeTranslationAt
     (owner : Nat) (howner : owner < H.entries.length) :
     Nonempty (RecursorTypeTelescope
       R.context.venv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
@@ -215,7 +231,7 @@ theorem RecursorInstallation.installedRecursorTelescopeTranslationAt
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     Nonempty (RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
@@ -232,21 +248,21 @@ theorem RecursorInstallation.installedRecursorCommonPrefixContextAt
     (owner₁ : Nat) (howner₁ : owner₁ < H.entries.length)
     (owner₂ : Nat) (howner₂ : owner₂ < H.entries.length)
     (T₁ : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       (H.generated.entry owner₁ howner₁).info.type
       H.entries[owner₁].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner₁]!.indices.size owner₁)
     (T₂ : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       (H.generated.entry owner₂ howner₂).info.type
       H.entries[owner₂].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner₂]!.indices.size owner₂) :
     VEnv.IsDefEqCtx H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+      H.recLparams.length []
       (T₁.params ++ T₁.motives ++ T₁.minors).reverse
       (T₂.params ++ T₂.motives ++ T₂.minors).reverse := by
   apply T₁.commonPrefixDefEqCtx H.outVEnvWF T₂
@@ -263,7 +279,7 @@ theorem
     RecursorInstallation.installedRecursorParameterContextAt
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
@@ -274,7 +290,7 @@ theorem
         H.recInfos[owner]!.indices.size owner,
       VEnv.IsDefEqCtx H.outVEnv Us.length []
         T.params.reverse parameterDecls.toCtx := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
@@ -358,7 +374,7 @@ theorem
 theorem
     RecursorInstallation.RuleAlignment.installedRecursorParameterContext
     (_A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
@@ -379,14 +395,9 @@ theorem
     RecursorInstallation.installedRecursorParameterContextFor
     (H : RecursorInstallation R outEnv)
     {owner : Nat} (howner : owner < H.entries.length)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner) :
+    (T : H.TypeTelescope owner howner) :
     VEnv.IsDefEqCtx H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+      H.recLparams.length []
       T.params.reverse
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls.toCtx := by
@@ -404,7 +415,7 @@ equality. -/
 theorem
     RecursorInstallation.RuleAlignment.installedCheckedConstructorFieldFrame
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
@@ -444,7 +455,7 @@ theorem
             (recursorDeclarationAbstractLevels c.lparams
               H.elimLevelAdmissible))
           (bvarSpine stats.params.size) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
@@ -525,13 +536,13 @@ theorem
     (fieldDomains : List VExpr) (fieldResult : VExpr)
     (hfields : fieldDomains.length = A.rule.allArgs.size)
     (HfieldResidual : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       (abstractForallContext fieldDomains
         (R.recursorHeaders.parameterSuffix.toRecursorContext
           H.elimLevelAdmissible).parameterDecls)
       (A.rule.target.abstractList A.typing.fieldOpening.fvars)
       fieldResult) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
@@ -542,7 +553,7 @@ theorem
         (A.rule.params_bound.fvars ++
           A.typing.fieldOpening.fvars))
       fieldResult := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
@@ -613,16 +624,11 @@ the already abstracted parameter variables. -/
 theorem
     RecursorInstallation.RuleAlignment.targetBinderLift_eq
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr) (fieldResult : VExpr)
     (hfields : fieldDomains.length = A.rule.allArgs.size)
     (Htarget : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       (abstractForallContext
         (((R.recursorHeaders.parameterSuffix.toRecursorContext
             H.elimLevelAdmissible).parameterDecls.toCtx.reverse) ++
@@ -781,15 +787,10 @@ is used by the matching recursor suffix. -/
 theorem
     RecursorInstallation.RuleAlignment.cachedConstructorIndexSpineOfTarget
     (A : H.RuleAlignment owner howner i hctor)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr) (fieldResult : VExpr)
     (Htarget :
-      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let Us := H.recLparams
       let parameterDecls :=
         (R.recursorHeaders.parameterSuffix.toRecursorContext
           H.elimLevelAdmissible).parameterDecls
@@ -800,7 +801,7 @@ theorem
         (A.rule.target.abstractList A.rule.binders)
         (fieldResult.liftN
           (T.motives ++ T.minors).length A.rule.allArgs.size)) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
@@ -827,7 +828,7 @@ theorem
           (((AddInductive.getIIndices stats A.rule.target).2.map fun arg =>
             arg.abstractList A.rule.binders).toList)
           indexTargets := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
@@ -906,7 +907,7 @@ resulting canonical equation context remains valid for dependent fields. -/
 theorem
     RecursorInstallation.RuleAlignment.installedCheckedConstructorEquationContextWithFrame
     (A : H.RuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
@@ -953,7 +954,7 @@ theorem
             (recursorDeclarationAbstractLevels c.lparams
               H.elimLevelAdmissible))
           (bvarSpine stats.params.size) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls

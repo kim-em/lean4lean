@@ -34,7 +34,7 @@ theorem
     RecursorInstallation.installedOwnerMotiveTelescopeShapeAt
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
@@ -115,13 +115,8 @@ theorem
     RecursorInstallation.installedOwnerMotiveTelescopeShapeForAt
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    (T : H.TypeTelescope owner howner) :
+    let Us := H.recLparams
     ∃ S : MotiveDecl H.recursorWF stats decl owner
         H.recInfos[owner]! H.elimLevel,
       VEnv.IsDefEqCtx H.outVEnv Us.length []
@@ -258,12 +253,7 @@ Both are produced by the same generator from the owner family's indices. -/
 theorem RecursorInstallation.ownerSuffix_eq_expected
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (motiveDomains : List VExpr) (resultLevel : VLevel)
     (hmotive : T.motives[owner]! =
       VExpr.wrapForalls motiveDomains (.sort resultLevel))
@@ -339,12 +329,7 @@ with the owner motive's declared domains: the two telescopes coincide. -/
 theorem RecursorInstallation.ownerMotiveSuffixContextFor
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length)
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (motiveDomains : List VExpr) (resultLevel : VLevel)
     (hmotive : T.motives[owner]! =
       VExpr.wrapForalls motiveDomains (.sort resultLevel))
@@ -355,7 +340,7 @@ theorem RecursorInstallation.ownerMotiveSuffixContextFor
     let expected :=
       (liftContextPrefixAt (later.length + 1) 0 motiveDomains.reverse).reverse
     VEnv.IsDefEqCtx H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+      H.recLparams.length []
       (suffix.reverse ++ outer.reverse)
       (expected.reverse ++ outer.reverse) := by
   dsimp only
@@ -371,13 +356,8 @@ theorem RecursorInstallation.ownerMotiveSuffixContextFor
 direct use with the telescope retained by the canonical equation frame. -/
 theorem
     RecursorInstallation.RuleAlignment.installedOwnerMotiveSuffixContextAlignmentFor
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    (T : H.TypeTelescope owner howner) :
+    let Us := H.recLparams
     ∃ S : MotiveDecl H.recursorWF stats decl owner
         H.recInfos[owner]! H.elimLevel,
       VEnv.IsDefEqCtx H.outVEnv Us.length []
@@ -414,18 +394,13 @@ equation LHS: the generated recursor suffix and the independent motive
 domains are weakened through precisely the same locally bound fields. -/
 theorem
     RecursorInstallation.RuleAlignment.installedOwnerMotiveSuffixAlignmentUnderFields
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr)
     (hctx : OnCtx
       (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
       (H.outVEnv.IsType
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length)) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+        H.recLparams.length)) :
+    let Us := H.recLparams
     ∃ S : MotiveDecl H.recursorWF stats decl owner
         H.recInfos[owner]! H.elimLevel,
       VEnv.IsDefEqCtx H.outVEnv Us.length []
@@ -445,7 +420,7 @@ theorem
             fieldDomains.reverse ++ outer.reverse)
           (liftContextPrefix fieldDomains.length expected.reverse ++
             fieldDomains.reverse ++ outer.reverse) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   rcases RecursorInstallation.RuleAlignment.installedOwnerMotiveSuffixContextAlignmentFor (H := H) T with
     ⟨S, hparameters, motiveDomains, resultLevel,
       hdomainLength, hmotive, Hsuffix⟩
@@ -480,24 +455,19 @@ generated owner-motive application `T.result`; only the dependent domains
 differ, and `closeWrapForalls` discharges exactly that distinction. -/
 theorem
     RecursorInstallation.RuleAlignment.installedOwnerMotiveSuffixTypeAlignment
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr) (prefixTarget : VExpr)
     (hctx : OnCtx
       (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
       (H.outVEnv.IsType
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length))
+        H.recLparams.length))
     (Hprefix : H.outVEnv.HasType
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      H.recLparams.length
       (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
       prefixTarget
       ((VExpr.wrapForalls (T.indices ++ T.major) T.result).liftN
         fieldDomains.length 0)) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     ∃ motiveDomains resultLevel,
       motiveDomains.length = H.recInfos[owner]!.indices.size + 1 ∧
       T.motives[owner]! =
@@ -515,7 +485,7 @@ theorem
         (VExpr.wrapForalls
           ((liftContextPrefix fieldDomains.length expected.reverse).reverse)
           (T.result.liftN fieldDomains.length suffix.length)) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   rcases RecursorInstallation.RuleAlignment.installedOwnerMotiveSuffixAlignmentUnderFields
     (H := H) (owner := owner) (howner := howner) T fieldDomains hctx with
     ⟨_S, _hparameters, motiveDomains, resultLevel,
@@ -591,14 +561,9 @@ has exactly the independent domains appearing on the right side of
 rather than the generated recursor result. -/
 theorem
     RecursorInstallation.RuleAlignment.installedOwnerMotiveFieldWitnessTyping
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     ∃ motiveDomains resultLevel,
       motiveDomains.length = H.recInfos[owner]!.indices.size + 1 ∧
       T.motives[owner]! =
@@ -614,7 +579,7 @@ theorem
         (VExpr.wrapForalls
           ((liftContextPrefix fieldDomains.length expected.reverse).reverse)
           (.sort resultLevel)) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   rcases H.installedOwnerMotiveTelescopeShapeForAt owner howner T with
     ⟨_S, _hparameters, motiveDomains, resultLevel,
       hdomainLength, _hsuffixLength, hmotive, _hresultLevel⟩
@@ -648,12 +613,7 @@ owner variable and its complete dependent function type are unchanged; only
 the outer parameter domains are converted. -/
 theorem
     RecursorInstallation.RuleAlignment.installedCachedOwnerMotiveWitnessTyping
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr)
     (Hctx :
       let parameterDecls :=
@@ -665,9 +625,9 @@ theorem
         (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
           fieldDomains
       VEnv.IsDefEqCtx H.outVEnv
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+        H.recLparams.length []
         canonicalDomains.reverse cachedDomains.reverse) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
@@ -687,7 +647,7 @@ theorem
         (VExpr.wrapForalls
           ((liftContextPrefix fieldDomains.length expected.reverse).reverse)
           (.sort resultLevel)) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
@@ -724,12 +684,7 @@ recursor result, while the motive application returns an elimination sort.
 This is the form in which `SameTelescopeDomains` compares the two applications. -/
 theorem
     RecursorInstallation.RuleAlignment.installedCachedPrefixOwnerTelescope
-    (T : RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner)
+    (T : H.TypeTelescope owner howner)
     (fieldDomains : List VExpr) (prefixTarget : VExpr)
     (Hfull :
       let parameterDecls :=
@@ -741,7 +696,7 @@ theorem
         (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
           fieldDomains
       VEnv.IsDefEqCtx H.outVEnv
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+        H.recLparams.length []
         canonicalDomains.reverse cachedDomains.reverse)
     (HcachedCtx :
       let parameterDecls :=
@@ -752,7 +707,7 @@ theorem
           fieldDomains
       OnCtx cachedDomains.reverse
         (H.outVEnv.IsType
-          (AddInductive.getRecLevelParams H.elimLevel c.lparams).length))
+          H.recLparams.length))
     (HprefixCached :
       let parameterDecls :=
         (R.recursorHeaders.parameterSuffix.toRecursorContext
@@ -761,11 +716,11 @@ theorem
         (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
           fieldDomains
       H.outVEnv.HasType
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+        H.recLparams.length
         cachedDomains.reverse prefixTarget
         ((VExpr.wrapForalls (T.indices ++ T.major) T.result).liftN
           fieldDomains.length 0)) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
@@ -793,7 +748,7 @@ theorem
           (VExpr.wrapForalls expectedDomains
             (T.result.liftN fieldDomains.length suffix.length))
           (VExpr.wrapForalls expectedDomains (.sort resultLevel)) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
@@ -868,7 +823,7 @@ theorem
     RecursorInstallation.installedOwnerClosedMotiveFrameAt
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
@@ -930,7 +885,7 @@ theorem
     RecursorInstallation.installedOwnerScopedMotiveTranslationAt
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
@@ -975,7 +930,7 @@ theorem
     RecursorInstallation.installedOwnerMotiveDomainAt
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let Us := H.recLparams
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
@@ -998,7 +953,7 @@ theorem
     (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
       (.sort H.elimLevel))
   have HnarrowParameters : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       S.motiveParameterScope source narrowTarget := by
     simpa [source, S.motiveSourceParameterScope] using Hnarrow
   rcases cachedParameterDecls_fvars S.motiveParameterDecls with
@@ -1040,12 +995,12 @@ theorem
         simpa [abstractForallContext] using HnarrowParameters)
   simp only [List.reverse_reverse] at HparameterAbstract
   have HparameterAbstract' : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       (abstractForallContext S.motiveParameterScope.toCtx.reverse [])
       (source.abstractList H.params.fvars) narrowTarget := by
     simpa using HparameterAbstract
   have HparameterContext : VLCtx.IsDefEq H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      H.recLparams.length
       (abstractForallContext T.params [])
       (abstractForallContext
         S.motiveParameterScope.toCtx.reverse []) := by
@@ -1058,7 +1013,7 @@ theorem
   have HparameterTargets := HparameterAbstract'.uniq H.outVEnvWF
     (HparameterContext.symm H.outVEnvWF.orderedStrong) HparameterTarget
   have HcanonicalParameters : H.outVEnv.IsDefEqU
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      H.recLparams.length
       (abstractForallContext
         S.motiveParameterScope.toCtx.reverse []).toCtx
       narrowTarget S.canonical.motiveType := by
@@ -1070,7 +1025,7 @@ theorem
     rw [hctx, ← S.motiveSourceParameterScope]
     exact Hcanonical
   have HparameterCanonicalAtSource : H.outVEnv.IsDefEqU
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      H.recLparams.length
       (abstractForallContext
         S.motiveParameterScope.toCtx.reverse []).toCtx
       parameterTarget S.canonical.motiveType :=
@@ -1124,7 +1079,7 @@ theorem
   have HparameterWeak := HparameterTarget.weakBV
     H.outVEnvWF.orderedStrong W
   have HparameterWeak' : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.recLparams
       (abstractForallContext
         (T.params ++ T.motives.take owner) [])
       (source.abstractList
@@ -1166,9 +1121,9 @@ theorem
     | cons type types ih => simp [VLCtx.toCtx, ih]
   have anonymousWF : ∀ types : List VExpr,
       OnCtx types (H.outVEnv.IsType
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length) →
+        H.recLparams.length) →
       VLCtx.WF H.outVEnv
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+        H.recLparams.length
         (types.map fun type =>
           ((none, .vlam type) :
             Option (FVarId × List FVarId) × VLocalDecl)) := by
@@ -1177,7 +1132,7 @@ theorem
     | nil => trivial
     | cons type types ih =>
       have Htype : H.outVEnv.IsType
-          (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+          H.recLparams.length
           (VLCtx.toCtx (types.map fun type =>
             ((none, .vlam type) :
               Option (FVarId × List FVarId) × VLocalDecl))) type := by
@@ -1188,7 +1143,7 @@ theorem
       (abstractForallContext
         (T.params ++ T.motives.take owner) []).toCtx
       (H.outVEnv.IsType
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length) := by
+        H.recLparams.length) := by
     have HprefixCtx := T.prefixContext H.outVEnvWF.ordered
     have hmotivesReverse : T.motives.reverse =
         (T.motives.drop owner).reverse ++
@@ -1211,7 +1166,7 @@ theorem
     rw [hearlierToCtx]
     exact Hsuffix
   have HearlierVLCtx : VLCtx.WF H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      H.recLparams.length
       (abstractForallContext
         (T.params ++ T.motives.take owner) []) := by
     have Hwf := anonymousWF
@@ -1231,7 +1186,7 @@ theorem
   have HcanonicalWeak := HparameterCanonical.weakN
     H.outVEnvWF.ordered W.toCtx
   have HcanonicalWeak' : H.outVEnv.IsDefEqU
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      H.recLparams.length
       (abstractForallContext
         (T.params ++ T.motives.take owner) []).toCtx
       (parameterTarget.liftN (T.motives.take owner).length 0)

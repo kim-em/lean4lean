@@ -126,7 +126,7 @@ theorem RecursorInstallation.RuleAlignment.typeTranslation
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size) :
-    TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    TrExprS H.outVEnv H.recLparams
       (abstractForallContext
         (H.canonicalGeneration.equationDomains ⟨recursorMinorOffset indTypes owner + i, hk⟩) [])
       ((Expr.app
@@ -134,7 +134,7 @@ theorem RecursorInstallation.RuleAlignment.typeTranslation
           (AddInductive.getIIndices stats A.rule.target).2)
         A.rule.sourceConstructorMajor).abstractList A.rule.binders)
       (H.canonicalGeneration.equationTypeBody ⟨recursorMinorOffset indTypes owner + i, hk⟩) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Us := H.recLparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   let expected := Expr.app
     (mkAppN H.recInfos[owner]!.motive
@@ -240,7 +240,7 @@ theorem RecursorInstallation.RuleAlignment.lhsTranslation
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size) :
-    TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    TrExprS H.outVEnv H.recLparams
       (abstractForallContext
         (H.canonicalGeneration.equationDomains ⟨recursorMinorOffset indTypes owner + i, hk⟩) [])
       (A.rule.sourceLhsBody.abstractList A.rule.binders)
@@ -384,7 +384,7 @@ theorem RecursorInstallation.RuleAlignment.equationBodyTranslationsOfRhs
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size)
-    (Hrhs : TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    (Hrhs : TrExprS H.outVEnv H.recLparams
       (abstractForallContext
         (H.canonicalGeneration.equationDomains ⟨recursorMinorOffset indTypes owner + i, hk⟩) [])
       (A.rule.sourceRhsBody.abstractList A.rule.binders)
@@ -400,7 +400,7 @@ theorem RecursorInstallation.RuleAlignment.equationBodyTranslationsOfClosedRhs
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size)
-    (Htr : TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
+    (Htr : TrExprS H.outVEnv H.recLparams []
       ((H.generated.entry owner howner).info.rules[i]'A.sourceRule_lt).rhs
       (H.canonicalGeneration.equation ⟨recursorMinorOffset indTypes owner + i, hk⟩).rhs) :
     A.EquationBodyTranslations hk :=
