@@ -64,19 +64,9 @@ structure UniverseTower where
   enc_inj : ∀ {α : Type} {a b : α}, enc a = enc b → a = b
   set : Type → S
   mem_set : ∀ {α : Type} {x}, mem x (set α) ↔ ∃ a : α, x = enc a
-  /-- The universes. -/
-  U : Nat → S
-  U_mem_U : ∀ n, mem (U n) (U (n + 1))
-  U_mono : ∀ {n x}, mem x (U n) → mem x (U (n + 1))
-  U_trans : ∀ {n x y}, mem x (U n) → mem y x → mem y (U n)
-  /-- The types of cardinality at most the continuum are elements of the first universe. -/
-  set_mem_U : ∀ (α : Type) [ContinuumSized α], mem (set α) (U 0)
-  sep_mem_U : ∀ {n A p}, mem A (U n) → mem (sep A p) (U n)
-  image_mem_U : ∀ {n A f}, mem A (U n) → (∀ x, mem x A → mem (f x) (U n)) →
-    mem (image A f) (U n)
-  pair_mem_U : ∀ {n a b}, mem a (U n) → mem b (U n) → mem (pair a b) (U n)
-  lam_mem_U : ∀ {n A f}, mem A (U n) → (∀ x, mem x A → mem (f x) (U n)) → mem (lam A f) (U n)
-  pi_mem_U : ∀ {n A B}, mem A (U n) → (∀ x, mem x A → mem (B x) (U n)) → mem (pi A B) (U n)
+  /-- Union of a set of sets. -/
+  sUnion : S → S
+  mem_sUnion : ∀ {A x}, mem x (sUnion A) ↔ ∃ y, mem y A ∧ mem x y
 
 end VEnv.Strengthening
 end Lean4Lean

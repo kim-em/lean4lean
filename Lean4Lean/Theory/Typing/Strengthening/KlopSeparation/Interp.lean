@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.SemType
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Bound
 import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Translate
 
 /-! # The interpretation of terms in the Klop model
@@ -22,6 +22,12 @@ variable (𝕋 : UniverseTower)
 
 local infix:50 " ∈ₛ " => 𝕋.mem
 
+/-- The family `F` over `D` is uniform as a function into a universe: at every level `m`, it
+sends a uniform section of `D` to a family of bounded depth (`FIRST_PRINCIPLES.md` §30.6). -/
+def FamUnif (D : 𝕋.S) (F : 𝕋.S → 𝕋.S) : Prop :=
+  ∀ (m : Nat) (I : World) (a : I → 𝕋.S), (∀ i, 𝕋.mem (a i) (𝕋.El D)) →
+    𝕋.Unif m I (fun _ => D) a → ∃ k, ∀ i, 𝕋.LvLe m (F (a i)) → 𝕋.DpLe m (F (a i)) k
+
 /-- Valid semantic types, given the universes of lower level: good candidates and data
 types. -/
 inductive ValidAny (lower : List 𝕋.S) : 𝕋.S → Prop where
@@ -34,6 +40,7 @@ inductive ValidAny (lower : List 𝕋.S) : 𝕋.S → Prop where
       (∀ d, 𝕋.mem d (𝕋.El D) → 𝕋.IsCand (F d) → F d = 𝕋.cand Candidate.full) →
       (∀ d d', 𝕋.mem d (𝕋.El D) → 𝕋.Rel D d d' → 𝕋.TyRel (F d) (F d')) →
       (¬ ∀ d, 𝕋.mem d (𝕋.El D) → 𝕋.IsCand (F d)) →
+      𝕋.FamUnif D F →
       ValidAny lower (𝕋.tPi D F)
   | piP {c : Candidate} {B : 𝕋.S} : c.Good → (∃ v, c.mem v) → ValidAny lower B →
       ¬ 𝕋.IsCand B → ValidAny lower (𝕋.tPiP c B)
@@ -46,11 +53,11 @@ def ValidTy (lower : List 𝕋.S) (x : 𝕋.S) : Prop :=
 noncomputable def univList : Nat → List 𝕋.S
   | 0 => []
   | n + 1 => univList n ++
-      [𝕋.tU n (𝕋.sep (𝕋.U (n + 1)) (𝕋.ValidTy (univList n)))]
+      [𝕋.tU n (𝕋.sep (𝕋.bset (𝕋.baseOf (univList n))) (𝕋.ValidTy (univList n)))]
 
 /-- The universe `𝒰ₙ`, the denotation of `Sort (n + 1)`. -/
 noncomputable def univ (n : Nat) : 𝕋.S :=
-  𝕋.tU n (𝕋.sep (𝕋.U (n + 1)) (𝕋.ValidTy (𝕋.univList n)))
+  𝕋.tU n (𝕋.sep (𝕋.bset (𝕋.baseOf (𝕋.univList n))) (𝕋.ValidTy (𝕋.univList n)))
 
 /-- The denotation of `Sort ℓ` at the empty level assignment. -/
 noncomputable def sortDen (l : VLevel) : 𝕋.S :=

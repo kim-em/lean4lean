@@ -45,12 +45,23 @@ relation `~`. -/
 noncomputable def tU (n : Nat) (tys : 𝕋.S) : 𝕋.S :=
   𝕋.rec5 3 (𝕋.enc n) tys (𝕋.relFn tys fun A B => 𝕋.TyRel A B) (𝕋.pair (𝕋.tagN 3) (𝕋.enc n))
 
-/-- A dependent product over a data domain with at least one data fibre: the functions that
+/-- The record of a Π-type before its elements are known: kind and constructor arguments
+only. Uniformity of a function is stated against it. -/
+noncomputable def prePi (D : 𝕋.S) (F : 𝕋.S → 𝕋.S) : 𝕋.S :=
+  𝕋.rec5 4 (𝕋.pair D (𝕋.lam (𝕋.El D) F)) 𝕋.emptySet 𝕋.emptySet 𝕋.emptySet
+
+/-- The function object `g` is uniform at every level, as an element of the Π-type of `D` and
+`F` (`FIRST_PRINCIPLES.md` §30.6). -/
+def PiUnif (D : 𝕋.S) (F : 𝕋.S → 𝕋.S) (g : 𝕋.S) : Prop :=
+  𝕋.Unif 0 PUnit (fun _ => 𝕋.prePi D F) (fun _ => g)
+
+/-- A dependent product over a data domain with at least one data fibre: the uniform functions that
 respect the coarse relations, related pointwise. `F d` is the fibre over `d`. -/
 noncomputable def tPi (D : 𝕋.S) (F : 𝕋.S → 𝕋.S) : 𝕋.S :=
   let elts := 𝕋.image
     (𝕋.sep (𝕋.pi (𝕋.El D) fun d => 𝕋.El (F d)) fun f =>
-      ∀ d d', d ∈ₛ 𝕋.El D → 𝕋.Rel D d d' → 𝕋.Rel (F d) (𝕋.app f d) (𝕋.app f d'))
+      (∀ d d', d ∈ₛ 𝕋.El D → 𝕋.Rel D d d' → 𝕋.Rel (F d) (𝕋.app f d) (𝕋.app f d')) ∧
+      𝕋.PiUnif D F (𝕋.pair (𝕋.tagN 104) f))
     fun f => 𝕋.pair (𝕋.tagN 104) f
   𝕋.rec5 4 (𝕋.pair D (𝕋.lam (𝕋.El D) F)) elts
     (𝕋.relFn elts fun f g => ∀ d, d ∈ₛ 𝕋.El D → 𝕋.Rel (F d) (𝕋.ap f d) (𝕋.ap g d))
