@@ -44119,3 +44119,44 @@ In the model repository (branch `tower/universe-tower` of `kim-em/lean4lean-mode
 `Lean4LeanModel/KlopTower.lean` and `Strengthening.lean`): a strictly increasing sequence of
 inaccessible cardinals gives a `UniverseTower` (`universeTower`: `ZFSet`, `U n = V_(κ n)`,
 functions as graphs), hence `not_weakN_iff : OmegaInaccessibles → ¬ (statement of weakN_iff)`.
+
+## 2026-11-12 UTC: no universe tower; `not_weakN_iff_of_setModel`
+
+The hypothesis of the separation is now a `SetModel` (`SetModel.lean`, formerly
+`UniverseTower` in `Tower.lean`): sets with function abstraction and application, dependent
+products, separation, replacement, pairing, unions and an embedding of the Lean types of the
+lowest universe. The fields `U`, `U_mem_U`, `U_mono`, `U_trans` and the six closure fields are
+gone, with `ContinuumSized` and `Small.lean`; `sUnion` is new. `ZFSet.{0}` is a `SetModel`.
+
+Design: `FIRST_PRINCIPLES.md` §30.6 (uniform sections), §30.7 (review and amendments), §30.8
+(as formalised). Function spaces contain only functions that send bounded families of
+arguments to bounded families of results at every level, so every family of types has bounded
+Π-depth and each semantic universe is a countable union of sets.
+
+New files, all checked, no `sorry`:
+
+* `Records.lean`: the encodings and record accessors, split off `SemType.lean`.
+* `Uniform.lean`: `LvLe`, `Small`, `DpLe`, `Tame`, `FamLe`, the uniformity predicate `Lf` and
+  `Unif`.
+* `UniformLemmas.lean`: reindexing, independence of the recursion bound (`Lf.fuel`), sections
+  of families of bounded depth (`Lf_full`), covers, `Sim` and invariance under it (`Lf.sim`),
+  elimination (`Lf.ap_pi`, `Lf.ap_piP`), leaves.
+* `Bound.lean`: `bk`, `bset`, `baseOf`, the sets the universes are cut out of.
+* `UnifSem.lean`: `ValidAny.unif_const`, `mkPi_cases`, `dp_bound_mkPi`, `unif_mkLam`,
+  `unif_mkApp`, `Flat`.
+* `SoundUnif.lean`: the rules of the clause `SemU` and `semU_const_of`.
+
+Changed: `tPi` (elements are uniform), `ValidAny.pi` (the family is uniform, `FamUnif`), `univ`
+(separation from `bset`), `ValidU.lean` (rewritten: `ValidAny.exists_dpLe`,
+`ValidAny.mem_bset`, `ValidAny.mem_univ`), `tyRel_same` (proved with `Sim`), `mkLam_mem_mkPi`,
+`mkPi_valid`, `Sem.forallE`, `Sem.lam`, `SemD.lam` (uniformity hypotheses), the constants
+(`constOK_C`, `constOK_Eq`, `constMotive_mem`, `recLam_semD` with `recBody_semDU`), and
+`KlopInventory.sound`, whose conclusion `SemS` now includes `SemU` for both sides and which
+takes `env.Ordered` for the closedness of the types of constants.
+
+`#print axioms not_weakN_iff_of_setModel`: `propext`, `Classical.choice`, `Quot.sound`.
+`IsDefEqU.weakN_iff` in `UniqueTyping.lean` is unchanged and still `sorry`.
+
+In the model repository (`kim-em/lean4lean-model`, branch `strengthening/unconditional`):
+`Lean4LeanModel/KlopSetModel.lean` (`zfSetModel : SetModel`) and `Strengthening.lean`
+(`not_weakN_iff`, with no hypothesis).

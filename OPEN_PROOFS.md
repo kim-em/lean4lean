@@ -60,10 +60,10 @@ confluence theorem. The obligation holds in every normalising fragment; no count
 canonical `Eq` is known, and a counterexample would itself be a pair of propositions typed and
 inhabited below whose lifts are convertible above but not below.
 
-**Counterexample (2026-11-11), machine-checked given a universe tower.** The statement is false
-even with canonical `Eq`, for environments with a looping `mutualDef`. `Eq.rec` at a constant
-motive is a non-left-linear rule (`@Eq.rec T a (fun _ _ => T) E b h ≡ E` exactly when `a ≡ b`),
-so Klop's non-confluence example applies: with axioms `T : Type`, `E : T`, `P : Prop`,
+**Counterexample (2026-11-12), machine-checked.** The statement is false even with canonical
+`Eq`, for environments with a looping `mutualDef`. `Eq.rec` at a constant motive is a
+non-left-linear rule (`@Eq.rec T a (fun _ _ => T) E b h ≡ E` exactly when `a ≡ b`), so Klop's
+non-confluence example applies: with axioms `T : Type`, `E : T`, `P : Prop`,
 `H : ∀ x y : T, x = y` and looping definitions `C x := Eq.rec E (H x (C x))` (endpoints `x` and
 `C x`) and `Fix p := C (Fix p)`, a hypothesis `z : P` gives the fixed point `Fix z`, hence
 `Fix z ≡ E` and `C E ≡ E`, while `C E ≡ E` is not derivable in the empty context.
@@ -71,13 +71,14 @@ so Klop's non-confluence example applies: with axioms `T : Type`, `E : T`, `P : 
 (`KlopEnv.above`) and that the statement fails given non-derivability below
 (`KlopEnv.not_strengthening`). `Theory/Typing/Strengthening/KlopSeparation/` builds a minimal
 well-formed environment with canonical `Eq` and exactly these declarations
-(`exists_minimalKlopEnv`), a model of it in a `UniverseTower` (an applicative set theory with
-a Π-closed universe per level), and the fundamental theorem `KlopInventory.sound`; the model
-gives `C E` and `E` different denotations. The result is `not_weakN_iff_of_tower`: for every
-`UniverseTower`, the statement of `IsDefEqU.weakN_iff` is false. It has no `sorry` and uses
-the axioms `propext`, `Classical.choice`, `Quot.sound`. A `UniverseTower` is constructed from a strictly increasing sequence of inaccessible cardinals
-in the model repository (`kim-em/lean4lean-model`, branch `tower/universe-tower`), giving
-`not_weakN_iff : OmegaInaccessibles → ¬ (statement of weakN_iff)`.
+(`exists_minimalKlopEnv`), a model of it in any `SetModel` (an applicative set theory with
+dependent products, separation, replacement, pairing and unions; no universe of sets), and the
+fundamental theorem `KlopInventory.sound`; the model gives `C E` and `E` different
+denotations. The result is `not_weakN_iff_of_setModel`: for every `SetModel`, the statement of
+`IsDefEqU.weakN_iff` is false. It has no `sorry` and uses the axioms `propext`,
+`Classical.choice`, `Quot.sound`. `ZFSet.{0}` is a `SetModel`; the instance and the resulting
+theorem with no hypothesis, `not_weakN_iff`, are in the model repository
+(`kim-em/lean4lean-model`, branch `strengthening/unconditional`), which has Mathlib.
 The example needs a looping definition; a statement restricted to environments without
 `mutualDef` is not refuted by it.
 

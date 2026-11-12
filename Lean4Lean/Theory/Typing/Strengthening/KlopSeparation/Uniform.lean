@@ -2,7 +2,8 @@ import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Records
 
 /-! # Uniform sections
 
-The invariant that replaces the universe tower (`FIRST_PRINCIPLES.md` §30.6, §30.7). Function
+The invariant that makes the semantic universes sets with no universe of sets in the
+metatheory (`FIRST_PRINCIPLES.md` §30.6, §30.7). Function
 spaces are restricted to functions that send bounded families of arguments to bounded families
 of results, level by level. Everything here is defined on raw records, through the accessors
 `kind`, `argsOf` and `El`, so that the constructors of semantic types can refer to it.

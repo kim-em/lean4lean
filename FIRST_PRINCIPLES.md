@@ -1856,3 +1856,33 @@ the collapse rules, the constants and the set theory were checked with no counte
   Not needed: Lean can quantify over all index types.
 
 The design to formalise is §30.6 with these amendments.
+
+### 30.8 As formalised
+
+§30.6 with the amendments of §30.7 is formalised in
+`Lean4Lean/Theory/Typing/Strengthening/KlopSeparation/`; `not_weakN_iff_of_setModel` holds for
+any `SetModel`, an interface with no universe of sets, and `ZFSet.{0}` instantiates it. Points
+where the Lean differs from the text above:
+
+* `lv` and `dp` are not stored. `LvLe N X` and `DpLe m X k` are inductive predicates on raw
+  records, read through `kind` and `argsOf`, so the constructors of semantic types can refer to
+  uniformity (`Uniform.lean`).
+* `Lf b m I H s` is defined by well-founded recursion on a lexicographic bound `b = (N, k)` of
+  the family, and is independent of the bound (`Lf.fuel`). `Tame m H` asks for a level bound and,
+  at every level `m' ≥ m`, a depth bound over the fibres of level at most `m'`.
+* Invariance under `~` (U2) is proved for a relation `Sim` on records (same kinds, universes,
+  element sets of domains, similar fibres), and `ValidAny.tyRel_same_sim` proves "same elements"
+  and `Sim` together.
+* A function object of a Π record is uniform against `prePi D F`, the record with its kind and
+  arguments only; `Lf.congr` transfers to `tPi D F`.
+* `𝒰ₙ` is cut out by separation from `bset (baseOf (univList n))`, the records of finite Π-depth
+  over the lower universes. `ValidAny.mem_bset` (strong induction on `n`) puts every valid type
+  of level `n` in it: the depth bound of a Π comes from `FamUnif` applied to the section of all
+  elements of the domain, uniform by `unif_full`.
+* The semantic lemmas are world-indexed (`dp_bound_mkPi`, `unif_mkLam`, `unif_mkApp` in
+  `UnifSem.lean`); the clause `SemU` and its rules are in `Sound.lean` and `SoundUnif.lean`.
+  The equality rules need no case: both sides have the same denotation.
+* Constants: a constant has a closed type, whose denotation does not depend on the valuation
+  (`den_congr_closed`), and an element of a valid type is uniform (`ValidAny.unif_const`). The
+  membership proofs for `Eq`, `C` and the constant motive use `Flat` types (no universe in
+  result position); `Eq.rec` uses `SemDU.lam` six times over `recBody_semDU`.

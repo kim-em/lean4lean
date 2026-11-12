@@ -2,8 +2,8 @@ import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Sound
 
 /-! # Soundness: the uniformity clause, rule by rule
 
-The rules for `SemU`, the clause of the semantic judgment that replaces the universe tower
-(`FIRST_PRINCIPLES.md` §30.6, §30.7): variable, sort, conversion, Π formation, abstraction and
+The rules for `SemU`, the clause of the semantic judgment that bounds the depth of families of
+types (`FIRST_PRINCIPLES.md` §30.6, §30.7): variable, sort, conversion, Π formation, abstraction and
 application. The equality rules need no case of their own, because both sides of a derivable
 equation have the same denotation (`SemU.of_den_eq`).
 
