@@ -971,64 +971,6 @@ theorem addDefEqs_eq_addDefEqRules {env : VEnv} {cis : List VDefVal} :
   | nil => rfl
   | cons ci cis ih => exact ih (env := env.addDefEq ci.toDefEq)
 
-theorem _root_.Lean4Lean.VInductBlock.install_type_lookup
-    (H : VInductBlock.install base block = some installed)
-    (hvalue : value ∈ block.types) : installed.constants value.name = some value.toVConstant := by
-  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
-    Option.pure_def, Option.some.injEq] at H
-  obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
-  exact ((VEnv.addConstVals_le hc).trans <| VEnv.addProjections_le.trans <|
-    (VEnv.addConstVals_le hr).trans addDefEqRules_le).constants (VEnv.addConstVals_get ht hvalue)
-
-theorem Ordered.addConstVals {env env' : VEnv} {cis : List VConstVal} (H : Ordered env)
-    (hwf : ∀ ci ∈ cis, ci.toVConstant.WF env)
-    (hadd : env.addConstVals cis = some env') : Ordered env' := by
-  induction cis generalizing env with
-  | nil => simp [VEnv.addConstVals] at hadd; subst env'; exact H
-  | cons ci cis ih =>
-    cases hci : env.addConst ci.name ci.toVConstant with
-    | none => simp [VEnv.addConstVals, hci] at hadd
-    | some env₁ =>
-      simp [VEnv.addConstVals, hci] at hadd
-      have hle := VEnv.addConst_le hci
-      exact ih (.const H (hwf ci (by simp)) hci)
-        (fun ci' hmem => (hwf ci' (by simp [hmem])).mono hle) hadd
-
-theorem Ordered.addDefEqRules {env : VEnv} {dfs : List VDefEq} (H : Ordered env)
-    (hwf : ∀ df ∈ dfs, df.WF env) : Ordered (env.addDefEqRules dfs) := by
-  induction dfs generalizing env with
-  | nil => exact H
-  | cons df dfs ih =>
-    exact ih (.defeq H (hwf df (by simp)))
-      (fun df' hmem => (hwf df' (by simp [hmem])).mono VEnv.addDefEq_le)
-
-/-- A well-formed compiled block of a well-formed declaration installs into an `Ordered`
-environment (`VInductBlock.install`, the branch's installation order, with the projection
-stage justified by `Ordered.inductProjections`). -/
-theorem _root_.Lean4Lean.VInductBlock.WF.ordered (H : VInductBlock.WF env block)
-    (hdecl : VInductDecl.WF env decl)
-    (hcompile : VInductDecl.CompilesTo env decl block)
-    (henv : Ordered env) (hinstall : VInductBlock.install env block = some env') :
-    Ordered env' := by
-  rcases H with
-    ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecs,
-      htypesWF, hctorsWF, hrecsWF, hrulesWF⟩
-  have h1 := henv.addConstVals htypesWF htypes
-  have h2 := h1.addConstVals hctorsWF hctors
-  have htypes' : env.addConstVals decl.typeConstants = some envTypes := by
-    rwa [hcompile.types] at htypes
-  have hparams := hdecl.sourceParameterWF htypes'
-  have h3 := Ordered.inductProjections henv h2 hcompile.sourceNames hdecl.source.sourceTypes
-    hdecl.source.2.2.2.1 (hdecl.source.constructorsWF_at htypes') hparams
-    hparams.rawCtorShape
-    hcompile.types hcompile.ctors
-    hcompile.projections htypes hctors
-  have h4 := h3.addConstVals hrecsWF hrecs
-  have h5 := h4.addDefEqRules hrulesWF
-  simp [VInductBlock.install, htypes, hctors, hrecs] at hinstall
-  cases hinstall
-  exact h5
-
 /-- Declaration-level facts recoverable from a registered projection entry
 alone.  Every entry originates from an exact source declaration whose family
 and constructor constants are installed, whose constructor type is well

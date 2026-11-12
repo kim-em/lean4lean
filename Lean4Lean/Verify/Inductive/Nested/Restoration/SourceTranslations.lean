@@ -851,19 +851,3 @@ theorem RecursorInstallation.auxRestorationSourcesOfLowering
 
 end VerifyInductive
 end Lean4Lean
-
-namespace Lean4Lean
-
-open Lean hiding Environment Exception
-open Kernel
-
-namespace VerifyInductive
-
-/-! # Run premises for the non-primitive nested path
-
-The nested branch runs `AddInductive` with primitive declarations disabled.
-Consequently all three freshness fields of `PrimitiveNamesFresh` are vacuous.
--/
-
-end VerifyInductive
-end Lean4Lean

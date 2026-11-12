@@ -22,13 +22,6 @@ inductive VEnv.WFH : List VDecl → List VEnv → VEnv → Prop where
 
 namespace VEnv
 
-theorem WFH.wf' {ds : List VDecl} {hs : List VEnv} {env : VEnv} (H : env.WFH ds hs) :
-    env.WF' ds := by
-  induction H with
-  | empty => exact .empty
-  | decl hd hds _ _ => exact .decl hd hds
-  | projs _ h _ => exact h
-
 theorem WF'.wfh {ds : List VDecl} {env : VEnv} (H : env.WF' ds) : ∃ hs, env.WFH ds hs := by
   induction H with
   | empty => exact ⟨[], .empty⟩

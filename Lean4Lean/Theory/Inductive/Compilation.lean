@@ -152,8 +152,10 @@ theorem Models.restores_empty {s : InductiveSignature} {env envTypes : VEnv}
 source and expanded declarations, the normalized model, the restoration correspondence and the
 installed source constants. It omits everything about the generated recursors (their
 names, freshness, types, equations, elimination universe and the typing of their induction
-hypotheses), which the case eliminator rules `elimDF`/`elimIota` do not read. It is therefore
-available once the constructors are installed, before any generated recursor has been checked. -/
+hypotheses), which the facts about restored heads and constructor majors
+(`Theory/Inductive/RestorationHead.lean`, `Theory/Inductive/CompilationMajors.lean`) do not
+read. It is therefore available once the constructors are installed, before any generated
+recursor has been checked. -/
 structure CaseCompilationData (env : VEnv) (source expanded : VInductDecl)
     (s : InductiveSignature) (auxiliaries : List ContainerSpecialization)
     (block : VInductBlock) : Prop where
@@ -362,7 +364,3 @@ theorem CompiledInductive.ordinary {env : VEnv} {source : VInductDecl}
   · simp [hrestore, hrules]
 
 end Lean4Lean
-
-namespace Lean4Lean.InductiveSignature
-
-end Lean4Lean.InductiveSignature

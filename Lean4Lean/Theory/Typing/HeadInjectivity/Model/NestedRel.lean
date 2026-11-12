@@ -51,10 +51,6 @@ theorem iotaLead_getElem?_ge {k nf j : Nat} {idx : List VExpr} :
   rw [List.getElem?_append_right (by simp)]
   simp
 
-theorem instL_liftN_comm (e : VExpr) (ls : List VLevel) (n k : Nat) :
-    (e.liftN n k).instL ls = (e.instL ls).liftN n k := VExpr.instL_liftN
-
-
 set_option maxHeartbeats 8000000 in
 /-- **The relation of the instances of a restored rule to its template.** -/
 theorem nested_rel {envF envT envTypes envI : VEnv}

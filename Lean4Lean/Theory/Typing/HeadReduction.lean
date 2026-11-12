@@ -54,20 +54,6 @@ theorem IsMajorPremise.instN : IsMajorPremise e1 → IsMajorPremise (e1.inst a k
 
 theorem IsMajorPremise.lam : ¬IsMajorPremise (.lam A e) := nofun
 
-theorem IsMajorPremise.head (H : IsMajorPremise e) :
-    ∃ name levels, e.getAppFnArgs.1 = .const name levels := by
-  obtain ⟨p, ⟨r, hp⟩, p₁, p₂, hs, levels, values, hm⟩ := H
-  have hn := (Params.constHeaded hp).subpattern (Subpattern.trans (.appL .refl) hs)
-  obtain ⟨name, he⟩ := hn.matches_head hm
-  exact ⟨name, levels, he⟩
-
-theorem IsMajorPremise.not_rigid (H : IsMajorPremise e) (hrigid : env.Rigid name)
-    (hhead : e.getAppFnArgs.1 = .const name levels) : False := by
-  obtain ⟨p, ⟨r, hp⟩, p₁, p₂, hs, levels', values, hm⟩ := H
-  cases Params.simple_app hp hs
-  have hn := matches_constHead hm hhead
-  exact hrigid.not_patternHeadsStoredRule (pat_storedRule hp) hn
-
 set_option hygiene false
 local notation:65 Γ " ⊢ " e1 " ⤳ " e2:36 => WHRed Γ e1 e2
 inductive WHRed (Γ : List VExpr) : VExpr → VExpr → Prop where
@@ -130,18 +116,6 @@ theorem WHNF.bvar : WHNF Γ (.bvar i) := nofun
 theorem WHNF.lam : WHNF Γ (.lam A e) := nofun
 theorem WHNF.sort : WHNF Γ (.sort A) := nofun
 theorem WHNF.forallE : WHNF Γ (.forallE A B) := nofun
-
-theorem WHNF.rigid_head (hrigid : env.Rigid name)
-    (hhead : e.getAppFnArgs.1 = .const name levels) : WHNF Γ e := by
-  intro out H
-  revert hhead
-  induction H with
-  | app _ ih => exact fun hh => ih ((congrArg Prod.fst (VExpr.case_spine_app _ _)).symm.trans hh)
-  | major hm _ _ =>
-    intro hh
-    exact hm.not_rigid hrigid ((congrArg Prod.fst (VExpr.case_spine_app _ _)).symm.trans hh)
-  | beta => intro hh; cases hh
-  | extra hp hm => exact fun hh => Params.not_rigid_match hrigid hp hm hh
 
 theorem WHNF.subpattern
     (h1 : Pat p r) (h2 : Subpattern p₁ p) (h3 : p₁ ≠ p) (h4 : p₁.Matches e m1 m2) : WHNF Γ e := by
@@ -416,23 +390,6 @@ theorem StRed.apply_pat {p : Pattern} (r : p.RHS) {m1 m2 m3}
   | .fixed .. => exact .rfl
   | .app f a => exact .app .rfl (apply_pat f H) (apply_pat a H)
   | .var f => exact H _
-
-open InductiveSignature.RecursorSchema in
-open InductiveSignature in
-theorem StRed.instantiate_variables {arguments arguments' : List VExpr} (hv : VExpr.VariableApplications body)
-    (hlen : arguments'.length = arguments.length)
-    (hargs : ∀ i (hi : i < arguments.length),
-      Γ ⊢ arguments[i] ⤳< arguments'[i]'(by omega))
-    (hclosed : body.ClosedN arguments.length) :
-    Γ ⊢ instantiateParams body arguments ⤳< instantiateParams body arguments' := by
-  induction hv with
-  | @bvar i =>
-    change i < arguments.length at hclosed
-    rw [InductiveSignature.instantiateParams_eq_instOuter, InductiveSignature.instantiateParams_eq_instOuter,
-      VExpr.instOuter_bvar arguments hclosed, VExpr.instOuter_bvar arguments' (by omega)]
-    simpa only [hlen] using hargs (arguments.length - 1 - i) (by omega)
-  | app hf ha ihf iha =>
-    exact .app .rfl (ihf hclosed.1) (iha hclosed.2)
 
 variable! (hΓ₀ : OnCtx Γ₀ (IsType env univs)) in
 theorem StRed.triangle (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)

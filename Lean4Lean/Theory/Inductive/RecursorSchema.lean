@@ -93,22 +93,10 @@ theorem getAppFnArgs_go_eq (e : VExpr) (args : List VExpr) :
     simp
   | _ => rfl
 
-/-- The spine of an application: the function's spine extended by the argument. -/
-theorem case_spine_app (fn arg : VExpr) :
-    (VExpr.app fn arg).getAppFnArgs = (fn.getAppFnArgs.1, fn.getAppFnArgs.2 ++ [arg]) := by
-  show VExpr.getAppFnArgs.go fn [arg] = _
-  rw [getAppFnArgs_go_eq]
-
 theorem spine_app_head (fn arg : VExpr) :
     (VExpr.app fn arg).getAppFnArgs.1 = fn.getAppFnArgs.1 := by
   show (VExpr.getAppFnArgs.go fn [arg]).1 = _
   rw [getAppFnArgs_go_eq]
-
-theorem spine_mkApps_head (fn : VExpr) (args : List VExpr) :
-    (VExpr.mkApps fn args).getAppFnArgs.1 = fn.getAppFnArgs.1 := by
-  induction args generalizing fn with
-  | nil => rfl
-  | cons arg args ih => exact (ih (.app fn arg)).trans (spine_app_head fn arg)
 
 /-- The spine of an application of a head without arguments. -/
 theorem spine_mkApps_exact (fn : VExpr) (args : List VExpr)
@@ -144,14 +132,6 @@ theorem closed_wrapLams_body {domains : List VExpr} {body : VExpr} {k : Nat}
   | nil => exact h
   | cons domain domains ih =>
     have := ih (show (VExpr.wrapLams domains body).ClosedN (k + 1) from h.2)
-    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using this
-
-theorem closed_wrapForalls_body {domains : List VExpr} {body : VExpr} {k : Nat}
-    (h : (VExpr.wrapForalls domains body).ClosedN k) : body.ClosedN (k + domains.length) := by
-  induction domains generalizing k with
-  | nil => exact h
-  | cons domain domains ih =>
-    have := ih (show (VExpr.wrapForalls domains body).ClosedN (k + 1) from h.2)
     simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using this
 
 theorem closed_wrapForalls_domain {domains : List VExpr} {body : VExpr} {k i : Nat}
@@ -200,12 +180,6 @@ inductive VariableApplications : VExpr → Prop where
   | bvar : VariableApplications (.bvar i)
   | app : VariableApplications fn → VariableApplications arg → VariableApplications (.app fn arg)
 
-theorem VariableApplications.instL_eq {e : VExpr} {levels : List VLevel}
-    (H : VariableApplications e) : e.instL levels = e := by
-  induction H with
-  | bvar => rfl
-  | app _ _ ihf iha => simp only [VExpr.instL, ihf, iha]
-
 end Lean4Lean.VExpr
 
 namespace Lean4Lean
@@ -253,21 +227,6 @@ theorem instantiateParams_eq_instOuter (body : VExpr) (args : List VExpr) :
   rw [VExpr.instOuter_eq_subst]
   rfl
 
-/-- Simultaneous parameter substitution of a scoped template commutes with substitution. -/
-theorem instantiateParams_subst {body : VExpr} {arguments : List VExpr}
-    (hc : body.ClosedN arguments.length) (σ : VExpr.Subst) :
-    (instantiateParams body arguments).subst σ =
-      instantiateParams body (arguments.map (·.subst σ)) := by
-  let σ₀ : VExpr.Subst := fun i =>
-    if hi : i < arguments.length then arguments[arguments.length - 1 - i]
-    else .bvar (i - arguments.length)
-  change (body.subst σ₀).subst σ = _
-  rw [VExpr.subst_subst]
-  unfold instantiateParams
-  apply VExpr.subst_congr_closedN hc
-  intro i hi
-  simp [σ₀, VExpr.Subst.comp, hi]
-
 /-- Simultaneous parameter substitution of a scoped template commutes with renaming. -/
 theorem instantiateParams_lift' {body : VExpr} {arguments : List VExpr}
     (hc : body.ClosedN arguments.length) (ρ : Lift) :
@@ -282,13 +241,5 @@ theorem instantiateParams_lift' {body : VExpr} {arguments : List VExpr}
   apply VExpr.subst_congr_closedN hc
   intro i hi
   simp only [σ₀, VExpr.Subst.lift_r, List.length_map, dif_pos hi, List.getElem_map]
-
-/-- Simultaneous parameter substitution of a scoped template commutes with instantiation. -/
-theorem instantiateParams_instN {body : VExpr} {arguments : List VExpr}
-    (hc : body.ClosedN arguments.length) {value : VExpr} {k : Nat} :
-    (instantiateParams body arguments).inst value k =
-      instantiateParams body (arguments.map fun arg => arg.inst value k) := by
-  simpa only [← VExpr.instN_eq] using
-    instantiateParams_subst hc (VExpr.Subst.liftN (VExpr.Subst.one value) k)
 
 end Lean4Lean.InductiveSignature

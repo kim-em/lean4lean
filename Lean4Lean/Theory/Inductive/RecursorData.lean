@@ -35,11 +35,6 @@ def numIndices (data : RecursorData) : Nat :=
 
 def majorOffset (data : RecursorData) : Nat := data.indexOffset + data.numIndices
 
-/-- The instance's source universe substitution, including
-parameter-specialized auxiliary recursors. -/
-def sourceLevels (data : RecursorData) (packed : List VLevel) : List VLevel :=
-  data.levels.map (·.inst packed)
-
 /-- The instance of the compilation, rebuilt from the data. -/
 def recursorInstance (data : RecursorData) : Instance data.schema.signature := {
   uvars := data.uvars

@@ -63,23 +63,6 @@ structure Models (s : InductiveSignature) (env : VEnv) (decl : VInductDecl) : Pr
   constructorArity : ∀ ctor ∈ s.constructors.toList,
     ctor.indices.length = s.families[ctor.owner].indices.length
 
-/-- Every field type is, in its own scope, definitionally a strictly positive normal form
-(`VInductDecl.UniformFieldNormalForm`), forgetting which branch. -/
-theorem Models.positiveFields {s : InductiveSignature} {env : VEnv} {decl : VInductDecl}
-    (H : s.Models env decl) :
-    s.isUnsafe = true ∨ ∃ envTypes,
-      env.addConstVals decl.typeConstants = some envTypes ∧
-      ∀ ctor ∈ s.constructors.toList, ∀ i (hi : i < ctor.fields.length),
-        ∃ normalized,
-          envTypes.IsDefEqU decl.uvars (((s.fieldTypes ctor).take i).reverse ++ s.params.reverse)
-            (s.fieldType i ctor.fields[i]) normalized ∧
-          decl.UniformFieldNormalForm (VLevel.params decl.uvars) i normalized := by
-  rcases H.classifiedFields with hunsafe | ⟨envTypes, htypes, hfields⟩
-  · exact .inl hunsafe
-  · refine .inr ⟨envTypes, htypes, fun ctor hctor i hi => ?_⟩
-    obtain ⟨normalized, hdefeq, hshape⟩ := hfields ctor hctor i hi
-    exact ⟨normalized, hdefeq, hshape.uniform⟩
-
 /-- Singleton elimination is certified from the constructor fields. A field
 is either a proof or is determined by an index of the constructor's result.
 The test is made after universe specialization. -/

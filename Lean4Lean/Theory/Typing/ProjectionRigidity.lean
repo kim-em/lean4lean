@@ -59,15 +59,6 @@ theorem _root_.Lean4Lean.Pattern.headConst_varN (p : Pattern) :
     (n : Nat) : (SimplePattern.iota r m c n).toPattern.headConst = r := by
   simp [SimplePattern.toPattern, Pattern.headConst, Pattern.headConst_varN]
 
-/-- The head of a term matching a pattern is the pattern's head constant, at the
-pattern's level match. -/
-theorem _root_.Lean4Lean.Pattern.Matches.getAppFnArgs_fst {p : Pattern} {e : VExpr} {m1 m2}
-    (H : p.Matches e m1 m2) : e.getAppFnArgs.1 = .const p.headConst m1 := by
-  induction H with
-  | const => rfl
-  | var _ ih => simpa [VExpr.getAppFnArgs_app, Pattern.headConst] using ih
-  | app _ _ ih _ => simpa [VExpr.getAppFnArgs_app, Pattern.headConst] using ih
-
 /-- Every pattern of a well-formed environment is headed by a declared constant. -/
 theorem WF.pat_head_declared (henv : env.WF) {p : Pattern} {r : p.RHS × p.Check}
     (hp : env.pats p r) : ∃ c, env.constants p.headConst = some c := by

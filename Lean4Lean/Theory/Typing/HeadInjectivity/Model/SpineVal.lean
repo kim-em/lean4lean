@@ -25,18 +25,6 @@ local notation "Obs'" => Obs env U Δ
 
 /-! ## Spine lemmas without typing -/
 
-/-- Subsumption below a chain of `app` observations. -/
-theorem Ob.Le.wrap_inv : ∀ {keys : List Key} {x o : Ob}, o ≼ wrap keys x →
-    ∃ keys' x', o = wrap keys' x' ∧
-      List.Forall₂ (fun (k' k : Key) => k'.1 = k.1 ∧ k'.2.1 = k.2.1 ∧ Covers k.2.2 k'.2.2)
-        keys' keys ∧ x' ≼ x
-  | [], x, o, h => ⟨[], o, rfl, .nil, h⟩
-  | k :: keys, x, o, h => by
-    rw [wrap_cons] at h
-    obtain ⟨K₀, y, rfl, hK, hy⟩ := h.app_inv
-    obtain ⟨keys', x', rfl, hk, hx⟩ := Ob.Le.wrap_inv hy
-    exact ⟨(k.1, k.2.1, K₀) :: keys', x', rfl, .cons ⟨rfl, rfl, hK⟩ hk, hx⟩
-
 /-- Unwinding a spine observation of the head along the arguments, with key observations
 covered by observations of the arguments. -/
 theorem obs_mkApps_of_wrap_le {σ : VExpr.Subst} {S : ObSets} :
@@ -49,30 +37,6 @@ theorem obs_mkApps_of_wrap_le {σ : VExpr.Subst} {S : ObSets} :
     rw [wrap_cons] at h
     show Obs' σ S (VExpr.mkApps (.app f a) as) o
     exact obs_mkApps_of_wrap_le H (.app h h1 h2 h3)
-
-/-- **Subsumption is inherited by applications**: if every observation of `f` is subsumed by
-one of `f'`, every observation of `mkApps f args` is subsumed by one of `mkApps f' args`. -/
-theorem Ob.Sub.mkApps {σ : VExpr.Subst} {S : ObSets} {f f' : VExpr}
-    (h : Ob.Sub (Obs' σ S f) (Obs' σ S f')) (args : List VExpr) :
-    Ob.Sub (Obs' σ S (.mkApps f args)) (Obs' σ S (.mkApps f' args)) := by
-  intro o ho
-  obtain ⟨keys, hk, hw⟩ := wrap_of_obs_mkApps_le ho
-  obtain ⟨o', ho', l⟩ := h _ hw
-  obtain ⟨keys', o'', rfl, hkk, l'⟩ := l.wrap_inv
-  refine ⟨o'', obs_mkApps_of_wrap_le ?_ ho', l'⟩
-  clear ho hw ho' l l'
-  induction hkk generalizing args with
-  | nil => cases hk; exact .nil
-  | @cons k' k keys' keys hkk' _ ih =>
-    cases hk with
-    | cons ha hk =>
-      refine .cons ⟨by rw [hkk'.2.1, hkk'.1]; exact ha.1, ?_⟩ (ih _ hk)
-      obtain ⟨K', h1, h2⟩ := exists_list_cover (P := Obs' σ S _) (R := fun y x => y ≼ x)
-        (L := k'.2.2) fun x hx => by
-          obtain ⟨y, hy, l⟩ := hkk'.2.2 x hx
-          obtain ⟨y', hy', l'⟩ := ha.2 y hy
-          exact ⟨y', hy', l'.trans l⟩
-      exact ⟨K', h1, h2⟩
 
 /-! ## Sound inversions of a semantically typed spine -/
 

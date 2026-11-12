@@ -24,11 +24,7 @@ telescope `λ params, target levels arguments` over the common parameters
 * `Restoration.Substitution envS envL r I`: a sound interpretation of `envL` in `envS` for
   well-formed contexts that agrees with `r`. It transports closed typing judgments and
   equations of `envL` to their restorations in `envS` (`Restoration.expr_hasType`,
-  `Restoration.equation_wf`, `Restoration.expr_isDefEqU`).
-* `VEnv.RestoredPattern`: a ι rule of `envL` matched in `envS` by its restored rule. Its clause
-  holds after interpretation in well-formed contexts, by the agreement up to beta
-  (`RestoredPattern.clause`, a `PatClause` for `VEnv.TypedCtx`); this is the one rule clause
-  that needs a context invariant. -/
+  `Restoration.equation_wf`, `Restoration.expr_isDefEqU`). -/
 
 namespace Lean4Lean
 
@@ -418,11 +414,4 @@ theorem RestoresType.of_models_constructor {envS envL : VEnv} {r : Restoration}
 
 end InductiveSignature
 
-/-! ### Restored ι rules -/
-
-namespace VEnv
-
-open InductiveSignature
-
-end VEnv
 end Lean4Lean

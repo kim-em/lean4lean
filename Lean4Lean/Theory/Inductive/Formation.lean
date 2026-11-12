@@ -961,12 +961,6 @@ def VInductBlock.WF (env : VEnv) (block : VInductBlock) : Prop :=
       ci.toVConstant.WF (envCtors.addProjections block.projections)) ∧
     ∀ df ∈ block.rules, df.WF envRecursors
 
-theorem VInductBlock.WF.exists_install (H : VInductBlock.WF env block) :
-    ∃ env', VInductBlock.install env block = some env' := by
-  rcases H with ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecs, _⟩
-  exact ⟨envRecursors.addDefEqRules block.rules, by
-    simp [VInductBlock.install, htypes, hctors, hrecs]⟩
-
 /-- Consume an exact forall prefix with the supplied arguments. Ill-shaped
 inputs are left unchanged; the formation judgments rule that branch out. -/
 def VExpr.instantiateForallPrefix : VExpr → List VExpr → VExpr
@@ -1074,39 +1068,6 @@ inductive VExpr.GuardedRuleRhs (recursors : List Name) : VExpr → Prop
       GuardedIota recursors [] 0 domain →
       GuardedRuleRhs recursors body →
       GuardedRuleRhs recursors (.lam domain body)
-
-/-- Guardedness depends on the recursor collection only through membership.
-This permits an executable checker to use the concrete restoration order and
-the abstract block proof to use its generated recursor order, once those two
-orders have been identified extensionally. -/
-theorem VExpr.GuardedIota.congrRecursors
-    {expression : VExpr} {recursors recursors' : List Name}
-    {fieldVars : List Nat} {depth : Nat}
-    (hsame : ∀ name, name ∈ recursors ↔ name ∈ recursors')
-    (H : expression.GuardedIota recursors fieldVars depth) :
-    expression.GuardedIota recursors' fieldVars depth := by
-  induction H with
-  | bvar => exact .bvar
-  | sort => exact .sort
-  | const fresh =>
-      exact .const (fun hmem => fresh ((hsame _).mpr hmem))
-  | app _ _ ihFn ihArg => exact .app ihFn ihArg
-  | proj _ ihMajor => exact .proj ihMajor
-  | lam _ _ ihDomain ihBody => exact .lam ihDomain ihBody
-  | forallE _ _ ihDomain ihBody => exact .forallE ihDomain ihBody
-  | recCall recursorMem arguments majorField ihArguments =>
-      exact .recCall ((hsame _).mp recursorMem) ihArguments majorField
-
-theorem VExpr.GuardedRuleRhs.congrRecursors
-    {expression : VExpr} {recursors recursors' : List Name}
-    (hsame : ∀ name, name ∈ recursors ↔ name ∈ recursors')
-    (H : expression.GuardedRuleRhs recursors) :
-    expression.GuardedRuleRhs recursors' := by
-  induction H with
-  | body fieldVars guarded =>
-      exact .body fieldVars (guarded.congrRecursors hsame)
-  | lam domainGuarded _ ihBody =>
-      exact .lam (domainGuarded.congrRecursors hsame) ihBody
 
 def VInductDecl.ownedConstructors
     (decl : VInductDecl) : List (VInductiveType × VConstVal) :=

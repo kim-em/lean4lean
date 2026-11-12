@@ -482,37 +482,6 @@ theorem VEnv.addQuot_projections {env env' : VEnv}
     (VEnv.addConst_projections hc).trans <|
       (VEnv.addConst_projections hb).trans (VEnv.addConst_projections ha)
 
-/-- The stages of an installed block. -/
-theorem VInductBlock.install_stages {env env' : VEnv}
-    (H : VInductBlock.install env block = some env') :
-    ∃ envTypes envCtors envRecursors, env.addConstVals block.types = some envTypes ∧
-      envTypes.addConstVals block.ctors = some envCtors ∧
-      (envCtors.addProjections block.projections).addConstVals
-        block.recursors = some envRecursors ∧
-      env' = envRecursors.addDefEqRules block.rules := by
-  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
-    Option.pure_def, Option.some.injEq] at H
-  obtain ⟨types, ht, ctors, hc, recs, hr, rfl⟩ := H
-  exact ⟨types, ctors, recs, ht, hc, hr, rfl⟩
-
-theorem VInductBlock.install_base_le {env env' : VEnv}
-    (H : VInductBlock.install env block = some env') : env ≤ env' := by
-  obtain ⟨_, _, _, ht, hc, hr, rfl⟩ := VInductBlock.install_stages H
-  exact (VEnv.addConstVals_le ht).trans <| (VEnv.addConstVals_le hc).trans <|
-    VEnv.addProjections_le.trans <| (VEnv.addConstVals_le hr).trans
-      VEnv.addDefEqRules_le
-
-/-- The constructor stage of an installed block is below the installed environment. -/
-theorem VInductBlock.install_ctors_le {env env' envTypes envCtors : VEnv}
-    (H : VInductBlock.install env block = some env')
-    (ht : env.addConstVals block.types = some envTypes)
-    (hc : envTypes.addConstVals block.ctors = some envCtors) : envCtors ≤ env' := by
-  obtain ⟨_, _, _, ht', hc', hr, rfl⟩ := VInductBlock.install_stages H
-  cases ht.symm.trans ht'
-  cases hc.symm.trans hc'
-  exact VEnv.addProjections_le.trans <| (VEnv.addConstVals_le hr).trans
-      VEnv.addDefEqRules_le
-
 namespace VEnv
 
 /-- No lookup can appear except from the old environment or a literal

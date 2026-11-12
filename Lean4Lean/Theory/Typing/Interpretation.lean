@@ -34,8 +34,7 @@ walking a constructor telescope (`fieldType_interpret`, `ProjectionClause.of_fix
 
 The obligation for a registered ι rule (`IsDefEq.pat`) is `PatClause`. `PatClause.of_fixed`
 discharges it for a rule of `envS` whose constants and fixed reduct terms the interpretation
-fixes (the analogue of `DefEqClause.of_rule`); the restored rules of a nested block are the
-`RestoredPattern`s of `RestorationInterpretation.lean`. -/
+fixes (the analogue of `DefEqClause.of_rule`). -/
 
 namespace Lean4Lean
 
@@ -54,13 +53,6 @@ def VExpr.ProjNamesFixed (σ : Name → Name) : VExpr → Prop
   | .bvar _ | .sort _ | .const .. => True
   | .app f a | .lam f a | .forallE f a => f.ProjNamesFixed σ ∧ a.ProjNamesFixed σ
   | .proj n _ e => σ n = n ∧ e.ProjNamesFixed σ
-
-/-- Universe instantiation does not touch projection owners. -/
-theorem VExpr.ProjNamesFixed.instL {σ : Name → Name} {ls : List VLevel} :
-    ∀ {e : VExpr}, e.ProjNamesFixed σ → (e.instL ls).ProjNamesFixed σ
-  | .bvar _, _ | .sort _, _ | .const .., _ => trivial
-  | .app _ _, h | .lam _ _, h | .forallE _ _, h => ⟨instL h.1, instL h.2⟩
-  | .proj _ _ _, h => ⟨h.1, instL h.2⟩
 
 theorem VExpr.projNamesFixed_id : ∀ e : VExpr, e.ProjNamesFixed id
   | .bvar _ | .sort _ | .const .. => trivial
@@ -716,19 +708,6 @@ theorem Sound.addProjections {env : VEnv} (S : I.Sound envS env P)
     rcases VEnv.addProjections_iff.mp h with ⟨entry, hmem, rfl, rfl⟩ | h
     · exact hp entry hmem
     · exact S.projections typeName info h
-
-/-- Extend a sound interpretation by one reduction rule. -/
-theorem Sound.addPat {env : VEnv} (S : I.Sound envS env P) {p : Pattern} {r : p.RHS × p.Check}
-    (hp : I.PatClause envS P p r) : I.Sound envS (env.addPat p r) P where
-  closed := S.closed
-  ordered := S.ordered
-  constants := S.constants
-  defeqs := S.defeqs
-  pats p' r' h := by
-    rcases h with ⟨rfl, rfl⟩ | h
-    · exact hp
-    · exact S.pats p' r' h
-  projections := S.projections
 
 end VEnv.Interpretation
 end Lean4Lean
