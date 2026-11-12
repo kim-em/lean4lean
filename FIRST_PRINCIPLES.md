@@ -1821,3 +1821,38 @@ over `ℕ`; records gain `lv` and `dp`; `tPi` and `ValidAny.pi` gain the uniform
 `univ` is rebuilt from `V N k`; `Sem` gains the clause; every lemma that produces an element
 of a `tPi` gains a uniformity proof. `ZFSet.{0}` then instantiates the interface with no
 hypothesis.
+
+### 30.7 Review of §30.6 and amendments
+
+Verdict: the definition of `L m` is refuted as written; with the amendments below the
+recursion is well founded and the variable, application, λ and Π-formation cases, (U1), (U3),
+the collapse rules, the constants and the set theory were checked with no counterexample.
+
+* **Tameness is not inherited.** It bounds `dp` only at each fibre's own level, so a domain
+  or fibre of lower `lv` that is still not `m`-small can be untame. Witness: `Yᵢ₊₁ = Yᵢ → 𝒰₄`
+  (`dp 5 Yᵢ = i`), `Zᵢ₊₁ = Zᵢ → 𝒰₃` (5-small, `dp 4 Zᵢ = i`), `K X = Y_(dp 4 X)`,
+  `W = tPi 𝒰₅ (X ↦ tPi (K X) (const 𝒰₇))`. `W` is valid, and `L 5` of an element of `W`,
+  tested on the section `i ↦ Zᵢ`, reaches the untame family `Yᵢ`.
+  **Amendment:** in the Π clause, tests range over `(I', φ, a)` with `D ∘ φ` tame above `m`,
+  and `L m` is imposed on the result only when the result family is tame above `m`. Every
+  recursive call then has a pointwise strictly smaller `ω · lv + dp` with both maxima attained.
+* **Application needs the typing of the result type.** Tameness of `i ↦ den ρᵢ (B.inst a)`
+  comes from the premise `B.inst a : Sort v` of `appDF` in `IsDefEqStrong`, not from the
+  uniformity of the function.
+* **Level 0.** With "`m`-small" as in §30.6 every member of `𝒰₀` is 0-small and the clause says
+  nothing there. **Amendment:** `X` is `m`-small iff `m ≥ 1` and `lv X < m`, or `X` is a
+  candidate, `T` or `Prop`. So `dp 0` is the full Π-depth of a universe-free type, `V 0 0` is
+  the base types, and level 0 is treated like every other level ((U3) at `m = 0` has no
+  universe-kind fibres).
+* **Lemmas to state:** a member of `𝒰_N` that is `N`-small is a member of `𝒰_(N-1)`; a member
+  of `𝒰_N` with `dp N ≤ k` is in `V N k`.
+* **Π formation:** the part of the world where `mkPi` collapses to a candidate is excluded
+  from the world extension (its domain can have any level; the bound there is `0`).
+* (U2), (U4), (U5) were not checked by the review. Checked here on paper: (U2) by induction on
+  the measure, the element sets of `~`-related Π types agreeing by (U2) for their domains and
+  fibres, which are smaller; (U4) because the default of a universe is a constant and the
+  default of a Π is pointwise; (U5) directly.
+* Worlds can probably be restricted to `ℕ` (failures are witnessed on countable sub-worlds).
+  Not needed: Lean can quantify over all index types.
+
+The design to formalise is §30.6 with these amendments.
