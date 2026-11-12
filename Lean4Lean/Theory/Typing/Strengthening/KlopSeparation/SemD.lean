@@ -30,9 +30,12 @@ def SemD (𝕋 : UniverseTower) (Γ : List VExpr) (d : (Nat → 𝕋.S) → 𝕋
 /-- Abstraction of a semantic term. -/
 theorem SemD.lam {Γ : List VExpr} {A B : VExpr} {u v : VLevel} {d : (Nat → 𝕋.S) → 𝕋.S}
     (HA : 𝕋.Sem Γ A A (.sort u)) (HB : 𝕋.Sem (A :: Γ) B B (.sort v))
-    (Hd : 𝕋.SemD (A :: Γ) d B) :
+    (Hd : 𝕋.SemD (A :: Γ) d B)
+    (HAU : 𝕋.SemU Γ A (.sort u)) (HBU : 𝕋.SemU (A :: Γ) B (.sort v))
+    (HdU : 𝕋.SemDU (A :: Γ) d B) :
     𝕋.SemD Γ (fun ρ => 𝕋.mkLam (𝕋.den ρ A) fun x => d (𝕋.cons x ρ)) (.forallE A B) := by
-  have HPi : 𝕋.Sem Γ (.forallE A B) (.forallE A B) (.sort (.imax u v)) := Sem.forallE HA HB
+  have HPi : 𝕋.Sem Γ (.forallE A B) (.forallE A B) (.sort (.imax u v)) := Sem.forallE HA HB HBU
+  have HlamU := SemDU.lam HA HB (fun ρ w hρ => (Hd ρ w hρ).1) HAU HBU HdU
   have key : ∀ ρ w, 𝕋.ValOK Γ ρ w →
       𝕋.mem (𝕋.mkLam (𝕋.den ρ A) fun x => d (𝕋.cons x ρ)) (𝕋.El (𝕋.den ρ (.forallE A B))) := by
     intro ρ w hρ
@@ -42,12 +45,16 @@ theorem SemD.lam {Γ : List VExpr} {A B : VExpr} {u v : VLevel} {d : (Nat → �
     obtain ⟨hfib, -⟩ := HB.fibres hρ ⟨n, hAv⟩
     refine mkLam_mem_mkPi (n := sortLv v) (fun d hd => (mem_sortDen (hfib d hd).1).1)
       (fun x hx => ?_) (fun x x' hx hxx' => hAv.isPER.mem _ _ hx hxx') (fun x x' hx hxx' => ?_)
+      (fun hDc hall => SemDU.piUnif HlamU hρ
+        (fun x hx => ⟨_, (mem_sortDen (hfib x hx).1).1⟩) (fun x hx => ?_) hDc hall)
     · obtain ⟨u', hu'⟩ := exists_valOK_cons hρ ⟨n, hAv⟩ hx
       exact (Hd _ _ hu').1
     · have hx' := hAv.isPER.mem _ _ hx hxx'
       obtain ⟨u₁, h₁⟩ := exists_valOK_cons hρ ⟨n, hAv⟩ hx
       obtain ⟨u₂, h₂⟩ := exists_valOK_cons hρ ⟨n, hAv⟩ hx'
       exact (Hd _ _ h₁).2 _ _ h₂ (coRel_cons (coRel_refl hρ) rfl hxx')
+    · obtain ⟨u', hu'⟩ := exists_valOK_cons hρ ⟨n, hAv⟩ hx
+      exact (Hd _ _ hu').1
   intro ρ w hρ
   refine ⟨key ρ w hρ, fun ρ' w' hρ' hr => ?_⟩
   obtain ⟨-, -, hAm, -, hAr⟩ := HA ρ w hρ

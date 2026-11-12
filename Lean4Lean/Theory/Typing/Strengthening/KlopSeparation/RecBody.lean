@@ -44,6 +44,21 @@ theorem fibTy_valid {n : Nat} {v : VLevel} (hn : v.eval [] ≤ n) (α a x : 𝕋
     𝕋.ValidAny (𝕋.univList n) (𝕋.fibTy v α a x) :=
   mkPi_valid (.prop (good_eqCand ..)) (fun _ _ => (sortDen_valid v).mono hn)
     (fun _ _ _ _ => rfl) (.inl fun _ _ hc => (not_isCand_sortDen _ hc).elim)
+    (fun h => (h ⟨_, rfl⟩).elim)
+
+/-- `(a = x) → Sort v` has depth at most `1` at every level. -/
+theorem dpLe_fibTy (v : VLevel) (α a x : 𝕋.S) (m : Nat) : 𝕋.DpLe m (𝕋.fibTy v α a x) 1 := by
+  unfold fibTy
+  rcases mkPi_cases (𝕋.cand (𝕋.eqCand α a x)) (fun _ => 𝕋.sortDen v) with
+    ⟨hc, -⟩ | ⟨e, -, -, -⟩ | ⟨-, hn, -⟩
+  · exact .small (.inl (isBase_of_isCand hc))
+  · rw [e]
+    refine .piP (kind_tPiP ..) ?_
+    rw [cod_tPiP]
+    rcases sortDen_leaf (𝕋 := 𝕋) v with hb | hk
+    · exact .small (.inl hb)
+    · exact .univ hk
+  · exact (hn ⟨_, rfl⟩).elim
 
 theorem fibTy_tyRel {n : Nat} {v : VLevel} (hn : v.eval [] ≤ n) {α a x x' : 𝕋.S}
     (hα : 𝕋.IsPER α) (hx : x ∈ₛ 𝕋.El α) (hxx' : 𝕋.Rel α x x') :
@@ -61,6 +76,7 @@ theorem motiveTy_valid {n : Nat} {v : VLevel} (hn : v.eval [] ≤ n) {α : 𝕋.
   mkPi_valid hα (fun x _ => fibTy_valid hn α a x)
     (fun x x' hx h => fibTy_tyRel hn hα.isPER hx h)
     (.inl fun _ _ hc => mkPi_full hc fun _ _ hc' => (not_isCand_sortDen _ hc').elim)
+    (fun _ => famUnif_of_bound (k := 1) fun x _ m => dpLe_fibTy v α a x m)
 
 /-- The fibres of coarsely related motives over coarsely related endpoints are coarsely
 related elements of `⟦Sort v⟧`. -/
@@ -191,6 +207,28 @@ theorem recBody_rel {u v : VLevel} {α a M m b α' a' M' m' b' : 𝕋.S}
           if_neg fun h => htT' h.2.1]
       rw [e1, e2]
       exact ((H.fib_a_valid.tyRel_same hv H.fib_ab).2 _ _ H.hm).1 hmm'
+
+/-- **The fibres of a uniform family of motives over a uniform family of endpoints are a
+uniform family of types.** -/
+theorem unif_fib {n : Nat} {I : World} {u v : VLevel} {α a M x : I → 𝕋.S}
+    (hα : ∀ i, 𝕋.ValidAny (𝕋.univList (recLv u v)) (α i)) (ha : ∀ i, a i ∈ₛ 𝕋.El (α i))
+    (hM : ∀ i, M i ∈ₛ 𝕋.El (𝕋.motiveTy v (α i) (a i))) (hx : ∀ i, x i ∈ₛ 𝕋.El (α i))
+    (hax : ∀ i, 𝕋.Rel (α i) (a i) (x i))
+    (hMu : 𝕋.Unif n I (fun i => 𝕋.motiveTy v (α i) (a i)) M) (hxu : 𝕋.Unif n I α x) :
+    𝕋.Unif n I (fun _ => 𝕋.sortDen v) (fun i => 𝕋.Fib (M i) (x i)) := by
+  have hT1 : 𝕋.Tame n (fun i => 𝕋.fibTy v (α i) (a i) (x i)) :=
+    ⟨⟨recLv u v, fun i => (fibTy_valid (Nat.le_max_right ..) (α i) (a i) (x i)).lvLe⟩,
+      fun m' _ => ⟨1, fun i _ => dpLe_fibTy v (α i) (a i) (x i) m'⟩⟩
+  have step1 : 𝕋.Unif n I (fun i => 𝕋.fibTy v (α i) (a i) (x i))
+      (fun i => 𝕋.mkApp (M i) (x i)) :=
+    unif_mkApp (D := α) (F := fun i b => 𝕋.fibTy v (α i) (a i) b) (g := M) (a := x)
+      hMu hM hx hxu hT1
+  exact unif_mkApp (D := fun i => 𝕋.cand (𝕋.eqCand (α i) (a i) (x i)))
+    (F := fun _ _ => 𝕋.sortDen v) (g := fun i => 𝕋.mkApp (M i) (x i)) (a := fun _ => 𝕋.star)
+    step1 (fun i => mkApp_mem (hM i) (hx i))
+    (fun i => star_mem_cand ((eqCand_nonempty_iff (hα i).isPER).2 ⟨ha i, hax i⟩))
+    (unif_of_small (fun i => .inl (.inl (kind_cand _))) _)
+    ((sortDen_valid v).tame_const n I)
 
 end UniverseTower
 end VEnv.Strengthening
