@@ -613,6 +613,113 @@ theorem Unif.sim {m : Nat} {I : World.{u}} {H H' s : I → 𝕋.S} (hh : ∀ i, 
     (h : 𝕋.Unif m I H s) : 𝕋.Unif m I H' s := fun m' hm =>
   (h m' hm).imp fun b hb => Lf.sim b m' I H H' s hh hb
 
+/-! ### Elimination, leaves, and `Unif` -/
+
+theorem exists_famLe_of_tame {m : Nat} {I : World.{u}} {H : I → 𝕋.S} (h : 𝕋.Tame m H) :
+    ∃ b, 𝕋.FamLe m H b := by
+  obtain ⟨⟨N, hN⟩, ht⟩ := h
+  by_cases hm : m ≤ N
+  · obtain ⟨k, hk⟩ := ht N hm
+    exact ⟨(N, k), fun i _ => ⟨hN i, hk i (hN i)⟩⟩
+  · exact ⟨(0, 0), fun i hs => (hs ((hN i).small.mono (by omega))).elim⟩
+
+/-- **Application of a uniform section of Π-types to a uniform section of the domains.** -/
+theorem Lf.ap_pi {b : Nat × Nat} {m : Nat} {I : World.{u}} {H s a : I → 𝕋.S}
+    (h : 𝕋.Lf b m I H s) (hk : ∀ i, 𝕋.kind (H i) = 𝕋.tagN 4 ∧ ¬ 𝕋.Small m (H i))
+    (ha : ∀ i, 𝕋.mem (a i) (𝕋.El (𝕋.dom (H i))))
+    (hG : 𝕋.Unif m I (fun i => 𝕋.dom (H i)) a)
+    (hT : 𝕋.Tame m (fun i => 𝕋.fib (H i) (a i))) :
+    ∃ b', 𝕋.Lf b' m I (fun i => 𝕋.fib (H i) (a i)) (fun i => 𝕋.ap (s i) (a i)) := by
+  by_cases hI : Nonempty I
+  · obtain ⟨i₀⟩ := hI
+    have hf := h.famLe
+    have hP : ∀ i, ¬ 𝕋.Small m (H i) ∧ 𝕋.LvLe b.1 (H i) ∧ 𝕋.DpLe b.1 (H i) b.2 :=
+      fun i => ⟨(hk i).2, hf _ (hk i).2⟩
+    obtain ⟨bD, hD⟩ := hG m (Nat.le_refl m)
+    obtain ⟨c₁, hc₁, hfD⟩ := exists_famLe_child (K := fun i => 𝕋.dom (H i)) hP
+      (fun i => .inl ⟨(hk i).1, .inl rfl⟩) hD.tame i₀
+    obtain ⟨c₂, hc₂, hfR⟩ := exists_famLe_child (K := fun i => 𝕋.fib (H i) (a i)) hP
+      (fun i => .inl ⟨(hk i).1, .inr ⟨_, ha i, rfl⟩⟩) hT i₀
+    obtain ⟨c₀, hc₀, hfD₀, hfR₀⟩ := exists_common hc₁ hc₂ hfD hfR
+    have hG₀ : ∀ m', m ≤ m' → 𝕋.Lf c₀ m' I (fun i => 𝕋.dom (H i)) a := fun m' hm => by
+      obtain ⟨b'', h''⟩ := hG m' hm
+      exact h''.fuel (hfD₀.mono hm)
+    exact ⟨c₀, (Lf_iff.1 h).2.2.2.1 c₀ hc₀ I (fun i => i) a hk ha hG₀ hT hfR₀⟩
+  · exact ⟨(0, 0), Lf_of_isEmpty _ _ (fun i => hI ⟨i⟩) _ _⟩
+
+/-- Application of a uniform section of function types out of propositions. -/
+theorem Lf.ap_piP {b : Nat × Nat} {m : Nat} {I : World.{u}} {H s : I → 𝕋.S}
+    (h : 𝕋.Lf b m I H s) (hk : ∀ i, 𝕋.kind (H i) = 𝕋.tagN 5 ∧ ¬ 𝕋.Small m (H i))
+    (hT : 𝕋.Tame m (fun i => 𝕋.cod (H i))) :
+    ∃ b', 𝕋.Lf b' m I (fun i => 𝕋.cod (H i)) (fun i => 𝕋.ap (s i) 𝕋.star) := by
+  by_cases hI : Nonempty I
+  · obtain ⟨i₀⟩ := hI
+    have hf := h.famLe
+    have hP : ∀ i, ¬ 𝕋.Small m (H i) ∧ 𝕋.LvLe b.1 (H i) ∧ 𝕋.DpLe b.1 (H i) b.2 :=
+      fun i => ⟨(hk i).2, hf _ (hk i).2⟩
+    obtain ⟨c₀, hc₀, hfR⟩ := exists_famLe_child (K := fun i => 𝕋.cod (H i)) hP
+      (fun i => .inr ⟨(hk i).1, rfl⟩) hT i₀
+    exact ⟨c₀, (Lf_iff.1 h).2.2.2.2 c₀ hc₀ I (fun i => i) hk hT hfR⟩
+  · exact ⟨(0, 0), Lf_of_isEmpty _ _ (fun i => hI ⟨i⟩) _ _⟩
+
+/-- A section of a family of base types and universes is uniform when its values have bounded
+depth. -/
+theorem Lf_leaf {m N : Nat} {I : World.{u}} {H s : I → 𝕋.S}
+    (hk : ∀ i, 𝕋.IsBase (H i) ∨ 𝕋.kind (H i) = 𝕋.tagN 3) (hN : ∀ i, 𝕋.LvLe N (H i))
+    (hs : ∃ k, ∀ i, 𝕋.kind (H i) = 𝕋.tagN 3 → ¬ 𝕋.Small m (H i) → 𝕋.LvLe m (s i) →
+      𝕋.DpLe m (s i) k) : 𝕋.Lf (N, 0) m I H s := by
+  have hd : ∀ m' i, 𝕋.DpLe m' (H i) 0 := fun m' i => by
+    rcases hk i with hb | h3
+    · exact .small (.inl hb)
+    · exact .univ h3
+  refine Lf_iff.2 ⟨⟨⟨N, hN⟩, fun m' _ => ⟨0, fun i _ => hd m' i⟩⟩, fun i _ => ⟨hN i, hd N i⟩, hs,
+    fun _ _ I' φ a hk' _ _ _ _ => Lf_of_isEmpty _ _ (fun i' => ?_) _ _,
+    fun _ _ I' φ hk' _ _ => Lf_of_isEmpty _ _ (fun i' => ?_) _ _⟩
+  · rcases hk (φ i') with hb | h3
+    · exact not_isBase_of_kind (hk' i').1 (by omega) hb
+    · have := kind_unique (hk' i').1 h3; omega
+  · rcases hk (φ i') with hb | h3
+    · exact not_isBase_of_kind (hk' i').1 (by omega) hb
+    · have := kind_unique (hk' i').1 h3; omega
+
+theorem Unif.comp {m : Nat} {I J : World.{u}} {H s : I → 𝕋.S} (h : 𝕋.Unif m I H s) (ψ : J → I) :
+    𝕋.Unif m J (fun j => H (ψ j)) (fun j => s (ψ j)) := fun m' hm =>
+  (h m' hm).imp fun _ hb => hb.comp ψ
+
+theorem Unif.mono {m m' : Nat} (hm : m ≤ m') {I : World.{u}} {H s : I → 𝕋.S}
+    (h : 𝕋.Unif m I H s) : 𝕋.Unif m' I H s := fun m'' h' => h m'' (Nat.le_trans hm h')
+
+theorem Unif.tame {m : Nat} {I : World.{u}} {H s : I → 𝕋.S} (h : 𝕋.Unif m I H s) : 𝕋.Tame m H :=
+  (h m (Nat.le_refl m)).choose_spec.tame
+
+/-- A section of a family of types that are small from level `m` on is uniform. -/
+theorem unif_of_small {m : Nat} {I : World.{u}} {H : I → 𝕋.S} (h : ∀ i, 𝕋.Small m (H i))
+    (s : I → 𝕋.S) : 𝕋.Unif m I H s := fun _ hm =>
+  ⟨(0, 0), Lf_of_small _ (fun i => (h i).mono hm) s⟩
+
+/-- **A section uniform on both parts of a world is uniform.** -/
+theorem Unif.cover {m : Nat} {I : World.{u}} {H s : I → 𝕋.S} (P : I → Prop)
+    (h₁ : 𝕋.Unif m {i // P i} (fun i => H i.1) (fun i => s i.1))
+    (h₂ : 𝕋.Unif m {i // ¬ P i} (fun i => H i.1) (fun i => s i.1)) : 𝕋.Unif m I H s := by
+  intro m' hm
+  obtain ⟨b₁, hb₁⟩ := h₁ m' hm
+  obtain ⟨b₂, hb₂⟩ := h₂ m' hm
+  obtain ⟨⟨N₁, hN₁⟩, ht₁⟩ := hb₁.tame
+  obtain ⟨⟨N₂, hN₂⟩, ht₂⟩ := hb₂.tame
+  have hT : 𝕋.Tame m' H := by
+    refine ⟨⟨max N₁ N₂, fun i => ?_⟩, fun m'' hm'' => ?_⟩
+    · by_cases hi : P i
+      · exact (hN₁ ⟨i, hi⟩).mono (Nat.le_max_left ..)
+      · exact (hN₂ ⟨i, hi⟩).mono (Nat.le_max_right ..)
+    · obtain ⟨k₁, h₁'⟩ := ht₁ m'' hm''
+      obtain ⟨k₂, h₂'⟩ := ht₂ m'' hm''
+      refine ⟨max k₁ k₂, fun i hl => ?_⟩
+      by_cases hi : P i
+      · exact (h₁' ⟨i, hi⟩ hl).mono (Nat.le_max_left ..)
+      · exact (h₂' ⟨i, hi⟩ hl).mono (Nat.le_max_right ..)
+  obtain ⟨b, hb⟩ := exists_famLe_of_tame hT
+  exact ⟨b, Lf.cover b m' I H s P (hb₁.fuel (hb.comp _)) (hb₂.fuel (hb.comp _))⟩
+
 end UniverseTower
 
 end VEnv.Strengthening
