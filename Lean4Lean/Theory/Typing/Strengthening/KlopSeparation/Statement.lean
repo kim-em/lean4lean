@@ -39,16 +39,25 @@ theorem KlopInventory.separated (𝕊 : SetModel) {env : VEnv}
   rintro ⟨A, H⟩
   exact 𝕊.den_CE_ne_E (fun _ => 𝕊.star) (K.den_sound 𝕊 henv heq H _)
 
+/-- **Strengthening of definitional equality is false even with canonical `Eq`**, given a
+set model (of which `ZFSet.{0}` is one): the statement of `IsDefEqU.weakN_iff` with the extra
+hypothesis `env.HasCanonicalEq` fails in the minimal Klop environment. -/
+theorem not_weakN_iff_of_canonicalEq (𝕊 : SetModel) :
+    ¬ ∀ {env : VEnv} {U n k : Nat} {Γ Γ' : List VExpr} {e1 e2 : VExpr},
+      env.WF → env.HasCanonicalEq → OnCtx Γ' (env.IsType U) → Ctx.LiftN n k Γ Γ' →
+      (env.IsDefEqU U Γ' (e1.liftN n k) (e2.liftN n k) ↔ env.IsDefEqU U Γ e1 e2) := by
+  intro H
+  obtain ⟨env, henv, heq, K⟩ := exists_minimalKlopEnv
+  exact K.toKlopEnv.not_strengthening henv heq (K.separated 𝕊 henv heq)
+    (fun hΓ W => H henv heq hΓ W)
+
 /-- **The statement of `IsDefEqU.weakN_iff` is false**, given a set model (of which
 `ZFSet.{0}` is one). -/
 theorem not_weakN_iff_of_setModel (𝕊 : SetModel) :
     ¬ ∀ {env : VEnv} {U n k : Nat} {Γ Γ' : List VExpr} {e1 e2 : VExpr},
       env.WF → OnCtx Γ' (env.IsType U) → Ctx.LiftN n k Γ Γ' →
-      (env.IsDefEqU U Γ' (e1.liftN n k) (e2.liftN n k) ↔ env.IsDefEqU U Γ e1 e2) := by
-  intro H
-  obtain ⟨env, henv, heq, K⟩ := exists_minimalKlopEnv
-  exact K.toKlopEnv.not_strengthening henv heq (K.separated 𝕊 henv heq)
-    (fun hΓ W => H henv hΓ W)
+      (env.IsDefEqU U Γ' (e1.liftN n k) (e2.liftN n k) ↔ env.IsDefEqU U Γ e1 e2) :=
+  fun H => not_weakN_iff_of_canonicalEq 𝕊 fun henv _ hΓ W => H henv hΓ W
 
 end VEnv.Strengthening
 end Lean4Lean
