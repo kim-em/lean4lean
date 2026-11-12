@@ -356,6 +356,117 @@ theorem Lf_full (Q : 𝕋.S → Prop) (hQc : ∀ X Y, Q X → 𝕋.Child X Y →
       exact ⟨hQc _ _ hq (hc i'), hl.child (hc i'), hd.child_succ (hc i'),
         hQapP _ _ hq (hk i').1 hs⟩
 
+/-! ### Covers and congruence -/
+
+/-- **A section uniform on both parts of a world is uniform.** -/
+theorem Lf.cover (b : Nat × Nat) : ∀ (m : Nat) (I : World.{u}) (H s : I → 𝕋.S) (P : I → Prop),
+    𝕋.Lf b m {i // P i} (fun i => H i.1) (fun i => s i.1) →
+    𝕋.Lf b m {i // ¬ P i} (fun i => H i.1) (fun i => s i.1) → 𝕋.Lf b m I H s := by
+  induction b using (Prod.lex Nat.lt_wfRel Nat.lt_wfRel).wf.induction with
+  | _ b ih =>
+    intro m I H s P h₁ h₂
+    obtain ⟨⟨⟨N₁, hN₁⟩, ht₁⟩, hf₁, ⟨k₁, hu₁⟩, hpi₁, hpiP₁⟩ := Lf_iff.1 h₁
+    obtain ⟨⟨⟨N₂, hN₂⟩, ht₂⟩, hf₂, ⟨k₂, hu₂⟩, hpi₂, hpiP₂⟩ := Lf_iff.1 h₂
+    refine Lf_iff.2 ⟨⟨⟨max N₁ N₂, fun i => ?_⟩, fun m' hm => ?_⟩, fun i => ?_,
+      ⟨max k₁ k₂, fun i => ?_⟩, ?_, ?_⟩
+    · by_cases hi : P i
+      · exact (hN₁ ⟨i, hi⟩).mono (Nat.le_max_left ..)
+      · exact (hN₂ ⟨i, hi⟩).mono (Nat.le_max_right ..)
+    · obtain ⟨k₁', h₁'⟩ := ht₁ m' hm
+      obtain ⟨k₂', h₂'⟩ := ht₂ m' hm
+      refine ⟨max k₁' k₂', fun i hl => ?_⟩
+      by_cases hi : P i
+      · exact (h₁' ⟨i, hi⟩ hl).mono (Nat.le_max_left ..)
+      · exact (h₂' ⟨i, hi⟩ hl).mono (Nat.le_max_right ..)
+    · by_cases hi : P i
+      · exact hf₁ ⟨i, hi⟩
+      · exact hf₂ ⟨i, hi⟩
+    · intro hk hs hl
+      by_cases hi : P i
+      · exact (hu₁ ⟨i, hi⟩ hk hs hl).mono (Nat.le_max_left ..)
+      · exact (hu₂ ⟨i, hi⟩ hk hs hl).mono (Nat.le_max_right ..)
+    · intro b' hb I' φ a hk ha hG hT hF
+      refine ih b' hb m I' _ _ (fun i' => P (φ i')) ?_ ?_
+      · exact hpi₁ b' hb {i' // P (φ i')} (fun j => ⟨φ j.1, j.2⟩) (fun j => a j.1)
+          (fun j => hk j.1) (fun j => ha j.1) (fun m' hm => (hG m' hm).comp _)
+          (hT.comp _) (hF.comp _)
+      · exact hpi₂ b' hb {i' // ¬ P (φ i')} (fun j => ⟨φ j.1, j.2⟩) (fun j => a j.1)
+          (fun j => hk j.1) (fun j => ha j.1) (fun m' hm => (hG m' hm).comp _)
+          (hT.comp _) (hF.comp _)
+    · intro b' hb I' φ hk hT hF
+      refine ih b' hb m I' _ _ (fun i' => P (φ i')) ?_ ?_
+      · exact hpiP₁ b' hb {i' // P (φ i')} (fun j => ⟨φ j.1, j.2⟩)
+          (fun j => hk j.1) (hT.comp _) (hF.comp _)
+      · exact hpiP₂ b' hb {i' // ¬ P (φ i')} (fun j => ⟨φ j.1, j.2⟩)
+          (fun j => hk j.1) (hT.comp _) (hF.comp _)
+
+/-- Two records with the same kind and constructor arguments. -/
+def SameArgs (𝕋 : UniverseTower.{u}) (X X' : 𝕋.S) : Prop :=
+  𝕋.kind X = 𝕋.kind X' ∧ 𝕋.argsOf X = 𝕋.argsOf X'
+
+theorem SameArgs.symm {X X' : 𝕋.S} (h : 𝕋.SameArgs X X') : 𝕋.SameArgs X' X := ⟨h.1.symm, h.2.symm⟩
+theorem SameArgs.dom {X X' : 𝕋.S} (h : 𝕋.SameArgs X X') : 𝕋.dom X = 𝕋.dom X' := by
+  simp [UniverseTower.dom, h.2]
+theorem SameArgs.fib {X X' : 𝕋.S} (h : 𝕋.SameArgs X X') (d : 𝕋.S) : 𝕋.fib X d = 𝕋.fib X' d := by
+  simp [UniverseTower.fib, h.2]
+theorem SameArgs.cod {X X' : 𝕋.S} (h : 𝕋.SameArgs X X') : 𝕋.cod X = 𝕋.cod X' := by
+  simp [UniverseTower.cod, h.2]
+
+theorem LvLe.congr {N : Nat} {X X' : 𝕋.S} (h : 𝕋.SameArgs X X') (H : 𝕋.LvLe N X) :
+    𝕋.LvLe N X' := by
+  cases H with
+  | base hb => exact .base (by simpa [IsBase, h.1] using hb)
+  | univ hk ha hj => exact .univ (h.1 ▸ hk) (h.2 ▸ ha) hj
+  | pi hk hD hF => exact .pi (h.1 ▸ hk) (h.dom ▸ hD) fun d hd => h.fib d ▸ hF d (h.dom ▸ hd)
+  | piP hk hB => exact .piP (h.1 ▸ hk) (h.cod ▸ hB)
+
+theorem Small.congr {m : Nat} {X X' : 𝕋.S} (h : 𝕋.SameArgs X X') (H : 𝕋.Small m X) :
+    𝕋.Small m X' := by
+  rcases H with hb | ⟨n, rfl, hl⟩
+  · exact .inl (by simpa [IsBase, h.1] using hb)
+  · exact .inr ⟨n, rfl, hl.congr h⟩
+
+theorem DpLe.congr {m k : Nat} {X X' : 𝕋.S} (h : 𝕋.SameArgs X X') (H : 𝕋.DpLe m X k) :
+    𝕋.DpLe m X' k := by
+  cases H with
+  | small hs => exact .small (hs.congr h)
+  | univ hk => exact .univ (h.1 ▸ hk)
+  | pi hk hD hF => exact .pi (h.1 ▸ hk) (h.dom ▸ hD) fun d hd => h.fib d ▸ hF d (h.dom ▸ hd)
+  | piP hk hB => exact .piP (h.1 ▸ hk) (h.cod ▸ hB)
+
+/-- Uniformity depends on the family of types only through kinds and constructor arguments. -/
+theorem Lf.congr (b : Nat × Nat) : ∀ (m : Nat) (I : World.{u}) (H H' s : I → 𝕋.S),
+    (∀ i, 𝕋.SameArgs (H i) (H' i)) → 𝕋.Lf b m I H s → 𝕋.Lf b m I H' s := by
+  induction b using (Prod.lex Nat.lt_wfRel Nat.lt_wfRel).wf.induction with
+  | _ b ih =>
+    intro m I H H' s hh h
+    obtain ⟨⟨⟨N, hN⟩, ht⟩, hf, ⟨k, hu⟩, hpi, hpiP⟩ := Lf_iff.1 h
+    have e1 : ∀ (I' : World.{u}) (φ : I' → I),
+        (fun i' => 𝕋.dom (H' (φ i'))) = fun i' => 𝕋.dom (H (φ i')) := fun I' φ =>
+      funext fun i' => (hh _).dom.symm
+    have e2 : ∀ (I' : World.{u}) (φ : I' → I) (a : I' → 𝕋.S),
+        (fun i' => 𝕋.fib (H' (φ i')) (a i')) = fun i' => 𝕋.fib (H (φ i')) (a i') := fun I' φ a =>
+      funext fun i' => ((hh _).fib _).symm
+    have e3 : ∀ (I' : World.{u}) (φ : I' → I),
+        (fun i' => 𝕋.cod (H' (φ i'))) = fun i' => 𝕋.cod (H (φ i')) := fun I' φ =>
+      funext fun i' => (hh _).cod.symm
+    refine Lf_iff.2 ⟨⟨⟨N, fun i => (hN i).congr (hh i)⟩, fun m' hm => (ht m' hm).imp
+      fun k hk i hl => (hk i (hl.congr (hh i).symm)).congr (hh i)⟩,
+      fun i hs => ?_, ⟨k, fun i hk hs => hu i ((hh i).1 ▸ hk) fun hs' => hs (hs'.congr (hh i))⟩,
+      ?_, ?_⟩
+    · obtain ⟨h1, h2⟩ := hf i fun hs' => hs (hs'.congr (hh i))
+      exact ⟨h1.congr (hh i), h2.congr (hh i)⟩
+    · intro b' hb I' φ a hk ha hG hT hF
+      rw [e2] at hT hF ⊢
+      rw [e1] at hG
+      refine hpi b' hb I' φ a (fun i' => ⟨(hh _).1 ▸ (hk i').1, fun hs => (hk i').2
+        (hs.congr (hh _))⟩) (fun i' => ?_) hG hT hF
+      have := ha i'; rwa [← (hh _).dom] at this
+    · intro b' hb I' φ hk hT hF
+      rw [e3] at hT hF ⊢
+      exact hpiP b' hb I' φ (fun i' => ⟨(hh _).1 ▸ (hk i').1, fun hs => (hk i').2
+        (hs.congr (hh _))⟩) hT hF
+
 end UniverseTower
 
 end VEnv.Strengthening
