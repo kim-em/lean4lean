@@ -1730,3 +1730,94 @@ An independent reading of §30.3 against `SemType.lean` and `Interp.lean` found:
 Directions left open: let shapes record whether a proposition is empty, and weaken (L1), (L2)
 from "one shape" to "finitely many shapes" (which still bounds depth); unify the formats of
 `tPi` and `tPiP`; remove `cand full` from the data universes.
+
+### 30.6 Second proposal: uniform sections (boundedness in place of equal shapes)
+
+Not reviewed when written. The invariant that a term really has is not "equal shapes" but
+"bounded depth": a term of size `s` raises the level-`m` Π-depth of its inputs by a bounded
+amount. Boundedness is a supremum, so the collapse of §30.5 is harmless (a collapsed fibre has
+depth `0`), and no shape of a body over an empty domain is needed.
+
+**Structural data of a type record** (stored as fields, invariant under `~`):
+
+* `lv X`: one more than the largest `j` with `𝒰ⱼ` occurring in `X` (`0` if none; candidates,
+  `T`, `Prop` have `lv = 0`).
+* `X` is *`m`-small* if every `𝒰ⱼ` occurring in it has `j + 2 ≤ m`. Candidates are `m`-small
+  for every `m`.
+* `dp m X ∈ ℕ ∪ {∞}`: `0` if `X` is `m`-small or a universe; `1 + max (dp m D) (sup_d dp m (F d))`
+  for a non-`m`-small `tPi D F`; `1 + dp m B` for a non-`m`-small `tPiP c B`.
+
+**Worlds and sections.** A world is an index type `I`. A family is `H : I → types`; a section
+is `s` with `s i ∈ El (H i)`. `H` is *tame above `m`* if `lv (H i)` is bounded and for every
+`m' ≥ m` the values `dp m' (H i)` over the `i` with `lv (H i) = m'` are bounded. Measure of a
+tame family: the maximum of `ω · lv (H i) + dp (lv (H i)) (H i)` over non-`m`-small fibres, an
+ordinal below `ω²`; it is a maximum, not a supremum, and the families of domains and of fibres
+of the Π-kind part of `H` have a strictly smaller one.
+
+**Uniformity.** `L m (I, H, s)`, for `H` tame above `m`, by recursion on that measure
+(simultaneously in `m`); `G m := ∀ m' ≥ m, L m'`.
+
+* on the `i` with `H i = 𝒰ⱼ` not `m`-small: `dp m (s i)` is bounded over the `i` with
+  `lv (s i) ≤ m`;
+* on the `i` with `H i = tPi (D i) (F i)` not `m`-small: for every world `I'`, map
+  `φ : I' → I` into this part and section `a` of `D ∘ φ` with `G m (I', D ∘ φ, a)`,
+  `L m (I', i' ↦ F (φ i') (a i'), i' ↦ ap (s (φ i')) (a i'))`;
+* on the `i` with `H i = tPiP c B` not `m`-small: `L m` of `i ↦ ap (s i) •` over `i ↦ B i`;
+* nothing on the `m`-small fibres (in particular on candidates).
+
+The tests of level `m` are sections uniform at every level `≥ m`. This is forced:
+`fun (G : Sort 6 → Sort 7) => ∀ X : Sort 6, G X` must be an element, so a set of `G`'s that is
+admissible as a test at level `m ≤ 5` has to be equibounded at level `6` on all of `𝒰₅`; and
+with tests uniform only at level `m`, families such as `Xⱼ₊₁ = Xⱼ → 𝒰ₘ` make the definition
+circular with no fixed point in general.
+
+**Model.**
+
+* `El (tPi D F)`: the functions of §28 whose constant section over the one-point world
+  satisfies `G 0`.
+* `tPi D F` is valid only if moreover `F`, as a function into the universe, is `G 0`-uniform:
+  for every `m`, world `I'` and section `a` of the constant family `D` with `G m`, the values
+  `dp m (F (a i'))` with `lv ≤ m` are bounded.
+* `V N 0`: the base types, `𝒰ⱼ` for `j < N`, the members of `𝒰ⱼ` for `j < N`. `V N (k+1)` adds
+  the valid `tPi D F`, `tPiP c B` over `V N k`. `El 𝒰_N = ⋃ₖ V N k`. This needs pairing, Π,
+  separation, replacement and a union over `ℕ`; no universe of sets.
+* Defined by recursion on `N`, then `k`: building level `N` uses `L m` only for `m < N` and only
+  through `dp m` of members of `𝒰ₘ`, which exist already.
+
+**Lemmas.**
+
+* (U1) `L m` is closed under reindexing of worlds and under finite covers of a world.
+* (U2) `L m (I, H, s)` depends on `H` only up to pointwise `~` (`lv`, `dp`, kinds, domains and
+  fibres are `~`-invariant); so `~`-related types still have the same elements.
+* (U3) If every `H i` is a member of `𝒰ₘ` and `dp m (H i)` is bounded, every section of `H`
+  satisfies `G m`. Induction on the bound; members of `𝒰ₘ₋₁` are `m`-small, and the family is
+  `m'`-small for `m' > m`.
+* (U4) The default element of every data type is uniform.
+* (U5) A section of a family all of whose iterated codomains are small is uniform.
+
+**New clause of the semantic judgment**, by the same induction on derivations, for every `n`:
+for every world `I` and family of valuations `ρᵢ` of `Γ` each of whose positions is a
+`G n`-uniform section of its (tame) family of types, the family `i ↦ den ρᵢ A` is tame above
+`n` and `i ↦ den ρᵢ a` is a `G n`-uniform section of it.
+
+* variable: hypothesis. Sort: `dp m 𝒰ⱼ = 0`.
+* application: for `m ≥ n`, `L m` of the function section with `φ = id` on the part of the
+  world where the function type is a non-`m`-small `tPi`; elsewhere the result type is
+  `m`-small. A function type collapsed over an empty proposition has no argument.
+* λ: for `m ≥ n` and a test `(I', φ, a)` with `G m`, the extended family of valuations is
+  `G m`-uniform (`G n ⊆ G m`, reindexing), so the clause for the body at level `m` applies.
+* Π formation: for `m ≥ n`, on the part of the world where `mkPi` is a member of `𝒰ₘ`, extend
+  the world to `{(i, d) | d ∈ El (den ρᵢ A)}`. The new position is uniform by (U3), the old
+  ones by reindexing, so the clause for `B` at level `m` bounds `dp m` of all fibres; with the
+  bound for `A` this bounds `dp m (mkPi …)`. The validity condition on the family is the λ
+  argument. At the one-point world this is also what puts `mkPi` in `𝒰` at all.
+* conversion and the equality rules: denotations are equal.
+* `Eq.rec`: `recBody` is `•`, `tsucc a` (type `T`, small) or the minor premise, which is
+  uniform for the fibre over `a`, hence by (U2) for the fibre over `b`; the three branches
+  cover the world, (U1). `Eq`, `Eq.refl`, `H`, `C`, `E`, `Fix`: (U5).
+
+**What changes in Lean.** `UniverseTower` loses `U` and its closure fields and gains a union
+over `ℕ`; records gain `lv` and `dp`; `tPi` and `ValidAny.pi` gain the uniformity conditions;
+`univ` is rebuilt from `V N k`; `Sem` gains the clause; every lemma that produces an element
+of a `tPi` gains a uniformity proof. `ZFSet.{0}` then instantiates the interface with no
+hypothesis.
