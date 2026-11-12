@@ -38,15 +38,6 @@ theorem List.forall₂_snoc_right' {R : α → β → Prop} :
     ⟨_ :: l, a, by simp [e], .cons h h1, h2⟩
 
 omit [Params] in
-theorem List.forall₂_snoc_left' {R : α → β → Prop} :
-    ∀ {l₁ : List α} {l₂ : List β} {a : α}, List.Forall₂ R (l₁ ++ [a]) l₂ →
-      ∃ l₂' b, l₂ = l₂' ++ [b] ∧ List.Forall₂ R l₁ l₂' ∧ R a b
-  | [], _, _, .cons h .nil => ⟨[], _, rfl, .nil, h⟩
-  | _ :: _, _, _, .cons h hs =>
-    let ⟨l, b, e, h1, h2⟩ := List.forall₂_snoc_left' hs
-    ⟨_ :: l, b, by simp [e], .cons h h1, h2⟩
-
-omit [Params] in
 theorem mkApps_ne_proj' {fn : VExpr} (args : List VExpr) (hf : ∀ n i e, fn ≠ .proj n i e := by
     intro _ _ _ h; nomatch h) :
     VExpr.mkApps fn args ≠ .proj family index major := by

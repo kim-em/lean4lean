@@ -354,23 +354,5 @@ theorem NestedLoweringRun.sourceNonempty
   rw [hsource]
   simp
 
-/-- The lowered declaration passed to `AddInductive.run` is nonempty whenever
-the exact lowering execution succeeded. -/
-theorem NestedLoweringRun.resultTypesSizePos
-    {initialState : Lean4Lean.ElimNestedInductive.State}
-    (H : NestedLoweringRun env fuel nparams sourceTypes
-      { initialState with newTypes := sourceTypes.toArray } result) :
-    0 < result.types.toArray.size := by
-  have hsource := H.sourceNonempty
-  have hsourcePos : 0 < sourceTypes.length := by
-    cases sourceTypes with
-    | nil => contradiction
-    | cons => simp
-  have hresultPos : 0 < result.types.length := by
-    have hle := H.sourceTypes_length_le
-    omega
-  simpa using hresultPos
-
-
 end VerifyInductive
 end Lean4Lean

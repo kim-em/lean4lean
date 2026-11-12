@@ -224,8 +224,8 @@ theorem rigid_spines_substEq {Γ₁ Γ₂ : List VExpr} {c : Name} {ls₁ ls₂ 
   rwa [List.take_length, List.take_of_length_le (by omega)] at this
 
 
-/-- The two family spines of an ι redex (`redex_major_rel`, before relating their
-arguments): the recursor's major domain at the recursor arguments and the constructor's result
+/-- The two family spines of an ι redex, before relating their arguments: the recursor's
+major domain at the recursor arguments and the constructor's result
 at the constructor arguments are semantically typed sort spines whose observations subsume each
 other, at typed valuations of the two telescopes. -/
 theorem redex_major_sub {Γ : List VExpr} {n ctor I : Name} {m1 lsC lsI lsC' : List VLevel}

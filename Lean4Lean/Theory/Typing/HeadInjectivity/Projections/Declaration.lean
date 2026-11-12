@@ -77,13 +77,4 @@ theorem VEnv.ProjDecl.ctorType_shape {env : VEnv} (h : env.ProjDecl S info) :
     rfl
   · simp [hargs', hni]
 
-/-- Every single-constructor family of a declaration has a projection entry. -/
-theorem VInductDecl.mem_projectionEntries {decl : VInductDecl} {ty : VInductiveType}
-    {ctor : VConstVal} (htype : ty ∈ decl.types) (hctors : ty.ctors = [ctor]) :
-    VProjectionEntry.mk ty.name (VProjectionInfo.mk decl.uvars decl.nparams ty.numIndices
-        ty.resultLevel ctor.name ctor.type) ∈
-      decl.projectionEntries := by
-  simp only [VInductDecl.projectionEntries, List.mem_filterMap]
-  exact ⟨ty, htype, by rw [hctors]⟩
-
 end Lean4Lean

@@ -126,19 +126,6 @@ theorem PatsClosed.not_head {envF env0 env' : VEnv} {n : Name} {ci : VConstant}
 
 /-! ## Projection entries along the history -/
 
-/-- The entries of a declaration step: entries of the environment before it, or new entries
-whose constructor is fresh before it. -/
-theorem projections_of_decl {env0 env' : VEnv} {d : VDecl} (hdecl : VDecl.WF env0 d env') :
-    ∀ S info, env'.projections S info →
-      env0.projections S info ∨ env0.constants info.ctorName = none := by
-  intro S info hp
-  rcases hdecl.projections_eq_or_induct with heq | ⟨decl, -, hadd⟩
-  · rw [heq] at hp; exact .inl hp
-  · rcases (addInduct_projections_iff hadd).1 hp with ⟨entry, hentry, rfl, rfl⟩ | hold
-    · obtain ⟨type, htype, ctor, hctors, rfl⟩ := VInductDecl.projectionEntries_origin hentry
-      exact .inr (addInduct_ctor_fresh hadd htype (by rw [hctors]; exact List.mem_singleton_self _))
-    · exact .inl hold
-
 /-- The declaration of a projection entry (`VEnv.ProjDeclAt`) at the given header
 environment. -/
 theorem ProjDeclAt.ofEntry {base envTypes env : VEnv} {dsb : List VDecl}

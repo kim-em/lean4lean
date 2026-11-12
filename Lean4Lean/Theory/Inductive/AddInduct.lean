@@ -29,7 +29,7 @@ def VEnv.addRecRule (env : VEnv) (r : VRecursor) (ru : VRecRule) : Option VEnv :
 /-! ### The stages of `addInduct`
 
 The kernel (`Inductive/Add.lean`, `run`) declares all type formers, then all constructors
-(in block order), then each recursor *together with its rules* (`mkRecRules` inside the
+(in block order), then each recursor *together with its rules* (`mkRecRulesFromTemplates` inside the
 per-recursor loop, installed in one `recInfo`); for a nested block `Environment.addInductive`
 inserts type by type (`Verify/Environment/Basic.lean`, `AddInduct.consts`). The model
 re-groups this into five stages — all type formers, all constructors, the projection entries
@@ -158,20 +158,6 @@ theorem foldlM_rebase {α} {f : VEnv → α → Option VEnv}
     obtain ⟨e2, h1', hle'⟩ := hf hle h1
     obtain ⟨o₂, h2', hle''⟩ := foldlM_rebase (f := f) hf hle' h2
     exact ⟨o₂, by simp only [List.foldlM, h1']; exact h2', hle''⟩
-
-/-- A fold whose successful steps are monotone in the environment is monotone. -/
-theorem foldlM_mono {α} {f : VEnv → α → Option VEnv}
-    (hf : ∀ {e₁ e₂ e₁' e₂' : VEnv} {x}, e₁ ≤ e₂ → f e₁ x = some e₁' → f e₂ x = some e₂' →
-      e₁' ≤ e₂') :
-    ∀ {l : List α} {i₁ i₂ o₁ o₂ : VEnv}, i₁ ≤ i₂ → l.foldlM f i₁ = some o₁ →
-      l.foldlM f i₂ = some o₂ → o₁ ≤ o₂
-  | [], _, _, _, _, hle, h, h' => by
-    simp [List.foldlM] at h h'; subst h h'; exact hle
-  | x :: xs, _, _, _, _, hle, h, h' => by
-    simp only [List.foldlM] at h h'
-    obtain ⟨e1, h1, h2⟩ := Option.bind_eq_some_iff.1 h
-    obtain ⟨e1', h1', h2'⟩ := Option.bind_eq_some_iff.1 h'
-    exact foldlM_mono (f := f) hf (hf hle h1 h1') h2 h2'
 
 theorem addRecRule_rebase {e₁ e₂ e₁' : VEnv} {r : VRecursor} {ru : VRecRule} (hle : e₁ ≤ e₂)
     (h : e₁.addRecRule r ru = some e₁') :

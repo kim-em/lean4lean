@@ -1420,30 +1420,6 @@ theorem SpineTransport.stored (hp : Pat p r) (hm : p.Matches e m1 m2)
   | defn c => exact SpineTransport.stored_defn hp hm hc (.extra hp hm hc hr)
   | iota rc mr cc kc => exact SpineTransport.stored_iota hp hm hc hr ih
 
-theorem NormalEq.instantiate_variables_full (hΓ : OnCtx Γ (env.IsType univs))
-    (H : VExpr.VariableApplications body)
-    (hc : body.ClosedN arguments.length) (hlen : arguments'.length = arguments.length)
-    (hargs : ∀ i (hi : i < arguments.length) (hi' : i < arguments'.length),
-      ∃ out, FullReduction Γ arguments[i] out ∧ NormalEq Γ out arguments'[i])
-    (ht : Γ ⊢ InductiveSignature.instantiateParams body arguments : type) :
-    ∃ out, FullReduction Γ (InductiveSignature.instantiateParams body arguments) out ∧
-      NormalEq Γ out (InductiveSignature.instantiateParams body arguments') := by
-  induction H generalizing type with
-  | @bvar i =>
-    change i < arguments.length at hc
-    rw [InductiveSignature.instantiateParams_eq_instOuter, InductiveSignature.instantiateParams_eq_instOuter,
-      VExpr.instOuter_bvar arguments hc, VExpr.instOuter_bvar arguments' (by simpa [hlen] using hc)]
-    simpa only [hlen] using hargs (arguments.length - 1 - i) (by omega) (by omega)
-  | app hf ha ihf iha =>
-    have ⟨_, _, hfn, harg⟩ := ht.app_inv henv hΓ
-    obtain ⟨fn', hfnRed, hfnNormal⟩ := ihf hc.1 hfn
-    obtain ⟨arg', hargRed, hargNormal⟩ := iha hc.2 harg
-    have hfn' := hfnRed.hasType hΓ hfn
-    have harg' := hargRed.hasType hΓ harg
-    exact ⟨_, .app hfnRed hargRed, .appDF hfn'
-      ((hfnNormal.defeq hΓ).of_l henv hΓ hfn').hasType.2
-      harg' ((hargNormal.defeq hΓ).of_l henv hΓ harg').hasType.2 hfnNormal hargNormal⟩
-
 theorem ParRed.spineTransport (H : ParRed Γ e e') : ∀ n, SpineTransport Γ e e' n := by
   induction H with
   | bvar | sort | const => exact fun _ => SpineTransport.same

@@ -705,17 +705,6 @@ theorem _root_.Lean4Lean.VIotaRuleTyped.body_typing (henv : VEnv.WF env) (hΓ : 
   have ⟨h1, h2⟩ := HasType.wrapLams_inv henv hΓ hl'
   exact ⟨h1, h2, (HasType.wrapLams_inv henv hΓ hr').2⟩
 
-theorem _root_.Lean4Lean.VIotaRuleShape.body_typing (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
-    (H : VIotaRuleShape env recName recUvars nparams cnparams nmotives nminors nindices ctorName
-      ctorLevels nfields df ctorParams)
-    (hls : ∀ l ∈ ls, l.WF U) :
-    OnCtx ((H.doms.map (VExpr.instL ls)).reverse ++ Γ) (env.IsType U) ∧
-    env.HasType U ((H.doms.map (VExpr.instL ls)).reverse ++ Γ) (H.lhsBody.instL ls)
-      (H.typeBody.instL ls) ∧
-    env.HasType U ((H.doms.map (VExpr.instL ls)).reverse ++ Γ) (H.rhsBody.instL ls)
-      (H.typeBody.instL ls) :=
-  (H.toTyped henv.ordered).body_typing henv hΓ hls
-
 /-- Closedness of the domains of a closed constant's telescope type. -/
 theorem VEnv.constant_doms_closed (henv : VEnv.WF env)
     (hc : env.constants c = some ⟨uvars, VExpr.wrapForalls doms body⟩)

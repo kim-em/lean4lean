@@ -70,8 +70,8 @@ theorem IsDefEqU.rigidApp_ne (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U)
 
 /-- An application headed by a type former of a declared inductive block is defeq to
 neither a sort nor a Π-type: the type former is rigid (`VEnv.WF'.inductTypeRigid`), so
-`HeadInversion.sort_rigid`/`forallE_rigid` apply. The typing hypothesis is kept for
-compatibility with the statement of PR #43; the typing is read off the definitional equality. -/
+`HeadInversion.sort_rigid`/`forallE_rigid` apply. The typing hypothesis is not used: the
+typing is read off the definitional equality. -/
 theorem IsDefEqU.const_arity_inv {ds : List VDecl} {env : VEnv} {U : Nat} {Γ : List VExpr}
     (henv : env.WF' ds) (hΓ : OnCtx Γ (env.IsType U))
     {decl : VInductDecl} {t : VInductiveType} {us : List VLevel} {args : List VExpr}

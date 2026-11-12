@@ -179,15 +179,6 @@ theorem CheckingEnv.ValidCore.mapExt
     rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?]
     exact hfindSource
 
-/-- Forget the typing part of a lockstep installation (`AddConstants`) while
-retaining its fresh extension. -/
-theorem AddConstants.freshExtension
-    (H : AddConstants safety source sourceVEnv entries target targetVEnv) :
-    FreshExtension source (entries.map Prod.fst) target := by
-  induction H with
-  | nil => exact .nil
-  | cons hfresh _ _ _ _ _ _ ih => exact .cons hfresh ih
-
 /-! ### Find?-extensional transport of the checking invariants
 
 The invariants below read the kernel environment only through `find?` (of the environment or

@@ -8,7 +8,7 @@ The checker context in which `validateNestedAuxiliaries` runs: the lowering's lo
 `res.lctx` is the opening of the first source header's parameter telescope
 (`NestedLoweringOutput.params_opening`), so it is the local context of a well-formed checker
 context in any model where that header translates (`LoweringParamOpening.toMLCtx`), and that
-context supplies the premises of `validateNestedAuxiliaries.WF`
+context supplies the premises of `validateNestedAuxiliaries.WF_typing`
 (`NestedLoweringOutput.parameterMLCtx`). -/
 
 namespace Lean4Lean
@@ -71,7 +71,7 @@ theorem LoweringParamOpening.toMLCtx
       · exact Hbody'
 
 
-/-- **The premises of `validateNestedAuxiliaries.WF`** from the lowering output: a well-formed
+/-- **The premises of `validateNestedAuxiliaries.WF_typing`** from the lowering output: a well-formed
 checker context over `res.lctx`, fresh for the checker's name generator, in which every cached
 nested occurrence is scoped, in any model where the first source header translates. -/
 theorem NestedLoweringOutput.parameterMLCtx {env : Environment} {fuel nparams : Nat}

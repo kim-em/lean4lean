@@ -11,8 +11,7 @@ compilation data behind a `CompiledInductive` derivation (`CompiledInductive.dat
 the syntax of the generated equations of an *ordinary* compilation (one without container
 specializations, `auxiliaries = []`: `Instance.equation_lhs_eq`, `equation_rhs_eq`, the
 inversion `VRecRule.OfEquation.ordinary` of a model rule against its generated equation), and
-proves that the reduct template of an ordinary rule mentions only constants of the recursor's
-type and the block's recursor names (`Instance.equation_rhs_containsAnyConst`). -/
+states the computation rules of `VExpr.containsAnyConst`. -/
 
 namespace Lean4Lean
 
@@ -108,9 +107,6 @@ theorem eqDoms_length : (g.eqDoms index).length =
     Array.length_toList]
   omega
 
-theorem eqIndices_length : (g.eqIndices index).length = s.constructors[index].indices.length := by
-  simp [eqIndices]
-
 theorem eqLead_length : (g.eqLead index).length =
     s.params.length + (s.families.size + s.constructors.size) +
       s.constructors[index].indices.length := by
@@ -125,8 +121,6 @@ theorem equation_lhs_eq : (g.equation index).lhs = .wrapLams (g.eqDoms index)
 
 theorem equation_rhs_eq : (g.equation index).rhs = .wrapLams (g.eqDoms index) (g.eqBody index) :=
   rfl
-
-theorem equation_uvars : (g.equation index).uvars = g.uvars := rfl
 
 theorem eqMs_length : (eqMs index).length = s.params.length := by simp [eqMs, length_vars]
 theorem eqFs_length : (eqFs index).length = s.constructors[index].fields.length := by simp [eqFs]
@@ -219,15 +213,6 @@ theorem eqDoms_take :
 
 theorem recursor_mem (owner : Fin s.families.size) : g.recursor owner ∈ g.recursors :=
   List.mem_map.2 ⟨owner, List.mem_finRange _, rfl⟩
-
-theorem equation_mem : g.equation index ∈ g.equations :=
-  List.mem_map.2 ⟨index, List.mem_finRange _, rfl⟩
-
-theorem minor_mem : g.minor s.constructors[index] index.val ∈ g.minors := by
-  simp only [Instance.minors, List.mem_map]
-  refine ⟨(s.constructors[index], index.val), ?_, rfl⟩
-  rw [List.mem_iff_getElem]
-  exact ⟨index.val, by simp, by simp⟩
 
 end Instance
 
@@ -389,17 +374,6 @@ theorem VInductDecl.WF.rule_block {env : VEnv} {decl : VInductDecl} (hdecl : dec
   exact ⟨block, base, expanded, s, g, aux, hcomp, hrecsOf, hWF, hbase, C, hcont,
     hrecsOf.rules rec hrec ru hru⟩
 
-/-- The recursor of a generated recursor value of an ordinary block. -/
-theorem InductiveSignature.CompilationData.ordinary_rec_of {s : InductiveSignature}
-    {g : InductiveSignature.Instance s} {decl : VInductDecl}
-    (C : InductiveSignature.CompilationData base decl expanded s g [] block)
-    (hrecsOf : decl.RecsOf block) (owner : Fin s.families.size) :
-    ∃ r ∈ decl.recs, r.toVConstVal = g.recursor owner := by
-  have hmem : g.recursor owner ∈ decl.recs.map (·.toVConstVal) := by
-    rw [hrecsOf.recursors, C.ordinary_recursors]; exact g.recursor_mem owner
-  obtain ⟨r, hr, e⟩ := List.mem_map.1 hmem
-  exact ⟨r, hr, e⟩
-
 /-- A rule of an ordinary block is read off a generated equation. -/
 theorem InductiveSignature.CompilationData.ordinary_rule {s : InductiveSignature}
     {g : InductiveSignature.Instance s} {rec : VRecursor} {ru : VRecRule} {df : VDefEq}
@@ -445,150 +419,6 @@ namespace VExpr
     (e.liftN n k).containsAnyConst names = e.containsAnyConst names := by
   induction e generalizing k <;> simp [VExpr.liftN, VExpr.containsAnyConst, *]
 
-theorem containsAnyConst_mkApps (names : List Name) (fn : VExpr) (args : List VExpr) :
-    (VExpr.mkApps fn args).containsAnyConst names =
-      (fn.containsAnyConst names || args.any (·.containsAnyConst names)) := by
-  induction args generalizing fn with
-  | nil => simp
-  | cons arg args ih =>
-    rw [mkApps_cons, ih, containsAnyConst_app, List.any_cons, Bool.or_assoc]
-
-theorem containsAnyConst_wrapLams (names : List Name) (ds : List VExpr) (b : VExpr) :
-    (VExpr.wrapLams ds b).containsAnyConst names =
-      (ds.any (·.containsAnyConst names) || b.containsAnyConst names) := by
-  induction ds with
-  | nil => simp [VExpr.wrapLams]
-  | cons d ds ih =>
-    simp only [VExpr.wrapLams, List.foldr_cons] at ih ⊢
-    rw [containsAnyConst_lam, ih, List.any_cons, Bool.or_assoc]
-
-theorem containsAnyConst_wrapForalls (names : List Name) (ds : List VExpr) (b : VExpr) :
-    (VExpr.wrapForalls ds b).containsAnyConst names =
-      (ds.any (·.containsAnyConst names) || b.containsAnyConst names) := by
-  induction ds with
-  | nil => simp [VExpr.wrapForalls]
-  | cons d ds ih =>
-    simp only [VExpr.wrapForalls, List.foldr_cons] at ih ⊢
-    rw [containsAnyConst_forallE, ih, List.any_cons, Bool.or_assoc]
-
 end VExpr
-
-namespace InductiveSignature
-
-theorem vars_containsAnyConst (names : List Name) (count below : Nat) :
-    (vars count below).any (·.containsAnyConst names) = false := by
-  show ((List.range count).reverse.map _).any _ = false
-  rw [List.any_eq_false]
-  intro e he
-  obtain ⟨i, -, rfl⟩ := List.mem_map.1 he
-  exact Bool.false_ne_true
-
-/-- Mapping a constant-support-preserving function over an indexed list preserves the
-support. -/
-theorem any_map_zipIdx_congr (names : List Name) {f : VExpr → Nat → VExpr}
-    (hf : ∀ e i, (f e i).containsAnyConst names = e.containsAnyConst names) :
-    ∀ (ds : List VExpr) (k : Nat),
-      ((ds.zipIdx k).map fun (t, i) => f t i).any (·.containsAnyConst names) =
-        ds.any (·.containsAnyConst names)
-  | [], _ => rfl
-  | d :: ds, k => by
-    simp only [List.zipIdx_cons, List.map_cons, List.any_cons, hf,
-      any_map_zipIdx_congr names hf ds (k + 1)]
-
-theorem insertBinders_any_containsAnyConst (names : List Name) (ds : List VExpr) (n : Nat) :
-    (insertBinders ds n).any (·.containsAnyConst names) = ds.any (·.containsAnyConst names) := by
-  unfold insertBinders
-  exact any_map_zipIdx_congr names (f := fun t i => t.liftN n i)
-    (fun _ _ => VExpr.containsAnyConst_liftN ..) ds 0
-
-theorem any_zipIdx_fst {α : Type} (p : α → Bool) :
-    ∀ (ds : List α) (k : Nat), (ds.zipIdx k).any (fun x => p x.1) = ds.any p
-  | [], _ => rfl
-  | d :: ds, k => by simp only [List.zipIdx_cons, List.any_cons, any_zipIdx_fst p ds (k + 1)]
-
-theorem underFields_containsAnyConst (names : List Name) (e : VExpr) (a b c d k : Nat) :
-    (Instance.underFields e a b c d k).containsAnyConst names = e.containsAnyConst names := by
-  simp [Instance.underFields]
-
-namespace Instance
-
-variable {s : InductiveSignature} (g : Instance s)
-
-/-- The constant support of a generated induction hypothesis: the recursive field's binders
-and indices. -/
-theorem hypothesis_containsAnyConst (names : List Name) (ctor : Constructor s.families.size)
-    (priorMinors priorIHs field : Nat) (r : Recursive s.families.size) :
-    (g.hypothesis ctor priorMinors priorIHs field r).containsAnyConst names =
-      (r.binders.any (·.containsAnyConst names) || r.indices.any (·.containsAnyConst names)) := by
-  simp only [Instance.hypothesis, VExpr.containsAnyConst_wrapForalls,
-    VExpr.containsAnyConst_mkApps, List.any_append, List.any_map, VExpr.containsAnyConst_bvar,
-    Function.comp_def, underFields_containsAnyConst, VExpr.containsAnyConst_instL,
-    vars_containsAnyConst, List.any_cons, List.any_nil, Bool.or_false, Bool.false_or,
-    any_zipIdx_fst]
-
-/-- The constant support of a generated recursive call: the recursive field's binders and
-indices and the recursor name of its target. -/
-theorem recursiveCall_containsAnyConst (names : List Name) (ctor : Constructor s.families.size)
-    (field : Nat) (r : Recursive s.families.size) :
-    (g.recursiveCall ctor field r).containsAnyConst names =
-      (r.binders.any (·.containsAnyConst names) || (names.contains (g.recursorName r.target) ||
-        r.indices.any (·.containsAnyConst names))) := by
-  simp only [Instance.recursiveCall, Instance.recursorHead, VExpr.containsAnyConst_wrapLams,
-    VExpr.containsAnyConst_mkApps, List.any_append, List.any_map, VExpr.containsAnyConst_bvar,
-    VExpr.containsAnyConst_const, Function.comp_def, underFields_containsAnyConst,
-    VExpr.containsAnyConst_instL, vars_containsAnyConst, List.any_cons, List.any_nil,
-    Bool.or_false, Bool.false_or, any_zipIdx_fst]
-
-/-- A generated minor premise that avoids `names` has field types and recursive-field data
-avoiding `names`. -/
-theorem minor_containsAnyConst_inv (names : List Name) (ctor : Constructor s.families.size)
-    (prior : Nat) (h : (g.minor ctor prior).containsAnyConst names = false) :
-    (s.fieldTypes ctor).any (·.containsAnyConst names) = false ∧
-    ∀ fr ∈ recursiveFields ctor,
-      fr.2.binders.any (·.containsAnyConst names) = false ∧
-      fr.2.indices.any (·.containsAnyConst names) = false := by
-  simp only [Instance.minor, VExpr.containsAnyConst_wrapForalls, List.any_append,
-    Bool.or_eq_false_iff, insertBinders_any_containsAnyConst, List.any_map,
-    Function.comp_def, VExpr.containsAnyConst_instL] at h
-  obtain ⟨⟨h1, h2⟩, -⟩ := h
-  refine ⟨h1, fun fr hfr => ?_⟩
-  obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem hfr
-  have hmem : ((recursiveFields ctor)[i], i) ∈ (recursiveFields ctor).zipIdx := by
-    rw [List.mem_iff_getElem]; exact ⟨i, by simpa using hi, by simp⟩
-  have := List.any_eq_false.1 h2 _ hmem
-  simp only [hypothesis_containsAnyConst, Bool.or_eq_true, not_or, Bool.not_eq_true] at this
-  exact this
-
-/-- The constant support of the reduct of a generated equation is bounded by the support of
-the recursor type of any family (which lists every minor premise) and the recursor names. -/
-theorem equation_rhs_containsAnyConst (names : List Name) (index : Fin s.constructors.size)
-    (owner : Fin s.families.size)
-    (hrec : (g.recursorType owner).containsAnyConst names = false)
-    (hnames : ∀ o : Fin s.families.size, names.contains (g.recursorName o) = false) :
-    (g.equation index).rhs.containsAnyConst names = false := by
-  have hdoms : (g.params ++ g.motives ++ g.minors).any (·.containsAnyConst names) = false := by
-    simp only [Instance.recursorType, VExpr.containsAnyConst_wrapForalls, List.any_append,
-      Bool.or_eq_false_iff] at hrec
-    simp only [List.any_append, Bool.or_eq_false_iff]
-    exact hrec.1.1.1
-  have hminor := List.any_eq_false.1 hdoms _ (List.mem_append_right _ (g.minor_mem index))
-  obtain ⟨hfields, hrecf⟩ := g.minor_containsAnyConst_inv names s.constructors[index] index.val
-    (Bool.eq_false_iff.2 hminor)
-  rw [equation_rhs_eq, VExpr.containsAnyConst_wrapLams]
-  simp only [eqDoms, eqBody, eqCalls, List.any_append, insertBinders_any_containsAnyConst,
-    List.any_map, Function.comp_def, VExpr.containsAnyConst_instL,
-    VExpr.containsAnyConst_mkApps, VExpr.containsAnyConst_bvar, vars_containsAnyConst,
-    Bool.or_eq_false_iff, Bool.false_or]
-  simp only [List.any_append, Bool.or_eq_false_iff] at hdoms
-  refine ⟨⟨hdoms, hfields⟩, ?_⟩
-  rw [List.any_eq_false]
-  intro fr hfr
-  obtain ⟨h1, h2⟩ := hrecf fr hfr
-  simp only [recursiveCall_containsAnyConst, h1, h2, hnames, Bool.or_false, Bool.false_eq_true,
-    not_false_eq_true]
-
-end Instance
-
-end InductiveSignature
 
 end Lean4Lean

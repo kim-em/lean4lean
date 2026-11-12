@@ -10,6 +10,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyTypes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyKernel
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyRecursors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.StrippedFacts
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! # The restored block of a nested run
 
@@ -25,9 +26,10 @@ the specialization table (`Tables`, `TableAgreement`, `ContainerSpecializations`
 recursors (`Recursors`, `RecursorTypes`, `RecursorRenaming`, `RecursorShape`,
 `RecursorAlignment`, `TrRestoredRecursorVal`, `LoweredRuleAvoidance`,
 `Nonprimitive`), the compilation data (`CompilationData`, `CompilationDataConstructors`,
-`ConstructorTelescopes`, `ConstructorTranslations`, `FreshExtensions`, `ExprReplace`,
-`ParameterOpening`), and `Install/{Permutation,RecursorTranslations,DependencyOrder,
-ConstructorCoherence}.lean` for the kernel order and the recursor translations. -/
+`ConstructorTranslations`, `FreshExtensions`, `Lowering/Restore/ExprReplace.lean`,
+`Lowering/Restore/ParameterOpening.lean`), and `Install/Permutation.lean`,
+`Install/DependencyOrder.lean`, `RecursorTranslations.lean` and `ConstructorCoherence.lean`
+for the kernel order and the recursor translations. -/
 
 namespace Lean4Lean
 
@@ -36,12 +38,6 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- The checker context of the nested branch: the executable's own
-(`Environment.addInductiveAfterLowering`, with `allowPrimitive := false`). -/
-abbrev nestedContext (env : Environment) (lparams : List Name) (isUnsafe : Bool)
-    (fuel : FuelConfig) : AddInductive.Context :=
-  initialContext env lparams (if isUnsafe then .unsafe else .safe) false fuel
-
 /-- **The restoration boundary theorem.** -/
 theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     {lparams : List Name} {nparams : Nat} {sourceTypes : List InductiveType} {isUnsafe : Bool}
@@ -49,23 +45,22 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (Hsources : SourceSyntaxChecks env sourceTypes)
     (Hout : NestedLoweringOutput env fuel.inductiveFuel nparams sourceTypes lparams res)
     (hnested : res.aux2nested.size ≠ 0)
-    (L : LoweredRun (ContextWF.initial wf (if isUnsafe then .unsafe else .safe) lparams false
+    (L : LoweredRun (ContextWF.initial wf (safetyOf isUnsafe) lparams false
       fuel) nparams res.types.toArray loweredEnv)
     (V : RestorationRun res loweredEnv env lparams sourceTypes
-      (if isUnsafe then .unsafe else .safe) false fuel outEnv) :
+      (safetyOf isUnsafe) false fuel outEnv) :
     Nonempty (RestoredBlock L sourceTypes isUnsafe outEnv) := by
-  have := hnested
-  obtain ⟨runDecl, ⟨E⟩⟩ := NestedRun.ofRestoration wf Hsources Hout hnested L V
+  obtain ⟨runDecl, ⟨E⟩⟩ := NestedRun.ofRestoration wf Hsources Hout L V
   have Hchecked := checkInductiveSources_refines env sourceTypes _ Hsources
   have Hparameters := E.sourceParameterWF wf Hchecked
   obtain ⟨⟨B, hBlowered, hBperm⟩⟩ := E.assemblyBase wf rfl Hsources Hparameters (by cases isUnsafe <;> decide)
   obtain ⟨hperm, hfresh, hmap, hquot⟩ :=
-    E.restoration.kernelOrder (ContextWF.initial wf (if isUnsafe then .unsafe else .safe) lparams
+    E.restoration.kernelOrder (ContextWF.initial wf (safetyOf isUnsafe) lparams
       false fuel).map_wf
   obtain ⟨hV, Cstrip⟩ := E.strippedChecker B hBlowered wf Hchecked Hparameters hnested
   obtain ⟨recs, auxiliaries, block, envR, outVEnv, hcontainers, hcompiled, hrecsOf, hrecsAdded,
     htrRecs, hrecs_wf, hrec_shape, hrules_nodup, hrules_ctor, hrules_ctorParams, hrule_shape,
-    hrules_closed, hrulesAdded, hrecShapes, hrecK, henvR, hequationsWF⟩ :=
+    hrulesAdded, hrecShapes, hrecK, henvR, hequationsWF⟩ :=
     E.assemblyRecursors wf Hchecked hnested B hBlowered hBperm Cstrip hV
   refine ⟨{
     decl := runDecl.withRecs recs
@@ -96,7 +91,6 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     rules_ctor := hrules_ctor
     rules_ctorParams := hrules_ctorParams
     rule_shape := hrule_shape
-    rules_closed := hrules_closed
     outVEnv := outVEnv
     rulesAdded := hrulesAdded
     recShapes := hrecShapes

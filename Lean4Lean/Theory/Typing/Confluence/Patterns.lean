@@ -121,12 +121,6 @@ theorem QuotRegistered.quotMk_rigid' (henv : env.WF) (hq : QuotRegistered env) :
     env.Rigid ``Quot.mk :=
   henv.quotMk_rigid hq.equation
 
-/-- `Quot.lift` heads the stored quotient rule. -/
-theorem QuotRegistered.lift_head (hq : QuotRegistered env) :
-    quotDefEq.lhs.stripLams.getAppFnArgs.1 = .const ``Quot.lift [.param 0, .param 1] ∧
-      env.defeqs quotDefEq :=
-  ⟨rfl, hq.equation⟩
-
 /-- `Quot.lift` is not rigid once the quotient is declared. -/
 theorem QuotRegistered.lift_not_rigid (hq : QuotRegistered env) : ¬env.Rigid ``Quot.lift :=
   fun hr => hr.defeqs _ hq.equation _ rfl
@@ -360,10 +354,6 @@ theorem origin (H : GuardedIotaPattern env p rhs) : PatternHeadsStoredRule env p
 
 theorem pats (H : GuardedIotaPattern env p rhs) : env.pats p (rhs.1, .true) := by
   cases H with | intro hp _ => exact hp
-
-theorem shape (H : GuardedIotaPattern env p rhs) :
-    ∃ recN major ctor fields, p = (SimplePattern.iota recN major ctor fields).toPattern := by
-  cases H; exact ⟨_, _, _, _, rfl⟩
 
 theorem registered (henv : env.WF) {recursor ctor : Name} {major fields : Nat}
     {r : (SimplePattern.iota recursor major ctor fields).toPattern.RHS ×

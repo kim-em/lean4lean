@@ -4,6 +4,7 @@ import Lean4Lean.Theory.Inductive.CompilationMajors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceConstructors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyKernel
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ContainerConstructorShape
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! # The constructors of the restored rules
 
@@ -301,18 +302,20 @@ theorem NestedRun.auxiliaryNestedApp
   rw [C.origin.generated.built.nested, C.origin.generated.selection.expressions]
   exact heq
 
-/-- The kernel family of a specialization's container: the container family is a kernel
-inductive family whose parameter count is the number of specialization arguments. -/
-theorem NestedRun.containerFamilyKernel
+variable
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
+
+/-- The kernel family of a specialization's container: the container family is a kernel
+inductive family whose parameter count is the number of specialization arguments. -/
+theorem NestedRun.containerFamilyKernel
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
@@ -359,19 +362,8 @@ family of the container, given the kernel families of the specialization list (`
 `NestedRun.restorationTablesRestoringAll` provides for the run's own list: the abstract installed
 container does not determine them). -/
 theorem NestedRun.containerConstructorListed
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
-    (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
+    {sourceProdEnv : Environment}
     {auxiliaries : List ContainerSpecialization}
-    (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
-      (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
     (Hkernel : ∀ a ∈ auxiliaries, ∃ info,
       sourceProdEnv.find? a.source.name = some (.inductInfo info) ∧
         info.ctors = a.source.ctors.map (·.name))
@@ -379,7 +371,6 @@ theorem NestedRun.containerConstructorListed
     {c : VConstVal} (hc : c ∈ a.source.ctors) {info : InductiveVal}
     (hI : sourceProdEnv.find? a.source.name = some (.inductInfo info)) :
     c.name ∈ info.ctors := by
-  have := E; have := wf; have := Hsources; have := D
   obtain ⟨info', h', hctors⟩ := Hkernel a ha
   rw [hI] at h'
   cases h'
@@ -393,15 +384,9 @@ of specialization arguments. The kernel family is the one lowering recorded for 
 (`ConstructorParameterAlignment` of the source environment), and the output extends the source
 environment. -/
 theorem NestedRun.containerConstructorKernel
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
@@ -414,7 +399,7 @@ theorem NestedRun.containerConstructorKernel
     ∃ cval : ConstructorVal, outEnv.constants.find? c.name = some (.ctorInfo cval) ∧
       cval.numParams = a.arguments.length := by
   obtain ⟨info, hI, hnp⟩ := E.containerFamilyKernel wf Hsources D ha
-  have hmem := E.containerConstructorListed wf Hsources D Hkernel ha hc hI
+  have hmem := NestedRun.containerConstructorListed Hkernel ha hc hI
   obtain ⟨i, hi, hci⟩ := List.mem_iff_getElem.mp hmem
   obtain ⟨Al⟩ := wf.constructorParameterAlignment (safety := .unsafe) _ info hI
     (by split <;> decide) i hi
@@ -442,31 +427,24 @@ kernel `ctorInfo` is read off the output's family lookups (`NestedRun.inductInfo
 owner the restored constructor is a constructor `c` of the container (`NestedRun.containerConstructorKernel`,
 `NestedRun.containerConstructorShape`). -/
 theorem NestedRun.restoredRuleConstructors
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization} {block : VInductBlock}
     (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
-    (Hcert : ContainersInstalled (ves.venv (if isUnsafe then .unsafe else .safe)) auxiliaries)
-    (Hdata : CompilationData (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+    (Hdata : CompilationData (ves.venv (safetyOf isUnsafe)) sourceDecl
       E.lowered.loweredDecl E.lowered.signature E.lowered.generatedInstance auxiliaries block)
     (Harity : sourceDecl.ConstructorArityPrefix E.lowered.loweredDecl)
     {envTypes : VEnv} {ctx : List VExpr} {generated : List VInductiveType}
     (Haux : List.Forall₂ (SpecializationGenerates
-      (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes ctx sourceDecl)
+      (ves.venv (safetyOf isUnsafe)) envTypes ctx sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
-        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+        (ves.venv (safetyOf isUnsafe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+          (ves.venv (safetyOf isUnsafe)) sourceDecl generated))
       generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
     (Hkernel : ∀ a ∈ auxiliaries, ∃ info,
       sourceProdEnv.find? a.source.name = some (.inductInfo info) ∧
@@ -489,12 +467,11 @@ theorem NestedRun.restoredRuleConstructors
         (compilationRestoration sourceDecl auxiliaries).restoredHeadName
           E.lowered.signature.constructors[index].name = c.name ∧
         head.arguments.length = sourceDecl.nparams) ∨
-      (∃ Dc, VEnv.InstalledBelow (ves.venv (if isUnsafe then .unsafe else .safe)) Dc ∧
+      (∃ Dc, VEnv.InstalledBelow (ves.venv (safetyOf isUnsafe)) Dc ∧
         ∃ c ∈ Dc.constructorConstants,
           (compilationRestoration sourceDecl auxiliaries).restoredHeadName
             E.lowered.signature.constructors[index].name = c.name ∧
           head.arguments.length = Dc.nparams)) := by
-  have := Hcert
   have hnp : E.lowered.signature.params.length = sourceDecl.nparams := Hdata.model.nparams.trans Hdata.nparams
   have hx : E.lowered.signature.constructors[index].name ∈ (E.lowered.signature.declarationFamily owner).ctors.map (·.name) := by
     have h := E.lowered.signature.declarationCtor_family index
@@ -616,24 +593,16 @@ source family's constructors, and on an auxiliary family's the constructors of i
 family (`CaseCompilationData.directFamily_restored_constructor_names`), whose names are distinct
 in the installed container. -/
 theorem NestedRun.restoredRuleConstructors_nodup
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     {auxiliaries : List ContainerSpecialization} {block : VInductBlock}
-    (Hcert : ContainersInstalled (ves.venv (if isUnsafe then .unsafe else .safe)) auxiliaries)
-    (Hdata : CompilationData (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+    (Hdata : CompilationData (ves.venv (safetyOf isUnsafe)) sourceDecl
       E.lowered.loweredDecl E.lowered.signature E.lowered.generatedInstance auxiliaries block)
     (owner : Fin E.lowered.signature.families.size) :
     ((E.lowered.signature.ownedConstructors owner).map fun index =>
       (compilationRestoration sourceDecl auxiliaries).restoredHeadName
         E.lowered.signature.constructors[index].name).Nodup := by
-  have := Hcert
   have hmap : (E.lowered.signature.ownedConstructors owner).map (fun index =>
       (compilationRestoration sourceDecl auxiliaries).restoredHeadName
         E.lowered.signature.constructors[index].name) =

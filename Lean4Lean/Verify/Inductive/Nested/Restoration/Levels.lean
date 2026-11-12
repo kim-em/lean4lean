@@ -2,6 +2,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Run
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ExpansionInverse
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceConstructorTypes
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.AuxiliarySources
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! Universe arguments of the auxiliary occurrences in the lowered constructor
 types of a validated nested run.
@@ -143,20 +144,22 @@ theorem LoweredAuxiliaryFamily.abstractExpansionAboveLvls
       Hsource.translation)
     HsourceTypesWF HtargetTypesWF hparamsSize hnparams Hhit
 
-/-- **Universe arguments of the lowered constructor types of a validated
-nested run.** Every auxiliary family or auxiliary constructor name occurs in
-every lowered constructor type (of the source families and of the auxiliary
-families alike) at the universe parameters of the declaration. -/
-theorem NestedRun.loweredConstructorLevelsAll
+variable
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
+
+/-- **Universe arguments of the lowered constructor types of a validated
+nested run.** Every auxiliary family or auxiliary constructor name occurs in
+every lowered constructor type (of the source families and of the auxiliary
+families alike) at the universe parameters of the declaration. -/
+theorem NestedRun.loweredConstructorLevelsAll
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∀ lowered ∈ E.lowered.loweredDecl.types, ∀ lc ∈ lowered.ctors,
       lc.type.ConstLevelsAt
@@ -239,7 +242,7 @@ theorem NestedRun.loweredConstructorLevelsAll
     simpa only [hlparams] using E.auxiliaryTranslations
   have hempty : initialState.nestedAux = #[] := rfl
   rcases Hrun.auxiliaryFamilySources (R := R) Hcache Hparams wfP
-      hinitial HcP Hsources HsourceHeaders HsourceAdded HsourceTypesWF
+      hinitial Hsources HsourceHeaders HsourceAdded HsourceTypesWF
       hempty E.auxiliarySelection Htranslations Htarget with ⟨N, -⟩
   have hparamsSize : result.params.size = nparams := Hrun.resultParamsSize
   have HliftLv : NestedExpansionLeafLiftAbove sourceDecl.nparams
@@ -322,15 +325,9 @@ theorem NestedRun.loweredConstructorLevelsAll
 
 /-- `loweredConstructorLevelsAll` for the source families. -/
 theorem NestedRun.loweredConstructorLevels
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∀ lowered ∈ E.lowered.loweredDecl.types.take sourceDecl.types.length,
       ∀ lc ∈ lowered.ctors,
@@ -342,15 +339,9 @@ theorem NestedRun.loweredConstructorLevels
 
 /-- `loweredConstructorLevelsAll` for the auxiliary families. -/
 theorem NestedRun.loweredAuxiliaryConstructorLevels
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∀ lowered ∈ E.lowered.loweredDecl.types.drop sourceDecl.types.length,
       ∀ lc ∈ lowered.ctors,
@@ -365,15 +356,9 @@ list whose head names are the auxiliary family and constructor names (as for
 the specialisations of `NestedRun.loweredConstructors_of_lowering`): the
 universe-level premise of `loweredConstructors_of_lowering`. -/
 theorem NestedRun.loweredConstructorLevels_heads
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheadNames : auxiliaries.flatMap (·.headNames) =

@@ -77,11 +77,9 @@ theorem RecursorInstallation.preservesBaseFind
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (Hc : ContextWF c)
     (H : RecursorInstallation R outEnv)
     (hfind : c.env.find? name = some found) :
     outEnv.find? name = some found := by
-  have := Hc
   exact H.outPres (R.sourcePres hfind)
 
 /-- Every listed constructor of the complete lowered installation is coherent. -/
@@ -99,7 +97,7 @@ theorem RecursorInstallation.listedConstructors
     exact R.context.checking.tr.map_wf
   exact ListedConstructorsCoherent.ofInductInfosFromDecl Hc.checking.tr.map_wf
     (H.installed.targetMapWF hlocalWF) Hc.checking.listedConstructors
-    R.headers.sourcePresent (H.preservesBaseFind Hc) H.inductInfos
+    R.headers.sourcePresent (H.preservesBaseFind) H.inductInfos
 
 /-- Every constant of the complete lowered installation is stored under its own name. -/
 theorem RecursorInstallation.find?_name
@@ -323,7 +321,7 @@ theorem ValidationHeaderEnvironment.listedOfLowering
     rcases Hvalidation.headers.headerFindCases hsourceWF hfound with hfoundOld |
         ⟨indType', _, oldInfo', hlookup', hfoundName, hfoundInfo⟩
     · rcases Hlowered indType.name oldInfo hlookup name hname' found
-          (Hprod.preservesBaseFind Hc hfoundOld) with ⟨info, rfl, hinduct, -⟩
+          (Hprod.preservesBaseFind hfoundOld) with ⟨info, rfl, hinduct, -⟩
       rcases Hc.checking.constructorOwners name info hfoundOld with ⟨owner, howner, -⟩
       have hfresh := Hvalidation.headers.headerFresh hsourceWF hmem hlookup
       rw [hheaderName, ← hinduct, howner] at hfresh

@@ -216,27 +216,6 @@ structure ConstructorLowering.Reopened
         openedState (lowered, out.2) ∧
       out.1.type = lctx.mkForall As lowered
 
-/-- A mapped lowered constructor type contains no free-variable IDs: the
-translated body remains scoped by the copied source parameters, and the
-rebuilt forall telescope closes exactly those parameters. -/
-theorem ConstructorLowering.Resolved.targetFVarIdsClosed
-    (H : ConstructorLowering.Resolved env params nparams finalResult source state
-      out)
-    (Hsource : source.type.FVarsIn fun _ => False) :
-    out.1.type.FVarIdsIn fun _ => False := by
-  rcases H.mapped with
-    ⟨lctx, tail, As, lowered, openedState, Hopening, hlctxWF, Hselection,
-      hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hmapping, htype⟩
-  have Htail : tail.FVarsIn (· ∈ Hselection.fvars) :=
-    Hopening.tailFVarsIn Hselection
-      (Hsource.mono fun fv hfalse => False.elim hfalse)
-  have Hlowered : lowered.FVarIdsIn (· ∈ Hselection.fvars) :=
-    Hmapping.outputFVarIdsIn Hselection (FVarsIn_to_FVarIdsIn Htail)
-  rcases Hopening.forallTelescope with ⟨residual, Htelescope⟩
-  rw [htype]
-  exact Hopening.toParamOpening.root_mkForall_fvarIdsClosed hlctxWF
-    Htelescope (FVarsIn_to_FVarIdsIn Hsource) Hselection Hlowered
-
 /-- Source and lowered constructor types have exactly the same retained
 forall prefix; lowering changes only the residual constructor body. -/
 theorem ConstructorLowering.Resolved.sourceTargetSameForallPrefix
@@ -449,8 +428,6 @@ structure ConstructorRestorationInverse
   restoreLctxWF : restoreLctx.WF
   restoreSelection : CDeclArray restoreLctx restoreAs
   restoreNodup : restoreSelection.fvars.Nodup
-  bodyRestoration : ExprReplacement
-    (result.restoreNestedNode env restoreAs {}) openedBody restoredBody
   output : restoredType = if lowered.type.isForall then
     restoreLctx.mkForall restoreAs restoredBody
     else restoreLctx.mkLambda restoreAs restoredBody
@@ -459,7 +436,6 @@ structure ConstructorRestorationInverse
   sourceAs : Array Expr
   sourceClosed : source.type.FVarsIn fun _ => False
   sourceBVarClosed : Closed source.type
-  loweredFVarIdsClosed : lowered.type.FVarIdsIn fun _ => False
   sourceLoweredPrefix :
     Expr.SameForallPrefix nparams source.type lowered.type
   sourceOpening : LoweringParamOpening {} #[] source.type nparams sourceLctx
@@ -513,14 +489,12 @@ theorem ConstructorLowering.Resolved.nestedRestoration_inverse
     restoreLctxWF := hrestoreLctxWF
     restoreSelection := HrestoreSelection
     restoreNodup := hrestoreNodup
-    bodyRestoration := Hbody
     output := houtput
     sourceLctx := sourceLctx
     sourceTail := sourceTail
     sourceAs := sourceAs
     sourceClosed := HsourceClosed
     sourceBVarClosed := hsourceBVar
-    loweredFVarIdsClosed := H.targetFVarIdsClosed HsourceClosed
     sourceLoweredPrefix := H.sourceTargetSameForallPrefix HsourceClosed hsourceBVar
     sourceOpening := HsourceOpening
     sourceSelection := Hselection
@@ -1455,24 +1429,6 @@ theorem NestedLowering.resultAuxMap
     ⟨first, rest, tail, paramsState, lctx, params, _, _, _, _, _, _, _, _, Hqueue⟩
   exact Hqueue.resultAuxMap
 
-theorem NestedLowering.resultAuxFVarsIn
-    (H : NestedLowering env fuel nparams types initialState out)
-    (Hcache : NestedAuxFVarsIn P out.2) :
-    NestedAuxMapFVarsIn P
-      (show Std.TreeMap Name Expr Name.quickCmp from out.1.aux2nested) := by
-  rw [H.resultAuxMap]
-  change NestedAuxMapFVarsIn P
-    (out.2.nestedAux.foldl
-      (fun (map : Std.TreeMap Name Expr Name.quickCmp)
-        (entry : Expr × Name) => map.insert entry.2 entry.1) {})
-  rw [← Array.foldl_toList]
-  apply nestedAuxFold_fvarsIn out.2.nestedAux.toList
-  · intro entry hentry
-    exact Hcache entry.1 entry.2 (by simpa using hentry)
-  · unfold NestedAuxMapFVarsIn
-    intro name nested hfind
-    simp at hfind
-
 theorem NestedLowering.resultAuxNamesReserved
     (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
@@ -1563,7 +1519,6 @@ theorem NestedLowering.resultFamilyNamesFreshOfEmpty
   have Hmap := H.resultAuxNamesFresh Hnames
   intro name nested hfind
   exact find?_none_of_contains_false hwf (Hmap name nested hfind)
-
 
 theorem NestedLowering.resultNamesNodupOfEmpty
     (H : NestedLowering env fuel nparams types initialState out)
@@ -1789,17 +1744,6 @@ theorem ElimNestedInductive.run.translationClosed
           · exact ⟨Hclosing.selection.fvars,
               Hqueue.1.resultContext.2.trans Hclosing.selection.expressions,
               Hclosing.nodup⟩
-
-end VerifyInductive
-end Lean4Lean
-
-namespace Lean4Lean
-
-open Lean hiding Environment Exception
-open Kernel
-open scoped _root_.List
-
-namespace VerifyInductive
 
 end VerifyInductive
 end Lean4Lean

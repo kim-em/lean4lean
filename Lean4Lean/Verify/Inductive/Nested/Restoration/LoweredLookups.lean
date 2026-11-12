@@ -91,9 +91,6 @@ theorem ctorCis_names : R.ctorCis.map (·.name) = decl.constructorConstants.map 
 theorem ctorCis_nodup : (R.ctorCis.map (·.name)).Nodup := by
   rw [R.ctorCis_names]; exact (List.nodup_append.mp R.sourceNames_nodup).2.1
 
-theorem ctorMapWF : ctorEnv.constants.WF :=
-  insertConsts_map_wf R.map_eq R.headerMapWF R.ctorCis_fresh R.ctorCis_nodup
-
 theorem headerPres {n : Name} {ci : ConstantInfo} (h : R.headerEnv.find? n = some ci) :
     ctorEnv.find? n = some ci :=
   insertConsts_env_mono R.map_eq R.headerMapWF R.ctorCis_fresh R.ctorCis_nodup h
@@ -185,17 +182,6 @@ theorem ctor_isUnsafe {iv : InductiveVal × List ConstructorVal} (hiv : iv ∈ R
   obtain ⟨p, -, rfl⟩ := List.mem_map.mp hiv
   obtain ⟨i, ctor, -, rfl⟩ := mem_ctorInfosFrom hc
   rfl
-
-/-- A constructor of the recursor stage is a constructor of the source environment or a new
-constructor of the block, with its safety flag. -/
-theorem ctorEnv_ctor_cases {n : Name} {cval : ConstructorVal}
-    (h : ctorEnv.find? n = some (.ctorInfo cval)) :
-    c.env.find? n = some (.ctorInfo cval) ∨ cval.isUnsafe = isUnsafe := by
-  rcases R.ctorEnv_cases h with h | ⟨iv, hiv, cv, hc, heq, -⟩
-  · rcases R.headerEnv_cases h with h | ⟨_, _, heq, -⟩
-    · exact .inl h
-    · cases heq
-  · cases heq; exact .inr (R.ctor_isUnsafe hiv hc)
 
 end ConstructorCheck
 

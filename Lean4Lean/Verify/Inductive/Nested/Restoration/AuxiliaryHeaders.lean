@@ -79,8 +79,7 @@ theorem VEnv.IsDefEqU.wrapForalls_sort_length {env : VEnv} {U : Nat}
     have hctx : OnCtx (d :: Γ) (env.IsType U) := ⟨hΓ, _, hd.hasType.1⟩
     simpa using VEnv.IsDefEqU.wrapForalls_sort_length henv hctx ⟨_, hb⟩
 
-/-- Definitionally equal forall telescopes ending in sorts end in equivalent levels (from the
-source's `Theory/Typing/CaseMotive.lean`). -/
+/-- Definitionally equal forall telescopes ending in sorts end in equivalent levels. -/
 theorem VEnv.IsDefEqU.wrapForalls_sort_level {env : VEnv} {U : Nat} (henv : env.WF) :
     ∀ {Γ ds₁ ds₂ : List VExpr} {u v : VLevel}, OnCtx Γ (env.IsType U) →
       env.IsDefEqU U Γ (VExpr.wrapForalls ds₁ (.sort u))

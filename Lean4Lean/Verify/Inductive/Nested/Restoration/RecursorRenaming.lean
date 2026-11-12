@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RecursorTranslations
 import Lean4Lean.Std.Basic
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! # Renamed auxiliary recursor names and the restorable names
 
@@ -287,6 +288,14 @@ theorem _root_.Lean4Lean.InductiveSignature.Restoration.recursorName_mem_snd
   rw [hrn]
   exact List.mem_map_of_mem (List.mem_of_find?_eq_some hq)
 
+variable
+    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
+
 /-- **Freshness of the non-renamed restorable names in a restored block.**
 For any `RestoredBlockBase` of a validated nested run and any
 restoration table of the run, every restorable name (auxiliary family and
@@ -298,19 +307,13 @@ keep their lowered names `T.rec` (distinct from the auxiliary names by the
 lowered declaration's name uniqueness), and the remaining installed names are
 renamed recursor names. No hypothesis on names is needed. -/
 theorem NestedRun.recursorVEnv_restorableNames_fresh_of_not_renamed
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     (C : RestoredBlockBase E.restoration
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe))
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe))
     (hC : C.loweredDecl = E.lowered.loweredDecl)
     (hkernel : List.Perm
       ((C.typeEntries ++ C.constructorEntries ++ C.recursorEntries).map Prod.fst)
@@ -411,7 +414,6 @@ theorem NestedRun.recursorVEnv_restorableNames_fresh_of_not_renamed
 /-! ### Commutation under input-side trailing avoidance -/
 
 section Commutation
-
 
 /-- Syntax translated in an environment lacking the restorable names outside
 `X`, and avoiding `X` itself, avoids every restorable name. -/
@@ -757,15 +759,9 @@ the recursor environment of every restored block without hypotheses
 (`recursorVEnv_restorableNames_fresh_of_not_renamed`); for
 `X = restorableNames` no freshness is needed. -/
 theorem NestedRun.restoredRuleRhs_of_trail
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheads : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
@@ -916,128 +912,6 @@ def NestedRun.LoweredRulesAvoid
       rule.rhs.TrailingArgsAvoid heads X result.nparams ∧
         rule.rhs.LamPrefixAvoids X result.nparams
 
-/-- **Translation of a restored equation list modulo `X`**: the executable
-restored rules translate, rule by rule (`TrRestoredRecursorRule`), to `rules` in
-an environment that lacks the restorable names outside `X`. -/
-def NestedRun.TrRestoredRulesModulo
-    {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
-    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
-    (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv L)
-    (r : Restoration) (X : List Name) (rules : List VDefEq) : Prop :=
-  ∃ trEnv : VEnv, (∀ n ∈ r.restorableNames, n ∉ X → trEnv.constants n = none) ∧
-    List.Forall₂ (E.TrRestoredRecursorRule r trEnv)
-      (List.finRange
-        E.lowered.recursors.generationSignature.constructors.size)
-      rules
-
-/-- Freshness outside `X` is freshness outside the restorable names of `X`. -/
-theorem fresh_filter_restorable {R X : List Name} {P : Name → Prop}
-    (H : ∀ n ∈ R, n ∉ X → P n) : ∀ n ∈ R, n ∉ X.filter (· ∈ R) → P n := by
-  intro n hn hnX
-  refine H n hn fun hX => hnX ?_
-  simp [List.mem_filter, hX, hn]
-
-/-- Translation modulo `X` is translation modulo the restorable names of `X`. -/
-theorem NestedRun.TrRestoredRulesModulo.filter_restorable
-    {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
-    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
-    {E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv L}
-    {r : Restoration} {X : List Name} {rules : List VDefEq}
-    (H : E.TrRestoredRulesModulo r X rules) :
-    E.TrRestoredRulesModulo r (X.filter (· ∈ r.restorableNames)) rules := by
-  obtain ⟨trEnv, Hfresh, HF⟩ := H
-  exact ⟨trEnv, fresh_filter_restorable Hfresh, HF⟩
-
-/-- **One restored equation, modulo `X`.** -/
-theorem NestedRun.restoredEquation_of_trModulo
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
-    (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
-    {auxiliaries : List ContainerSpecialization}
-    (hheads : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
-      E.auxHeads)
-    (hparamsSize : result.params.size = result.nparams)
-    (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
-      (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
-    (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped)
-    {X : List Name}
-    (HL : E.LoweredRulesAvoid
-      ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary)) X)
-    {trEnv : VEnv}
-    (Hfresh : ∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
-      n ∉ X → trEnv.constants n = none)
-    (k : Fin E.lowered.recursors.generationSignature.constructors.size)
-    {rule : VDefEq}
-    (H : E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries) trEnv k
-      rule) :
-    (compilationRestoration sourceDecl auxiliaries).equation
-      (E.lowered.recursors.canonicalGeneration.equation k) = some rule := by
-  obtain ⟨owner, j, s, t, Hstep, hj, hk, huvars, Ht, hlhs, htype⟩ := H
-  have hrhs := E.restoredRuleRhs_of_trail wf Hsources hheads hparamsSize D hscoped Hfresh owner
-    Hstep (HL owner Hstep.oldInfo Hstep.lookup) j hj k hk Ht
-  simp only [Restoration.equation, hlhs, hrhs, htype, Option.bind_eq_bind, Option.bind_some,
-    Option.pure_def, Option.some.injEq]
-  cases rule
-  simp only at huvars
-  rw [huvars]
-
-/-- **The restored equation list, modulo `X`.** If an abstract equation list
-translates the executable restored rules in an environment lacking the
-restorable names outside `X`, and the lowered rules avoid `X` at their head occurrences,
-it is the restored generated equation list. -/
-theorem NestedRun.restoredEquations_of_trModulo
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
-    (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
-    {auxiliaries : List ContainerSpecialization}
-    (hheads : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
-      E.auxHeads)
-    (hparamsSize : result.params.size = result.nparams)
-    (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
-      (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
-    (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped)
-    {X : List Name}
-    (HL : E.LoweredRulesAvoid
-      ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary)) X)
-    {rules : List VDefEq}
-    (H : E.TrRestoredRulesModulo (compilationRestoration sourceDecl auxiliaries) X
-      rules) :
-    E.lowered.generatedInstance.restoredEquations
-      (compilationRestoration sourceDecl auxiliaries) = some rules := by
-  obtain ⟨trEnv, Hfresh, HF⟩ := H
-  show List.mapM _ ((List.finRange _).map _) = _
-  rw [List.mapM_map]
-  exact List.mapM_eq_some.mpr (Lean4Lean.List.Forall₂.imp (fun k _ h =>
-    E.restoredEquation_of_trModulo wf Hsources hheads hparamsSize D hscoped HL
-      Hfresh k h) HF)
-
-
 /-! ### Shape of the renamed recursor names -/
 
 theorem _root_.Lean.Name.appendIndexAfter_str_rec (M : Name) (k : Nat) :
@@ -1065,15 +939,9 @@ auxiliary recursor name is `A.rec` for an auxiliary family `A`, which is
 distinct from `M` (lowered family names are distinct, and `A` lies in the
 reserved `_nested` namespace). -/
 theorem NestedRun.auxRecName_not_renamed
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
@@ -1121,63 +989,6 @@ theorem NestedRun.auxRecName_not_renamed
     exact (List.nodup_append.mp hfam).2.2 _ htake _ hdrop hMA
 
 /-! ### The rule premise modulo the renamed recursor names -/
-
-/-- **The rule premise of the nested installation without any naming hypothesis**:
-a restored block base, with rule lists translating the executable restored rules, with
-freshness of the restorable names in its recursor environment weakened to the restorable
-names that are not renamed recursor names
-(`recursorVEnv_restorableNames_fresh_of_not_renamed`). This is the strongest freshness
-conclusion available: a renamed recursor name that coincides with a restorable name is
-installed in every such recursor environment.
-
-The block is the base with its rule lists (`sourceRules`, `auxiliaryRules`); its kernel order
-is the premise `hkernel`. -/
-theorem NestedRun.hrules_of_modulo
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
-    (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
-    (HruleShape : ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
-        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∃ (C : RestoredBlockBase E.restoration
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-          nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-        (sourceRules auxiliaryRules : List VDefEq),
-        C.loweredDecl = E.lowered.loweredDecl ∧
-        List.Perm ((C.typeEntries ++ C.constructorEntries ++ C.recursorEntries).map Prod.fst)
-          E.restoration.entries ∧
-        List.Forall₂
-          (E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries)
-            C.recursorVEnv)
-          (List.finRange E.lowered.signature.constructors.size)
-          (sourceRules ++ auxiliaryRules)) :
-    ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
-        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∃ (C : RestoredBlockBase E.restoration
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-          nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-        (sourceRules auxiliaryRules : List VDefEq),
-        C.loweredDecl = E.lowered.loweredDecl ∧
-        (∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
-          n ∉ (compilationRestoration sourceDecl auxiliaries).recursors.map Prod.snd →
-          C.recursorVEnv.constants n = none) ∧
-        List.Forall₂
-          (E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries)
-            C.recursorVEnv)
-          (List.finRange E.lowered.signature.constructors.size)
-          (sourceRules ++ auxiliaryRules) := by
-  intro auxiliaries D
-  obtain ⟨C, sourceRules, auxiliaryRules, hC, hkernel, HC⟩ := HruleShape auxiliaries D
-  exact ⟨C, sourceRules, auxiliaryRules, hC,
-    E.recursorVEnv_restorableNames_fresh_of_not_renamed wf Hsources C hC hkernel D, HC⟩
 
 end VerifyInductive
 end Lean4Lean

@@ -222,24 +222,8 @@ structure RestoredRecursorTelescopeAlignment
       indTypes recInfos ownerIdx entry) where
   trace : RestoredRecursorTelescope result prodEnv auxRec
     newInfo Hentry
-  selections : RecursorBinderGroups c stats recInfos ownerIdx
-  noAlias : selections.NoAlias
-  nparams_eq : result.nparams = stats.params.size
-  oldParamDomains : List VExpr
-  oldSuffixTarget : VExpr
-  owner_lt : ownerIdx < recInfos.size
-  oldParamDomains_length : oldParamDomains.length = result.nparams
   oldPrefix : Expr.ForallTelescope Hentry.info.type result.nparams
     (trace.opening.body.abstractList trace.opening.selection.fvars)
-  oldClosed : Hentry.info.type.FVarIdsIn fun _ => False
-  oldBVarClosed : Closed Hentry.info.type
-  oldSuffix : Expr.ForallTelescopeTypeTranslation venv Hentry.info.levelParams
-    (abstractForallContext oldParamDomains [])
-    (trace.opening.body.abstractList trace.opening.selection.fvars)
-    ((recInfos.map (·.motive)).size +
-      (recInfos.flatMap (·.minors)).size +
-      recInfos[ownerIdx]!.indices.size + 1)
-    oldSuffixTarget
 
 /-- The opening and the suffix replacement determine the complete telescope of
 the restored recursor, independently of any translation of its domains. -/
@@ -309,8 +293,7 @@ theorem RecursorRestoration.generatedTelescopeAlignment
     simpa [suffixArity, Nat.add_assoc] using Hgenerated.typed
   rcases Htyped.dropPrefix
       (prefixArity := stats.params.size) (suffixArity := suffixArity) with
-    ⟨paramDomains, suffixSource, suffixTarget, hparamDomains,
-      HsourcePrefix, htarget, Hsuffix⟩
+    ⟨_, suffixSource, _, -, HsourcePrefix, -, -⟩
   have HsourcePrefix' : Expr.ForallTelescope Hentry.info.type
       result.nparams suffixSource := by
     simpa [hparams] using HsourcePrefix
@@ -321,14 +304,7 @@ theorem RecursorRestoration.generatedTelescopeAlignment
       Htrace.opening.selection.fvars = suffixSource :=
     Htrace.opening.abstractBody_eq_suffix HsourcePrefix' Hinput
       Hgenerated.typed.translation.closed
-  refine ⟨⟨Htrace, Hselections, hnoalias, hparams, paramDomains,
-    suffixTarget, howner, ?_, ?_, ?_, ?_, ?_⟩⟩
-  · exact hparamDomains.trans hparams.symm
-  · simpa only [hbody] using HsourcePrefix'
-  · exact FVarsIn_to_FVarIdsIn Hinput
-  · exact Hgenerated.typed.translation.closed
-  · rw [hbody]
-    simpa [suffixArity] using Hsuffix
+  exact ⟨⟨Htrace, by simpa only [hbody] using HsourcePrefix'⟩⟩
 
 /-- A translation of the restored recursor telescope is already a well-formed
 abstract type. The final major-premise binder makes the telescope nonempty, so
@@ -936,7 +912,6 @@ structure SourceFamilyRestoration
       constructorEnv
   recursor : RestoredRecursorStep result loweredEnv auxRec allIndNames
     (Lean.mkRecName indType.name) constructorEnv out.2
-  outputUnit : out.1 = ()
 
 theorem restoreInductiveDecl_refines
     (result : Lean4Lean.ElimNestedInductive.Result)
@@ -997,8 +972,7 @@ theorem restoreInductiveDecl_refines
             lookup := hrecLookup
             typeTelescope := HrecType
             ruleTelescopes := HrecRules
-            restored := HrecursorResult }
-          outputUnit := rfl }⟩
+            restored := HrecursorResult } }⟩
   simpa [Lean4Lean.restoreInductiveDecl, hlookup, bind, StateT.bind] using
     Hcombined
 
@@ -1067,7 +1041,6 @@ structure NestedRestorationFolds
   auxiliaries : FoldSteps
     (RestoredRecursorStep result loweredEnv auxRec allIndNames)
     auxRecNames sourceFamiliesEnv out.2
-  outputUnit : out.1 = ()
 
 theorem FoldSteps.constructorFreshExtension
     (H : FoldSteps (RestoredConstructorStep result loweredEnv)
@@ -1205,12 +1178,11 @@ theorem restoreNestedDeclarations_refines
       have Hauxiliaries := restoreRecursorDecls_refines result loweredEnv
         auxRec allIndNames allowPrimitive auxRecNames Haux primaryEnv
       exact Hauxiliaries.mono fun out Hout => by
-        rcases Hout with ⟨hunit, ⟨HauxTrace⟩⟩
+        rcases Hout with ⟨-, ⟨HauxTrace⟩⟩
         exact ⟨{
           sourceFamiliesEnv := primaryEnv
           inductives := HinductiveTrace
-          auxiliaries := HauxTrace
-          outputUnit := hunit }⟩
+          auxiliaries := HauxTrace }⟩
   simpa [Lean4Lean.restoreNestedDeclarations, bind, StateT.bind] using Hcombined
 
 

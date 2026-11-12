@@ -710,8 +710,6 @@ structure AuxiliaryFamilySource
   levelsWF : ∀ level ∈ levels, level.WF lparams.length
   sourceUvars : source.uvars = lparams.length
   sourceName : source.name = H.generated.auxName
-  targetType : sourceTypesVEnv.IsDefEqU lparams.length [] target.type
-    source.type
   familyType : sourceTypesVEnv.IsDefEqU lparams.length [] source.type
     (VExpr.wrapForalls sourceParams
       (VExpr.instantiateForallPrefix (containerFamily.type.instL levels)
@@ -1249,11 +1247,6 @@ theorem AuxiliaryFamilyContainer.auxiliaryFamilySource
     levelsWF := VLevel.WF.of_mapM_ofLevel Hlevels
     sourceUvars := by simp [source]
     sourceName := by simp [source]
-    targetType := by
-      have Htarget := HcheckedHeader.type.mono hbaseLE
-      have Hsource := HsourceHeader.type.mono hbaseLE
-      simpa [source, VLCtx.toCtx] using
-        Htarget.uniq henvTypes (.refl henvTypes (by trivial)) Hsource
     familyType := by
       simpa only [source, containerFamily, Ctypes,
         AuxiliaryFamilyContainer.mono]
@@ -1279,10 +1272,8 @@ theorem HeaderData.sourceHeaderFresh
     {headerEnv : Environment}
     (Hheaders : HeaderData c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
-    (Hc : ContextWF c)
     (howner : owner ∈ indTypes.toList) :
     c.env.find? owner.name = none := by
-  have := Hc
   obtain ⟨t, ht, Htr, -⟩ := Lean4Lean.List.Forall₂.forall_exists_l Hheaders.trSources owner howner
   obtain ⟨info, hinfo, Hinfo, -⟩ :=
     Lean4Lean.List.Forall₂.forall_exists_r Hheaders.trHeaders t ht
@@ -1310,7 +1301,6 @@ theorem LoweredAuxiliaryFamily.installedContainerBeforeHeaders
     (Hrun : NestedLowering c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
       (result, finalState))
-    (Hc : ContextWF c)
     (HsourceHeaders : List.Forall₂
       (fun source target => TrSourceConst sourceVEnv c.lparams source.name
         source.type target.toVConstVal)
@@ -1341,7 +1331,7 @@ theorem LoweredAuxiliaryFamily.installedContainerBeforeHeaders
     rcases Hrun.preservesInitialTypeName
         ⟨sourceType, by simpa using hsourceType, rfl⟩ with
       ⟨loweredType, hloweredType, hloweredName⟩
-    have hfresh := Hheaders.sourceHeaderFresh Hc (by simpa using hloweredType)
+    have hfresh := Hheaders.sourceHeaderFresh (by simpa using hloweredType)
     intro htargetName
     have hsourceName : sourceType.name = Horigin.generated.sourceName :=
       Hheader.name.symm.trans (by simpa using htargetName)
@@ -1648,7 +1638,6 @@ theorem LoweredAuxiliaryFamily.auxiliaryFamilySource
       (result, finalState))
     (Hcache : NestedAuxFVarsIn (· ∈ result.lctx.fvars) finalState)
     (Hparams : NestedResultParamsNodup result)
-    (Hc : ContextWF c)
     (Hsources : SourceSyntaxChecked sourceTypes)
     (HsourceHeaders : List.Forall₂
       (fun source target => TrSourceConst sourceVEnv c.lparams source.name
@@ -1682,7 +1671,7 @@ theorem LoweredAuxiliaryFamily.auxiliaryFamilySource
       with
     ⟨realization, abstractLevels, baseArgs, Hlevels, _hbaseLength, Hbase,
       _HbaseClosed, hfamily⟩
-  rcases H.installedContainerBeforeHeaders (Hheaders := R.headers) wf rfl Hrun Hc
+  rcases H.installedContainerBeforeHeaders (Hheaders := R.headers) wf rfl Hrun
       HsourceHeaders HsourceAdded realization with ⟨C⟩
   rcases H.formationHeaderParameterDomains Htarget htarget hparamsSize
       (VEnvs.WF.environmentTypesBVarClosed wf) with
@@ -1823,7 +1812,6 @@ theorem NestedLowering.auxiliaryFamilySources
     (Hparams : NestedResultParamsNodup result)
     (wf : ves.WF c.env)
     (hsourceVEnv : sourceVEnv = ves.venv safety)
-    (Hc : ContextWF c)
     (Hsources : SourceSyntaxChecked sourceTypes)
     (HsourceHeaders : List.Forall₂
       (fun source target => TrSourceConst sourceVEnv c.lparams source.name
@@ -1880,7 +1868,7 @@ theorem NestedLowering.auxiliaryFamilySources
       ⟨Horigin⟩
     rcases Horigin.auxiliaryFamilySource
         wf rfl Hrun
-        Hcache Hparams Hc Hsources HsourceHeaders
+        Hcache Hparams Hsources HsourceHeaders
         HsourceAdded HsourceTypesWF hempty selection Htranslations
         (Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Htarget
           (sourceTypes.length + i.1) hresult htarget)

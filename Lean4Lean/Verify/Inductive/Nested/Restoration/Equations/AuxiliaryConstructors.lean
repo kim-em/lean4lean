@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.WF
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AuxiliaryProjections
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! The container fields of `RestorationSubstitutionPremises`
 (`Nested/Restoration/Equations/WF.lean`): the typing of the restoration lambdas of
@@ -305,14 +306,14 @@ theorem NestedRun.restoredEquationAuxiliaryConstructors_of
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∀ auxiliaries : List ContainerSpecialization,
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
       ∀ envTypes : VEnv,
-        (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+        (ves.venv (safetyOf isUnsafe)).addConstVals
           sourceDecl.typeConstants = some envTypes →
         ∀ t ∈ E.lowered.loweredDecl.types.drop sourceDecl.types.length,
           ∀ lc ∈ t.ctors, ∀ h ∈ (compilationRestoration sourceDecl auxiliaries).heads,

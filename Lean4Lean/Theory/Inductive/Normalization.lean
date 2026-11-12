@@ -9,19 +9,6 @@ spine is a separate fact supplied by the executable inductive-application check.
 namespace Lean4Lean
 namespace VInductDecl
 
-theorem UniformFieldNormalForm.forallE {decl : VInductDecl} {domain : VExpr}
-    (hdom : domain.SourceConstFree (decl.types.map (·.name)))
-    (H : decl.UniformFieldNormalForm levels (depth + 1) body) :
-    decl.UniformFieldNormalForm levels depth (.forallE domain body) := by
-  rcases H with hfree | ⟨domains, result, rfl, hdomains, hresult, hhead⟩
-  · exact .inl (.forallE hdom hfree)
-  · refine .inr ⟨domain :: domains, result, rfl, ?_, ?_, hhead⟩
-    · intro field hfield
-      rcases List.mem_cons.mp hfield with rfl | hfield
-      · exact hdom
-      · exact hdomains field hfield
-    · simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hresult
-
 theorem ClassifiedFieldNormalForm.forallE {decl : VInductDecl} {domain : VExpr}
     {recursive : Bool}
     (hdom : domain.SourceConstFree (decl.types.map (·.name)))

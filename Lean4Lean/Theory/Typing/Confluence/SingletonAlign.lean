@@ -34,17 +34,6 @@ theorem FullCRDefEq.forall₂_trans (hΓ : OnCtx Γ (env.IsType univs))
     List.Forall₂ (FullCRDefEq Γ) l₁ l₃ :=
   Lean4Lean.List.Forall₂.trans (fun _ _ _ h h' => h.trans hΓ h') H1 H2
 
-theorem FullCRDefEq.forall₂_symm (hΓ : OnCtx Γ (env.IsType univs)) :
-    ∀ {l₁ l₂ : List VExpr}, List.Forall₂ (FullCRDefEq Γ) l₁ l₂ → List.Forall₂ (FullCRDefEq Γ) l₂ l₁
-  | _, _, .nil => .nil
-  | _, _, .cons h hs => .cons (h.symm hΓ) (FullCRDefEq.forall₂_symm hΓ hs)
-
-theorem FullCRDefEq.forall₂_defeq (hΓ : OnCtx Γ (env.IsType univs)) :
-    ∀ {l₁ l₂ : List VExpr}, List.Forall₂ (FullCRDefEq Γ) l₁ l₂ →
-      List.Forall₂ (IsDefEqU env univs Γ) l₁ l₂
-  | _, _, .nil => .nil
-  | _, _, .cons h hs => .cons (h.defeq hΓ) (FullCRDefEq.forall₂_defeq hΓ hs)
-
 omit [Params] in
 theorem EqUpToLevels.instOuter_same {U : Nat} (H : EqUpToLevels U e e') :
     ∀ {args : List VExpr}, (∀ a ∈ args, EqUpToLevels U a a) →

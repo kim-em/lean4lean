@@ -40,32 +40,5 @@ theorem NestedLoweringOutput.types_size_pos
   | nil => exact (H.types_ne_nil h).elim
   | cons _ _ => simp
 
-theorem NestedLoweringOutput.source_length_le
-    (H : NestedLoweringOutput env fuel nparams sourceTypes lparams res) :
-    sourceTypes.length ≤ res.types.length := by
-  rw [H.types_length]; exact Nat.le_add_right _ _
-
-/-- The auxiliary families, by count. -/
-theorem NestedLoweringOutput.auxTypes_length
-    (H : NestedLoweringOutput env fuel nparams sourceTypes lparams res) :
-    (auxTypes res sourceTypes).length = res.aux2nested.size := by
-  simp [auxTypes, H.types_length]
-
-/-- A nested block has an auxiliary family. -/
-theorem NestedLoweringOutput.auxTypes_ne_nil
-    (H : NestedLoweringOutput env fuel nparams sourceTypes lparams res)
-    (hnested : res.aux2nested.size ≠ 0) : auxTypes res sourceTypes ≠ [] := by
-  intro h
-  have := H.auxTypes_length
-  rw [h] at this
-  exact hnested (by simpa using this.symm)
-
-/-- The source family names, read off the lowered block. -/
-theorem NestedLoweringOutput.source_names
-    (H : NestedLoweringOutput env fuel nparams sourceTypes lparams res) :
-    (res.types.take sourceTypes.length).map (·.name) = sourceTypes.map (·.name) := by
-  rw [← List.forall₂_eq, List.forall₂_map_left_iff, List.forall₂_map_right_iff]
-  exact Lean4Lean.List.Forall₂.imp (fun _ _ h => h.1) H.source_headers
-
 end VerifyInductive
 end Lean4Lean

@@ -305,11 +305,6 @@ theorem RecursorEntry.pat {name : Name} {data : RecursorData} (H : RecursorEntry
   obtain ⟨_, h⟩ := h
   exact (VExpr.const.inj h).1.symm
 
-/-- The head of a registry entry is not rigid. -/
-theorem RecursorEntry.not_rigid {name : Name} {data : RecursorData}
-    (H : RecursorEntry env name data) : ¬env.Rigid name := fun hr =>
-  let ⟨_, _, hp, hh⟩ := H.pat; hr.pats _ _ hp hh
-
 /-! ## Definitions -/
 
 open Classical in

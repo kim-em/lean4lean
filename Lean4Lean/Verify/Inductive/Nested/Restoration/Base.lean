@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.Formation
 /-! # The rule-free restored block (`RestoredBlockBase`)
 
 Everything about a restored nested block except its rules. The installation is recorded by its
-abstract stages (`BlockStages`); the kernel insertion order is PR #43's `AddInduct.order`
+abstract stages (`BlockStages`); the kernel insertion order is `AddInduct.order`
 (`KernelData.lean`). -/
 
 namespace Lean4Lean
@@ -77,7 +77,6 @@ structure RestoredBlockBase
   recursorValues : recursorEntries.map Prod.snd = sourceRecursors ++ auxiliaryRecursors
   formationAssembly : NestedExpansionData sourceEnv decl
   formationExpanded : formationAssembly.expanded = loweredDecl
-  checked : SourcePrefixOfLowered decl loweredDecl
   uvars : decl.uvars = lparams.length
   numParams : decl.nparams = nparams
   unsafeEq : decl.isUnsafe = isUnsafe

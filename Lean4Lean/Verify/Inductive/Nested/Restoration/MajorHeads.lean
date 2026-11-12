@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Recursors
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! The restored major heads of a nested run's recursors (`NestedRun.restoredMajorHead`,
 `NestedRun.auxNestedHead`). -/
@@ -117,21 +118,6 @@ theorem ExprReplacement.constHead {Good : Name → Prop}
   | bvar | fvar | mvar | sort | lit | lam | forallE | letE | mdata | proj =>
       simp [Expr.getAppFn] at hhead
 
-/-- A translated concrete expression with a constant application head
-translates to an application spine of the same constant. -/
-theorem TrExprS.constHead_eq {env : VEnv} {Us : List Name} {Δ : VLCtx}
-    {e : Expr} {e' : VExpr} (H : TrExprS env Us Δ e e')
-    (hfn : e.getAppFn = .const c ls)
-    (he' : e' = VExpr.mkApps (.const n us) args) : c = n := by
-  rw [← Expr.mkAppList_getAppArgsList e, hfn] at H
-  rcases checkPositivityStep.TrExprS.mkAppList_inv H with ⟨fn', args', hfn', -, rfl⟩
-  cases hfn' with
-  | const _ _ _ =>
-    have h := congrArg VExpr.getAppFnArgs he'
-    rw [VExpr.getAppFnArgs_mkApps_const, VExpr.getAppFnArgs_mkApps_const] at h
-    simp only [Prod.mk.injEq, VExpr.const.injEq] at h
-    exact h.1.1
-
 /-! ### The major binder of a generated recursor -/
 
 /-- The domain at the major position of a generated recursor type is an
@@ -195,8 +181,8 @@ theorem NestedRun.restoredMajorHead {ves : VEnvs}
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {r : Restoration} {auxRec : NameMap Name} {targetEnv : VEnv} {Us : List Name}
     {auxLevels : List Level}
@@ -359,7 +345,6 @@ theorem NestedRun.auxNestedHead {ves : VEnvs}
     O.origin.generated.argsArity
   rw [O.nested_eq] at hhead
   exact ⟨_, _, _, hhead, O.origin.generated.built.lookup⟩
-
 
 /-- The source family names are the names of the source prefix of the
 lowered declaration. -/

@@ -7,8 +7,8 @@ The soundness cases of the projection rules (`projDF`, `projIota`, `structEta`, 
 semantic facts about the registered constructor and family that come from derivations in the
 header environment in which the entry's family and constructor were checked
 (`VEnv.ProjDeclAt`): the constructor type is a sound telescope, and the family's declared type
-is soundly a telescope ending in the recorded result sort. As for rules (`RuleValid`) and eliminator rules
-(`ElimValid`), these facts are provided by the induction along the declaration history: the
+is soundly a telescope ending in the recorded result sort. As for rules (`RuleValid`), these
+facts are provided by the induction along the declaration history: the
 header environment of an entry is earlier in the history, so soundness of its derivations in the
 model of the final environment is available when the entry is registered. `ProjValid` records
 exactly that soundness; it is not a hypothesis about the entry itself. -/

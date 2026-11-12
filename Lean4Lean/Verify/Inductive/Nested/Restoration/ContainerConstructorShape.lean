@@ -2,6 +2,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.TableAgreement
 import Lean4Lean.Verify.Inductive.Nested.Restoration.CompilationData
 import Lean4Lean.Theory.Inductive.CompilationMajors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceConstructors
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! # The constructor shape of a container constructor
 
@@ -224,19 +225,19 @@ theorem NestedRun.containerConstructorShape
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     {auxiliaries : List ContainerSpecialization} {block : VInductBlock}
     {envTypes : VEnv} {ctx : List VExpr} {generated : List VInductiveType}
     (Haux : List.Forall₂ (SpecializationGenerates
-      (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes ctx sourceDecl)
+      (ves.venv (safetyOf isUnsafe)) envTypes ctx sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
-        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+        (ves.venv (safetyOf isUnsafe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+          (ves.venv (safetyOf isUnsafe)) sourceDecl generated))
       generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
-    (Hdata : CompilationData (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+    (Hdata : CompilationData (ves.venv (safetyOf isUnsafe)) sourceDecl
       E.lowered.loweredDecl E.lowered.signature E.lowered.generatedInstance auxiliaries block)
     (index : Fin E.lowered.signature.constructors.size)
     (hge : sourceDecl.types.length ≤ E.lowered.signature.constructors[index].owner.val)
@@ -315,14 +316,14 @@ theorem NestedRun.containerConstructorShape
     rw [htarget, VExpr.piArity_wrapForalls, hIA]
   have hnpL : E.lowered.loweredDecl.nparams = sourceDecl.nparams := Hdata.nparams
   -- the constant in the source constructor stage
-  have hconst : (ves.venv (if isUnsafe then .unsafe else .safe)).constants c.name =
+  have hconst : (ves.venv (safetyOf isUnsafe)).constants c.name =
       some c.toVConstant := by
     have h := SG.installed.constructorConstant a.family.val j a.family.isLt
       (by simpa [ContainerSpecialization.source] using hj)
     rw [← hcj]
     simp only [ContainerSpecialization.source, Fin.getElem_fin] at h ⊢
     exact h
-  have hle' : (ves.venv (if isUnsafe then .unsafe else .safe)) ≤ E.sourceCore.envCtors :=
+  have hle' : (ves.venv (safetyOf isUnsafe)) ≤ E.sourceCore.envCtors :=
     (VEnv.addConstVals_le E.sourceCore.core.typesAdded).trans
       (VEnv.addConstVals_le E.sourceCore.core.ctorsAdded)
   refine ⟨c.toVConstant, hle'.constants hconst, ?_, ?_⟩

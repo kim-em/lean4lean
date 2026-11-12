@@ -13,7 +13,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 /-! Facts about the recursor check of a declaration whose headers and
-constructors went through the ordinary pipeline (`OrdinaryConstructorCheck`).
+constructors went through the ordinary pipeline (`ConstructorCheck`).
 The recursor check itself is `RecursorInstallation R`; the lemmas
 here only add what is visible through the header and constructor environments
 (source lookups for nested restoration). -/
@@ -39,13 +39,12 @@ theorem RecursorInstallation.findSourceHeader
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (Hc : ContextWF c) (H : RecursorInstallation R outEnv)
+    (H : RecursorInstallation R outEnv)
     {owner : InductiveType} (howner : owner ∈ indTypes.toList) :
     ∃ info : InductiveVal,
       outEnv.find? owner.name = some (.inductInfo info) ∧
       info.ctors = owner.ctors.map (fun ctor => ctor.name) ∧
       info.all = indTypes.toList.map (fun type => type.name) := by
-  have := Hc
   obtain ⟨iv, -, hinfo, hname, hctors, hall, -⟩ := R.family_of_mem howner
   exact ⟨iv.1, hname ▸ H.findHeaderOfMem hinfo, hctors, hall⟩
 
@@ -152,32 +151,6 @@ theorem mkRecName_injective : Function.Injective Lean.mkRecName := by
   simpa [Lean.mkRecName, Lean.Name.getPrefix] using
     congrArg Lean.Name.getPrefix heq
 
-/-- A recursor shape's existential owner position is the concrete generated
-position whenever the declaration's source names are duplicate-free.  This
-is the positional link needed before transporting a lowered shape back to
-the corresponding source-family index. -/
-theorem VInductDecl.NestedRecursorShape.ownerIdx_eq_of_name
-    {decl : VInductDecl} {owner : VInductiveType} {recursor : VConstVal}
-    (H : decl.NestedRecursorShape owner recursor)
-    (ownerIdx : Nat) (howner : ownerIdx < decl.types.length)
-    (hname : recursor.name = decl.recursorName decl.types[ownerIdx])
-    (hnodup : decl.sourceNames.Nodup) :
-    H.ownerIdx = ownerIdx := by
-  have htypeNames : (decl.types.map (fun type => type.name)).Nodup := by
-    have hprefix := (List.nodup_append.mp hnodup).1
-    simpa [VInductDecl.sourceNames, VInductDecl.typeConstants,
-      VInductiveType.toVConstVal, Function.comp_def] using hprefix
-  have hshapeMap : H.ownerIdx <
-      (decl.types.map (fun type => type.name)).length := by
-    simpa using H.owner_lt
-  have hownerMap : ownerIdx <
-      (decl.types.map (fun type => type.name)).length := by
-    simpa using howner
-  apply (List.getElem_inj (h₀ := hshapeMap) (h₁ := hownerMap)
-    htypeNames).mp
-  rw [List.getElem_map, List.getElem_map, H.owner_eq]
-  exact mkRecName_injective (H.name.symm.trans hname)
-
 /-- Constructor metadata installed in the middle phase remains retrievable,
 unchanged, after recursor installation. -/
 theorem RecursorInstallation.findConstructorOfMem
@@ -277,11 +250,11 @@ theorem RestoredInductiveStep.oldConstructors_eq_ofInstalled
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (Hstep : RestoredInductiveStep result outEnv auxRec allIndNames indType
       sourceProdEnv targetProdEnv)
-    (Hc : ContextWF c) (H : RecursorInstallation R outEnv)
+    (H : RecursorInstallation R outEnv)
     (howner : owner ∈ indTypes.toList)
     (hname : indType.name = owner.name) :
     Hstep.oldInfo.ctors = owner.ctors.map (fun ctor => ctor.name) := by
-  rcases H.findSourceHeader Hc howner with
+  rcases H.findSourceHeader howner with
     ⟨info, hlookup, hctors, _hall⟩
   have hstepLookup :
       outEnv.find? owner.name = some (.inductInfo Hstep.oldInfo) := by
@@ -357,7 +330,7 @@ theorem RecursorInstallation.restorationSources
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (Hc : ContextWF c) (H : RecursorInstallation R outEnv)
+    (H : RecursorInstallation R outEnv)
     (HctorTelescope : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       RestoreTelescope ctor.type nparams) :
     ∀ owner, owner ∈ indTypes.toList →
@@ -373,7 +346,7 @@ theorem RecursorInstallation.restorationSources
           ∀ rule ∈ recInfo.rules,
             RestoreTelescope rule.rhs nparams := by
   intro owner howner
-  rcases H.findSourceHeader Hc howner with
+  rcases H.findSourceHeader howner with
     ⟨oldInfo, hheader, hctors, _hall⟩
   rcases List.mem_iff_getElem.mp howner with ⟨ownerIdx, hownerIdx, rfl⟩
   rcases H.findSourceRecursor ownerIdx (by simpa using hownerIdx) with

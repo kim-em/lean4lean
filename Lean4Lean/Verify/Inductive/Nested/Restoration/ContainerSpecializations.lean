@@ -4,6 +4,7 @@ import Lean4Lean.Verify.Inductive.Rules.Alignment
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Lookups
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Tables
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.AuxiliarySources
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! Container specialisations of a nested declaration.
 
@@ -20,7 +21,7 @@ open Lean hiding Environment Exception
 open Kernel
 namespace InductiveSignature
 
-/-- (From the source's `EnvTables/Views.lean`.) -/
+/-- In a list with distinct keys, looking up the key of a member finds that member. -/
 theorem find?_name_of_mem' {α : Type _} {x : α} {l : List α} {f : α → Name}
     (hnd : (l.map f).Nodup) (hx : x ∈ l) :
     l.find? (fun y => f y == f x) = some x := by
@@ -106,7 +107,6 @@ theorem compilationRestoration_recursorName_of_not_mem
     simp only [beq_iff_eq] at heq
     exact absurd (List.mem_map.mpr ⟨pair, hmem, heq⟩) hname
   · rfl
-
 
 theorem ContainerSpecialization.heads_map_auxiliary (a : ContainerSpecialization)
     (uvars nparams : Nat) :
@@ -422,7 +422,6 @@ theorem mkAuxRecNameMap_find_auxiliary
   simp only [Nat.add_comm 1 i] at h
   simpa [Lean4Lean.mkAuxRecNameMap, hfind, hlength'] using h
 
-
 open _root_.Lean4Lean.InductiveSignature in
 /-- The abstract auxiliary-recursor renaming of `compilationRestoration`
 agrees with the executable `mkAuxRecNameMap` on every name, provided the
@@ -474,7 +473,6 @@ theorem compilationRestoration_recursorName_eq_mkAuxRecNameMap
     rw [hrecNames] at hmem
     rw [mkAuxRecNameMap_recMap_find_none main rest env info hfind hmem]
     rfl
-
 
 open _root_.Lean4Lean.InductiveSignature
 
@@ -705,7 +703,7 @@ theorem AuxiliaryFamilySource.auxiliarySpecialization
     {baseVEnv : VEnv}
     (N : AuxiliaryFamilySource H baseVEnv sourceTypesVEnv
       lparams target)
-    (hbase : baseVEnv = ves.venv (if isUnsafe then .unsafe else .safe))
+    (hbase : baseVEnv = ves.venv (safetyOf isUnsafe))
     (wf : ves.WF prodEnv) (decl : VInductDecl)
     (huvars : decl.uvars = lparams.length) (hnparams : decl.nparams = nparams)
     (hunsafe : decl.isUnsafe = isUnsafe)
@@ -714,7 +712,7 @@ theorem AuxiliaryFamilySource.auxiliarySpecialization
       paramCtx) :
     ∃ a : ContainerSpecialization,
       SpecializationGenerates
-        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceTypesVEnv paramCtx
+        (ves.venv (safetyOf isUnsafe)) sourceTypesVEnv paramCtx
         decl a N.source ∧
       a.auxiliary = N.source.name ∧ a.source = N.containerFamily := by
   subst hbase
@@ -726,11 +724,11 @@ theorem AuxiliaryFamilySource.auxiliarySpecialization
     levels := N.levels
     arguments := N.baseArgs }
   have hsource : a.source = N.containerFamily := hfamily
-  have habstract : (ves.venv (if isUnsafe then .unsafe else .safe)).constants
+  have habstract : (ves.venv (safetyOf isUnsafe)).constants
       H.generated.sourceName = some N.container.types[idx].toVConstant := by
     rw [← N.containerName, ← hfamily]
     exact N.installedBase.familyConstant idx hidx
-  have htrConst := ((wf.tr (safety := if isUnsafe then .unsafe else .safe)).find?_uniq
+  have htrConst := ((wf.tr (safety := safetyOf isUnsafe)).find?_uniq
     H.generated.built.lookup habstract).2
   have hvisible := htrConst.1
   have hfamilyPrefix : HasForallPrefix a.source.type a.arguments.length := by
@@ -777,7 +775,6 @@ theorem AuxiliaryFamilySource.auxiliarySpecialization
   · refine ⟨N.sourceParams, N.sourceParamsLength.trans hnparams.symm, ?_⟩
     rw [hsource, huvars]
     exact N.constructorShapes
-
 
 theorem exists_forall₂_of_forall {R : α → β → Prop} :
     ∀ {l : List β}, (∀ y ∈ l, ∃ x, R x y) → ∃ xs, List.Forall₂ R xs l
@@ -947,50 +944,6 @@ theorem AuxiliaryFamilySpec.nested_getAppFn
   apply Expr.getAppFn_abstractN_const
   rw [Expr.mkAppRange_from_zero _ _ _ harity, Expr.getAppFn_mkAppList]
   rfl
-private theorem constructorListEntries_findInduct
-    {stats : AddInductive.InductiveStats} {lparams : List Name}
-    {isUnsafe : Bool} {owner : InductiveType} {ctors : List Constructor}
-    {entries : List (ConstantInfo × VConstVal)} {ctor : Constructor}
-    {initial : Nat}
-    (H : ConstructorListEntries
-      (AddInductive.constructorInfo stats lparams isUnsafe owner)
-      initial ctors entries)
-    (hctor : ctor ∈ ctors) :
-    ∃ info : ConstructorVal, ∃ value : VConstVal,
-      (.ctorInfo info, value) ∈ entries ∧
-      info.name = ctor.name ∧ info.induct = owner.name := by
-  induction H with
-  | nil => simp at hctor
-  | @cons start head tail tailEntries value Htail ih =>
-    simp only [List.mem_cons] at hctor
-    rcases hctor with rfl | htail
-    · exact ⟨AddInductive.constructorInfo stats lparams isUnsafe owner
-        start ctor, value, by simp,
-        by simp [AddInductive.constructorInfo],
-        by simp [AddInductive.constructorInfo]⟩
-    · rcases ih htail with ⟨info, value', hmem, hname, hinduct⟩
-      exact ⟨info, value', by simp [hmem], hname, hinduct⟩
-
-theorem ConstructorTypeEntries.findInduct
-    {stats : AddInductive.InductiveStats} {lparams : List Name}
-    {isUnsafe : Bool} {types : List InductiveType} {owner : InductiveType}
-    {entries : List (ConstantInfo × VConstVal)} {ctor : Constructor}
-    (H : ConstructorTypeEntries
-      (AddInductive.constructorInfo stats lparams isUnsafe) types entries)
-    (howner : owner ∈ types) (hctor : ctor ∈ owner.ctors) :
-    ∃ info : ConstructorVal, ∃ value : VConstVal,
-      (.ctorInfo info, value) ∈ entries ∧
-      info.name = ctor.name ∧ info.induct = owner.name := by
-  induction H generalizing owner with
-  | nil => simp at howner
-  | cons Hhead Htail ih =>
-    simp only [List.mem_cons] at howner
-    rcases howner with rfl | htailOwner
-    · rcases constructorListEntries_findInduct Hhead hctor with
-        ⟨info, value, hmem, hname, hinduct⟩
-      exact ⟨info, value, List.mem_append_left _ hmem, hname, hinduct⟩
-    · rcases ih htailOwner hctor with ⟨info, value, hmem, hname, hinduct⟩
-      exact ⟨info, value, List.mem_append_right _ hmem, hname, hinduct⟩
 
 /-- Every lowered constructor is installed in the lowered kernel
 environment as a constructor of its own lowered family, and its name was
@@ -1038,7 +991,7 @@ private theorem loweredNames_nodup
     {sourceEnv : VEnv} {types : List InductiveType}
     {ctorEnv outEnv : Environment}
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv types.toArray ctorEnv}
-    (Hc : ContextWF c) (H : RecursorInstallation R outEnv) :
+    (H : RecursorInstallation R outEnv) :
     (familyNames decl.types ++
       decl.types.map (fun t => t.name.str "rec")).Nodup := by
   have hsource := Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup R.core
@@ -1068,7 +1021,7 @@ private theorem loweredNames_nodup
     rcases Lean4Lean.List.Forall₂.forall_exists_r R.core.types t' ht' with
       ⟨T, hT, htrT⟩
     rcases List.mem_cons.mp hx' with hname | hctor
-    · rcases H.findSourceHeader Hc (owner := T) (by simpa using hT) with
+    · rcases H.findSourceHeader (owner := T) (by simpa using hT) with
         ⟨info, hfind, _, _⟩
       rw [show T.name = x by rw [hname, ← htrT.header.name]] at hfind
       rw [hfind] at hrecFind
@@ -1095,22 +1048,22 @@ theorem NestedRun.containerSpecializations
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∃ (envTypes : VEnv) (generated : List VInductiveType)
         (auxiliaries : List ContainerSpecialization),
-      (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+      (ves.venv (safetyOf isUnsafe)).addConstVals
         sourceDecl.typeConstants = some envTypes ∧
       envTypes.WF ∧
       List.Forall₂ (SpecializationGenerates
-        (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
+        (ves.venv (safetyOf isUnsafe)) envTypes
         E.lowered.headers.commonParameterContext sourceDecl)
         auxiliaries generated ∧
       List.Forall₂ (VInductDecl.NestedTypeExpansion
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+          (ves.venv (safetyOf isUnsafe)) sourceDecl
           (VInductDecl.NestedOccurrenceReplacementAbs
-            (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+            (ves.venv (safetyOf isUnsafe)) sourceDecl generated))
         generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length) ∧
       (familyNames E.lowered.loweredDecl.types ++
         E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup ∧
@@ -1171,7 +1124,7 @@ theorem NestedRun.containerSpecializations
   have hempty : initialState.nestedAux = #[] := by
     rfl
   rcases Hrun.auxiliaryFamilySources (R := R) Hcache Hparams wfP
-      hinitial HcP Hsources HsourceHeaders HsourceAdded HsourceTypesWF
+      hinitial Hsources HsourceHeaders HsourceAdded HsourceTypesWF
       hempty E.auxiliarySelection Htranslations Htarget with ⟨N, hNctx⟩
   have hctxEq : N.parameterContext = P.headers.commonParameterContext := by
     exact hNctx
@@ -1236,11 +1189,11 @@ theorem NestedRun.containerSpecializations
   generalize N.generated = generated at Haux Haux' Hexpansion
   rw [hinitial] at Hexpansion
   refine ⟨E.sourceCore.envTypes, generated, auxiliaries, hadded,
-    HsourceTypesWF, Haux, Hexpansion, loweredNames_nodup HcP Hprod, ?_, ?_⟩
+    HsourceTypesWF, Haux, Hexpansion, loweredNames_nodup Hprod, ?_, ?_⟩
   · -- executable constructor-name restoration
     have hheadsNodup : (auxiliaries.flatMap (·.headNames)).Nodup := by
       rw [auxiliarySpecializations_headNames Haux Hexpansion]
-      have h := (List.nodup_append.mp (loweredNames_nodup HcP Hprod)).1
+      have h := (List.nodup_append.mp (loweredNames_nodup Hprod)).1
       exact h.sublist (familyNames_drop_sublist _ _)
     intro a ha ctor hctor
     rcases Lean4Lean.List.Forall₂.forall_exists_l Haux' a ha with
@@ -1283,7 +1236,7 @@ theorem NestedRun.containerSpecializations
   have hmainMem : main ∈ sourceTypes := by rw [hsourceTypes]; simp
   rcases Hrun.preservesInitialTypeName ⟨main, by simpa using hmainMem, rfl⟩ with
     ⟨loweredMain, hloweredMain, hloweredName⟩
-  rcases Hprod.findSourceHeader HcP (by simpa using hloweredMain) with
+  rcases Hprod.findSourceHeader (by simpa using hloweredMain) with
     ⟨info, hfind, _hctors, hall⟩
   rw [hloweredName] at hfind
   dsimp only [NestedRun.loweredEnv]
@@ -1309,7 +1262,6 @@ theorem NestedRun.containerSpecializations
   exact compilationRestoration_recursorName_eq_mkAuxRecNameMap sourceDecl
     auxiliaries main rest _ info hfind hfirst hnames hnodup
 
-
 /-- The common header parameter context of the lowered run is a
 well-formed context of the source environment, at the declaration's
 universe arity. -/
@@ -1321,10 +1273,10 @@ theorem NestedRun.commonParameterContext_refl
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) :
-    VEnv.IsDefEqCtx (ves.venv (if isUnsafe then .unsafe else .safe))
+    VEnv.IsDefEqCtx (ves.venv (safetyOf isUnsafe))
       sourceDecl.uvars [] E.lowered.headers.commonParameterContext
       E.lowered.headers.commonParameterContext := by
   have hctx := E.lowered.headers.sourceStatsWF.paramsContext
@@ -1333,8 +1285,8 @@ theorem NestedRun.commonParameterContext_refl
   generalize E.lowered.headers.sourceStatsWF.headers.params.reverse = L₁
     at hctx
   rw [E.lowered.headers.sourceContextVEnv, E.lowered_initialEnv] at hctx
-  have henv : (ves.venv (if isUnsafe then .unsafe else .safe)).WF :=
-    (wf.tr (safety := if isUnsafe then .unsafe else .safe)).wf
+  have henv : (ves.venv (safetyOf isUnsafe)).WF :=
+    (wf.tr (safety := safetyOf isUnsafe)).wf
   have huvars : sourceDecl.uvars = E.lowered.c.lparams.length := by
     have h := E.sourceCore.core.uvars
     rw [E.sourceCoreDecl_eq] at h

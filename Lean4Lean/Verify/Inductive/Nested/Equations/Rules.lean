@@ -10,7 +10,7 @@ The restored ι rules are typed by transport along the restoration interpretatio
 (`Theory/Inductive/RestorationInterpretation.lean`): the lowered run's rules are typed in its
 recursor stage (`RuleTranslations.rules_wf`, `equationsWF`), the restoration substitution from
 the lowered recursor stage `L.recursors.outVEnv` into the restored recursor stage `B.envR`
-(`Restoration.Substitution`, with `PatClause` for the lowered rules as `RestoredPattern`s)
+(`Restoration.Substitution`)
 carries them to their restorations (`Restoration.equation_wf`), and the restored rules are
 the restored equations (`RestoredBlock.rules_ofRestoredEquation`). The rules are stated as
 `PatTyped`, as on the ordinary path (`Rules/IotaPatTyped.lean`). -/

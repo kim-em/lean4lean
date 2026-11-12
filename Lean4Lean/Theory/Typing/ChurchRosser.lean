@@ -144,14 +144,6 @@ theorem ConstHeaded.matches_head (hp : ConstHeaded p) (hm : p.Matches e levels v
     exact ⟨name, (constSpine_go_head _ [_]).trans h⟩
 
 omit [Params] in
-theorem ConstHeaded.subpattern (H : ConstHeaded parent) (hs : Subpattern child parent) : ConstHeaded child := by
-  induction hs with
-  | refl => exact H
-  | appL _ ih => exact ih H.1
-  | appR _ ih => exact ih H.2
-  | varL _ ih => exact ih H
-
-omit [Params] in
 theorem matches_constHead {p : Pattern} {e : VExpr} {levels : List VLevel} {values : p.Path → VExpr} (hm : p.Matches e levels values)
     (hh : e.getAppFnArgs.1 = .const name us) : p.constHead = some name := by
   induction hm with
@@ -842,15 +834,6 @@ theorem NormalEqF.instantiate_variables (H : VExpr.VariableApplications body)
 alias NormalEq.instantiate_variables := NormalEqF.instantiate_variables
 
 
-theorem ParRed.wrapLams (H : domains.reverse ++ Γ ⊢ body ≫ body') :
-    Γ ⊢ VExpr.wrapLams domains body ≫ VExpr.wrapLams domains body' := by
-  induction domains generalizing Γ with
-  | nil => exact H
-  | cons domain domains ih =>
-    apply ParRed.lam .rfl
-    apply ih
-    simpa only [List.reverse_cons, List.append_assoc, List.singleton_append] using H
-
 theorem ParRed.weakN (W : Ctx.LiftN n k Γ Γ') (H : Γ ⊢ e1 ≫ e2) :
     Γ' ⊢ e1.liftN n k ≫ e2.liftN n k := by
   induction H generalizing k Γ' with
@@ -1353,13 +1336,6 @@ theorem NormalEqF.mkApps_spine
       hargType ((harg.defeq hΓ).of_l henv hΓ hargType).hasType.2 hfn harg
 
 alias NormalEq.mkApps_spine := NormalEqF.mkApps_spine
-
-variable! (hΓ : OnCtx Γ (env.IsType univs)) in
-private theorem normalEq_forall2_symm (hΓ : OnCtx Γ (env.IsType univs)) (H : List.Forall₂ (NormalEqF η Γ) args args') :
-    List.Forall₂ (NormalEqF η Γ) args' args := by
-  induction H with
-  | nil => exact .nil
-  | cons h _ ih => exact .cons (h.symm hΓ) ih
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
 theorem NormalEqF.of_levelEquiv (L : VExpr.LEquiv univs e e') (ht : Γ ⊢ e : type) :

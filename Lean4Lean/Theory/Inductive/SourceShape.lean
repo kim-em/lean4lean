@@ -98,22 +98,6 @@ def VInductDecl.ClassifiedFieldNormalForm (decl : VInductDecl) (levels : List VL
   | false, e => decl.FamilyFreeNormalForm e
   | true, e => decl.RecursiveNormalForm levels depth e
 
-theorem VInductDecl.ClassifiedFieldNormalForm.uniform {decl : VInductDecl}
-    {levels : List VLevel} {depth : Nat} {recursive : Bool} {e : VExpr}
-    (H : decl.ClassifiedFieldNormalForm levels depth recursive e) :
-    decl.UniformFieldNormalForm levels depth e := by
-  cases recursive
-  · exact .inl H
-  · exact .inr H
-
-theorem VInductDecl.UniformFieldNormalForm.classified {decl : VInductDecl}
-    {levels : List VLevel} {depth : Nat} {e : VExpr}
-    (H : decl.UniformFieldNormalForm levels depth e) :
-    ∃ recursive, decl.ClassifiedFieldNormalForm levels depth recursive e := by
-  rcases H with H | H
-  · exact ⟨false, H⟩
-  · exact ⟨true, H⟩
-
 /-- Shape of one inductive type after normalization: common parameters,
 exactly the recorded indices, and the recorded result sort. -/
 def VInductDecl.TypeShape (env : VEnv) (decl : VInductDecl)

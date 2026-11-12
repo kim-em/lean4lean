@@ -143,14 +143,16 @@ theorem SourceFamilyTranslations.trIndTypes {decl : VInductDecl} {lparams : List
         simp only [List.getElem_map, restoredCtor]
         rw [harity, h3h j hj' hjl]
 
-/-- The lowered headers with their constructors are the lowered environment's. -/
-theorem NestedRun.ivals_lookup
+variable
     {res : Lean4Lean.ElimNestedInductive.Result} {sourceProdEnv : Environment}
     {sourceTypes : List InductiveType} {venv : VEnv} {decl : VInductDecl}
     {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
+
+/-- The lowered headers with their constructors are the lowered environment's. -/
+theorem NestedRun.ivals_lookup
     (E : NestedRun res sourceProdEnv sourceTypes venv decl lparams nparams isUnsafe safety
       outEnv L) :
     ∀ iv ∈ E.lowered.constructors.ivals,
@@ -167,12 +169,6 @@ theorem NestedRun.ivals_lookup
 /-- **The restored families translate to the source declaration's families**, with their
 constructors in the source header environment. -/
 theorem NestedRun.trTypes
-    {res : Lean4Lean.ElimNestedInductive.Result} {sourceProdEnv : Environment}
-    {sourceTypes : List InductiveType} {venv : VEnv} {decl : VInductDecl}
-    {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes venv decl lparams nparams isUnsafe safety
       outEnv L)
     (B : RestoredBlockBase E.restoration venv decl lparams nparams isUnsafe safety)
@@ -326,12 +322,6 @@ theorem RestoredRecursorStep.isUnsafe_of_generated
 
 /-- **Every restored constant carries the declaration's safety flag.** -/
 theorem NestedRun.newUnsafe
-    {res : Lean4Lean.ElimNestedInductive.Result} {sourceProdEnv : Environment}
-    {sourceTypes : List InductiveType} {venv : VEnv} {decl : VInductDecl}
-    {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes venv decl lparams nparams isUnsafe safety
       outEnv L) :
     ∀ ci ∈ AddInduct.consts E.restoration.ivals E.restoration.rvals, ci.isUnsafe = isUnsafe := by
@@ -390,7 +380,7 @@ theorem NestedRun.newUnsafe
         ((main :: rest).map (·.name)) n s t),
       Hs.restored.newInfo.isUnsafe = isUnsafe := by
     intro n hn s t Hs
-    have hgen := Hlower.auxRecNameGeneratedAtFresh HcP Hprod hempty hn
+    have hgen := Hlower.auxRecNameGeneratedAtFresh Hprod hempty hn
     exact (Hs.isUnsafe_of_generated Hprod hgen).trans hRU
   obtain ⟨hI, hR⟩ := E.restoration.inductives.inductive_isUnsafe hfam hrec
   have hA := E.restoration.auxiliaries.recursorInfos_isUnsafe haux

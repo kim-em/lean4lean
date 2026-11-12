@@ -3,6 +3,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.CommutationUniform
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ContainerSpecializations
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ExpansionInverse
 import Lean4Lean.Std.List
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! Agreement of the executable nested restoration tables with the abstract
 `compilationRestoration`.
@@ -536,8 +537,7 @@ theorem RestorationTablesAgree.agreement {decl : VInductDecl}
     recursorName := D.recursorName
     recursorNotHead := ?_
     headNone := ?_
-    head := ?_
-    ctorTarget := ?_ }
+    head := ?_ }
   · intro c new h hmem
     rw [compilationRestoration_heads_auxiliary] at hmem
     exact D.recursorNotHead c new h hmem
@@ -605,18 +605,6 @@ theorem RestorationTablesAgree.agreement {decl : VInductDecl}
           Expr.mkAppN_eq_mkAppList, ← hauxEq, hrename a ha ctor hctor] at hv
         exact AuxiliaryContainerApp.reopenedTranslation hdom hlvls hYs hlevels hAs hsize hTr _
           (by simpa using hv)
-  · intro c nested auxI _ hget
-    obtain ⟨info, hc, hn, rfl⟩ := getNestedIfAuxCtor_eq_some hget
-    obtain ⟨a, ha, hauxEq, envS, domains, lvls, Ys, hdom, hab, hlvls, hYs⟩ :=
-      D.familyKey _ nested hn
-    obtain ⟨ctor, hctor, rfl⟩ := D.ctorLookup c info hc a ha hauxEq.symm
-    refine ⟨a.source.name, lvls, ?_, ?_⟩
-    · obtain ⟨xs, hxs⟩ := D.paramsFVars
-      rw [hxs, Expr.abstractN_eq] at hab
-      exact abstractN_getAppFn_const nested 0
-        (by rw [hab, Expr.getAppFn_mkAppList_const])
-    · rw [compilationRestoration_restoredHeadName_constructor D.headNodup ha hctor,
-        ← hauxEq, hrename a ha ctor hctor]
 
 /-! ### Per-family link data of a lowering run -/
 
@@ -647,7 +635,7 @@ theorem AuxiliaryFamilySource.linkedSpecialization
     {baseVEnv : VEnv}
     (N : AuxiliaryFamilySource H baseVEnv sourceTypesVEnv
       lparams target)
-    (hbase : baseVEnv = ves.venv (if isUnsafe then .unsafe else .safe))
+    (hbase : baseVEnv = ves.venv (safetyOf isUnsafe))
     (wf : ves.WF prodEnv) (decl : VInductDecl)
     (huvars : decl.uvars = lparams.length) (hnparams : decl.nparams = nparams)
     (hunsafe : decl.isUnsafe = isUnsafe)
@@ -656,7 +644,7 @@ theorem AuxiliaryFamilySource.linkedSpecialization
       paramCtx) :
     ∃ a : ContainerSpecialization,
       SpecializationGenerates
-        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceTypesVEnv paramCtx
+        (ves.venv (safetyOf isUnsafe)) sourceTypesVEnv paramCtx
         decl a N.source ∧
       a.auxiliary = N.source.name ∧ a.source = N.containerFamily ∧
       a.levels = N.levels ∧ a.arguments = N.baseArgs := by
@@ -669,11 +657,11 @@ theorem AuxiliaryFamilySource.linkedSpecialization
     levels := N.levels
     arguments := N.baseArgs }
   have hsource : a.source = N.containerFamily := hfamily
-  have habstract : (ves.venv (if isUnsafe then .unsafe else .safe)).constants
+  have habstract : (ves.venv (safetyOf isUnsafe)).constants
       H.generated.sourceName = some N.container.types[idx].toVConstant := by
     rw [← N.containerName, ← hfamily]
     exact N.installedBase.familyConstant idx hidx
-  have htrConst := ((wf.tr (safety := if isUnsafe then .unsafe else .safe)).find?_uniq
+  have htrConst := ((wf.tr (safety := safetyOf isUnsafe)).find?_uniq
     H.generated.built.lookup habstract).2
   have hvisible := htrConst.1
   have hfamilyPrefix : HasForallPrefix a.source.type a.arguments.length := by
@@ -1110,44 +1098,6 @@ private theorem forall₂_trCtor_names
   | nil => rfl
   | cons h _ ih => simp only [List.map_cons, ih, ← h.name]
 
-theorem ConstructorListEntries.ctorOfEntry
-    {stats : AddInductive.InductiveStats} {lparams : List Name}
-    {isUnsafe : Bool} {owner : InductiveType} {ctors : List Constructor}
-    {entries : List (ConstantInfo × VConstVal)} {initial : Nat}
-    (H : ConstructorListEntries
-      (AddInductive.constructorInfo stats lparams isUnsafe owner)
-      initial ctors entries)
-    {entry : ConstantInfo × VConstVal} (hentry : entry ∈ entries) :
-    ∃ ctor ∈ ctors, ∃ info : ConstructorVal,
-      entry.1 = .ctorInfo info ∧ info.name = ctor.name ∧ info.induct = owner.name := by
-  induction H with
-  | nil => simp at hentry
-  | @cons start ctors tailEntries ctor value Htail ih =>
-    simp only [List.mem_cons] at hentry
-    rcases hentry with rfl | htail
-    · exact ⟨ctor, List.mem_cons_self, _, rfl,
-        by simp [AddInductive.constructorInfo], by simp [AddInductive.constructorInfo]⟩
-    · rcases ih htail with ⟨c, hc, info, he, hn, hi⟩
-      exact ⟨c, List.mem_cons_of_mem _ hc, info, he, hn, hi⟩
-
-theorem ConstructorTypeEntries.ctorOfEntry
-    {stats : AddInductive.InductiveStats} {lparams : List Name}
-    {isUnsafe : Bool} {owners : List InductiveType}
-    {entries : List (ConstantInfo × VConstVal)}
-    (H : ConstructorTypeEntries
-      (AddInductive.constructorInfo stats lparams isUnsafe) owners entries)
-    {entry : ConstantInfo × VConstVal} (hentry : entry ∈ entries) :
-    ∃ owner ∈ owners, ∃ ctor ∈ owner.ctors, ∃ info : ConstructorVal,
-      entry.1 = .ctorInfo info ∧ info.name = ctor.name ∧ info.induct = owner.name := by
-  induction H with
-  | nil => simp at hentry
-  | cons Hhead Htail ih =>
-    rcases List.mem_append.mp hentry with hhead | htail
-    · rcases Hhead.ctorOfEntry hhead with ⟨ctor, hctor, info, he, hn, hi⟩
-      exact ⟨_, List.mem_cons_self, ctor, hctor, info, he, hn, hi⟩
-    · rcases ih htail with ⟨owner, howner, ctor, hctor, info, he, hn, hi⟩
-      exact ⟨owner, List.mem_cons_of_mem _ howner, ctor, hctor, info, he, hn, hi⟩
-
 /-- Every constructor visible in the kernel environment after the lowered run either
 predates the inductive installation or is a constructor of one of the
 installed families, recording that family as its owner. -/
@@ -1157,13 +1107,12 @@ theorem RecursorInstallation.ctorInfoOrigin
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : RecursorInstallation R outEnv) (hwf : c.env.constants.WF)
+    (H : RecursorInstallation R outEnv)
     {n : Name} {info : ConstructorVal}
     (hfind : outEnv.find? n = some (.ctorInfo info)) :
     c.env.find? n = some (.ctorInfo info) ∨
       ∃ owner ∈ indTypes.toList, ∃ ctor ∈ owner.ctors,
         n = ctor.name ∧ info.induct = owner.name := by
-  have := hwf
   rcases H.outOrigin hfind with hctor | ⟨r, -, hr⟩
   · rcases R.ctorEnv_cases hctor with hhead | ⟨iv, hiv, cval, hc, hci, hname⟩
     · rcases R.headerEnv_cases hhead with hold | ⟨_, -, hci, -⟩
@@ -1187,6 +1136,14 @@ theorem NestedLowering.resultTypes_eq
 
 /-! ### The restoration tables of a validated nested run -/
 
+variable
+    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
+
 open _root_.Lean4Lean.InductiveSignature in
 /-- The container specialisations of a validated nested run (as in
 `NestedRun.containerSpecializations`), together with the
@@ -1196,29 +1153,23 @@ the source constructors into the lowered ones by leaves that the restoration
 table inverts (`Restoration.RestoringLeaf`), for the source families and
 for the auxiliary families alike. -/
 theorem NestedRun.restorationTablesRestoringAllSpec
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∃ (envTypes : VEnv) (generated : List VInductiveType)
         (auxiliaries : List ContainerSpecialization),
-      (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+      (ves.venv (safetyOf isUnsafe)).addConstVals
         sourceDecl.typeConstants = some envTypes ∧
       envTypes.WF ∧
       List.Forall₂ (SpecializationGenerates
-        (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
+        (ves.venv (safetyOf isUnsafe)) envTypes
         E.lowered.headers.commonParameterContext sourceDecl)
         auxiliaries generated ∧
       List.Forall₂ (VInductDecl.NestedTypeExpansion
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+          (ves.venv (safetyOf isUnsafe)) sourceDecl
           (VInductDecl.NestedOccurrenceReplacementAbs
-            (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+            (ves.venv (safetyOf isUnsafe)) sourceDecl generated))
         generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length) ∧
       result.params.size = result.nparams ∧
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
@@ -1230,7 +1181,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
           source.ctors lowered.ctors)
         sourceDecl.types (E.lowered.loweredDecl.types.take sourceDecl.types.length) ∧
       List.Forall₂ (VInductDecl.NestedTypeExpansion
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+          (ves.venv (safetyOf isUnsafe)) sourceDecl
           ((compilationRestoration sourceDecl auxiliaries).RestoringLeaf
             (VLevel.params sourceDecl.uvars)))
         generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length) ∧
@@ -1295,7 +1246,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
   have hempty : initialState.nestedAux = #[] := by
     rfl
   rcases Hrun.auxiliaryFamilySources (R := R) Hcache Hparams wfP
-      hinitial HcP Hsources HsourceHeaders HsourceAdded HsourceTypesWF
+      hinitial Hsources HsourceHeaders HsourceAdded HsourceTypesWF
       hempty E.auxiliarySelection Htranslations Htarget with ⟨N, hNctx⟩
   have hctxEq : N.parameterContext = P.headers.commonParameterContext := by
     exact hNctx
@@ -1440,7 +1391,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
     have hmainMem : main ∈ sourceTypes := by rw [hsourceTypes]; simp
     rcases Hrun.preservesInitialTypeName ⟨main, by simpa using hmainMem, rfl⟩ with
       ⟨loweredMain, hloweredMain, hloweredName⟩
-    rcases Hprod.findSourceHeader HcP (by simpa using hloweredMain) with
+    rcases Hprod.findSourceHeader (by simpa using hloweredMain) with
       ⟨info, hfindMain, _hctors, hall⟩
     rw [hloweredName] at hfindMain
     have hsourceNames := forall₂_trInductiveType_names Hsource.types
@@ -1517,7 +1468,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
       rcases Hper a ha with ⟨_, _, _, _, _, _, _, nested, hfind, _⟩
       exact ⟨nested, hfind⟩
     · intro c cinfo hfind a ha hinduct
-      rcases Hprod.ctorInfoOrigin hwfMap hfind with hold | ⟨owner, howner, ctor, hctor, rfl, hown⟩
+      rcases Hprod.ctorInfoOrigin hfind with hold | ⟨owner, howner, ctor, hctor, rfl, hown⟩
       · exfalso
         rcases wfP.constructorOwners c cinfo hold with ⟨ownerInfo, hownerFind, -⟩
         rcases Hper a ha with ⟨_, _, _, _, _, _, _, nested, hfindAux, _⟩
@@ -1676,29 +1627,23 @@ theorem NestedRun.restorationTablesRestoringAllSpec
 
 open _root_.Lean4Lean.InductiveSignature in
 theorem NestedRun.restorationTablesRestoringAll
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∃ (envTypes : VEnv) (generated : List VInductiveType)
         (auxiliaries : List ContainerSpecialization),
-      (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+      (ves.venv (safetyOf isUnsafe)).addConstVals
         sourceDecl.typeConstants = some envTypes ∧
       envTypes.WF ∧
       List.Forall₂ (SpecializationGenerates
-        (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
+        (ves.venv (safetyOf isUnsafe)) envTypes
         E.lowered.headers.commonParameterContext sourceDecl)
         auxiliaries generated ∧
       List.Forall₂ (VInductDecl.NestedTypeExpansion
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+          (ves.venv (safetyOf isUnsafe)) sourceDecl
           (VInductDecl.NestedOccurrenceReplacementAbs
-            (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+            (ves.venv (safetyOf isUnsafe)) sourceDecl generated))
         generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length) ∧
       result.params.size = result.nparams ∧
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
@@ -1710,7 +1655,7 @@ theorem NestedRun.restorationTablesRestoringAll
           source.ctors lowered.ctors)
         sourceDecl.types (E.lowered.loweredDecl.types.take sourceDecl.types.length) ∧
       List.Forall₂ (VInductDecl.NestedTypeExpansion
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+          (ves.venv (safetyOf isUnsafe)) sourceDecl
           ((compilationRestoration sourceDecl auxiliaries).RestoringLeaf
             (VLevel.params sourceDecl.uvars)))
         generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length) ∧
@@ -1724,29 +1669,23 @@ open _root_.Lean4Lean.InductiveSignature in
 /-- `restorationTablesRestoringAll` without the auxiliary families' restoring
 expansion. -/
 theorem NestedRun.restorationTablesRestoring
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∃ (envTypes : VEnv) (generated : List VInductiveType)
         (auxiliaries : List ContainerSpecialization),
-      (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+      (ves.venv (safetyOf isUnsafe)).addConstVals
         sourceDecl.typeConstants = some envTypes ∧
       envTypes.WF ∧
       List.Forall₂ (SpecializationGenerates
-        (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
+        (ves.venv (safetyOf isUnsafe)) envTypes
         E.lowered.headers.commonParameterContext sourceDecl)
         auxiliaries generated ∧
       List.Forall₂ (VInductDecl.NestedTypeExpansion
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+          (ves.venv (safetyOf isUnsafe)) sourceDecl
           (VInductDecl.NestedOccurrenceReplacementAbs
-            (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+            (ves.venv (safetyOf isUnsafe)) sourceDecl generated))
         generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length) ∧
       result.params.size = result.nparams ∧
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv

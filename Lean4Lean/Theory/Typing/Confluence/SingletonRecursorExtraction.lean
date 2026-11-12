@@ -28,7 +28,7 @@ import Lean4Lean.Theory.Typing.SingletonExtraction.TelescopeTyping
 
 /-! # Singleton extraction for a registered recursor
 
-The abstract extraction interface (`PropElim`, `SingletonExtraction.lean`) is
+The abstract extraction interface (`PropElim`, `SingletonExtraction/Basic.lean`) is
 instantiated at a registered recursor of a large-eliminating inductive
 proposition: the field and index telescopes come from the generated signature at the
 occurrence's source universes, and the eliminator into `Prop` is the recursor

@@ -24,8 +24,8 @@ produced in `Nested/Restoration/Restore.lean`, its rule typing is added in
   the stages of `VEnv.addInduct`), the kernel insertion order and the output constant map
   (`order`, `map_eq`, `fresh`, `newUnsafe`);
 * the **shape clauses** of `VInductDecl.WF` for the restored recursors (`recs_wf`, `rec_shape`,
-  `rules_nodup`, `rules_ctor` on the container's or the block's constructors, `rule_shape`,
-  `rules_closed`) and the facts recursor reduction reads of the new recursors in the output
+  `rules_nodup`, `rules_ctor` on the container's or the block's constructors, `rule_shape`)
+  and the facts recursor reduction reads of the new recursors in the output
   model (`recShapes`, `recK`), auxiliary recursors included.
 
 What is *not* here is the typing of the restored rules (`VInductDecl.WF.rules_wf`,
@@ -106,8 +106,6 @@ structure RestoredBlock {c : AddInductive.Context} {Hc : ContextWF c} {nparams :
     r.type.piBinders[r.numParams + r.numMotives + j]? = some A ∧ A.MinorFor ru.ctor ∧
     ru.nfields ≤ A.piArity ∧
     ru.rhs.RuleShape r.numParams r.numMotives r.numMinors ru.nfields (A.piArity - ru.nfields) j
-  /-- Every restored reduct is closed, so the rule stage succeeds. -/
-  rules_closed : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ru.rhs.Closed
   /-- The output model: the rule stage. -/
   outVEnv : VEnv
   rulesAdded : decl.addRules envR = some outVEnv
@@ -159,7 +157,7 @@ theorem stC (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     B.decl.addCtors B.envTypes = some B.envCtors := by
   rw [VInductDecl.addCtors_eq_addConstVals]; exact B.source.ctorsAdded
 
-/-- PR #43's step witness, assembled from the stages. -/
+/-- The step witness `AddInduct`, assembled from the stages. -/
 def addInduct (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     AddInduct c.safety c.env.constants Hc.venv B.decl outEnv.constants B.outVEnv where
   ivals := B.ivals
@@ -219,13 +217,6 @@ theorem rules_ofRestoredEquation (B : RestoredBlock L sourceTypes isUnsafe outEn
   obtain ⟨eq, heq, hrestore⟩ := Lean4Lean.List.Forall₂.forall_exists_r (List.mapM_eq_some.mp h) df hdf
   obtain ⟨k, -, rfl⟩ := List.mem_map.mp heq
   exact ⟨k, hrestore⟩
-
-/-- (For `WF.patCtor_rigid`.) The constructor of every restored rule is a constructor of the
-source declaration or of a registered ι rule of the source model (a container's). -/
-theorem rule_ctor_cases (B : RestoredBlock L sourceTypes isUnsafe outEnv)
-    {r : VRecursor} {ru : VRecRule} (hr : r ∈ B.decl.recs) (hru : ru ∈ r.rules) :
-    (∃ ctor ∈ B.decl.constructorConstants, ru.ctor = ctor.name) ∨ VEnv.IsPatCtor Hc.venv ru.ctor :=
-  B.compilesTo.rule_ctor_cases B.recsOf hr hru
 
 /-- `VInductDecl.WF` of the restored declaration, given the typing of its rules
 (`RestoredBlock.rulesWF`, `Nested/Equations/Rules.lean`). -/

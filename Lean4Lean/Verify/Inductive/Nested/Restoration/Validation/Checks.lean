@@ -7,7 +7,7 @@ Selection lemmas for the `forM` loops of the four validation passes of
 `restoreNestedAfterInstall`, and the checker-facing content of a single successful step: a
 successful `checkType`/`ensureSort` run in a `CheckerEnv` translates the checked expression
 and types it in the model (`TypeChecker.checkType.WF`, `ensureSort.WF`,
-`M.WF.runChecking`/`runCheckingMLC`), and `validateNestedAuxiliaries.WF`. -/
+`M.WF.runChecking`/`runCheckingMLC`). -/
 
 namespace Lean4Lean
 

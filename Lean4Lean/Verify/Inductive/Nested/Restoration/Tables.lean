@@ -3,8 +3,8 @@ import Lean4Lean.Verify.Inductive.Recursor.Context.ForallTelescope
 
 /-! The restoration table data of a nested run: the executable facts that fix the
 executable restoration tables relative to an abstract specialisation list
-(`RestorationTablesAgree`). It is stated separately from the nested installation so that
-`RestoredBlockDerivation` can record the specialisation list of its restored case eliminators. -/
+(`RestorationTablesAgree`). It is stated separately from the nested installation, which
+consumes it. -/
 
 namespace Lean4Lean
 open Lean hiding Environment Exception

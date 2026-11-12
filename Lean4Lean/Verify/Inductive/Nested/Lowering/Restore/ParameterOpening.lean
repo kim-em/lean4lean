@@ -123,37 +123,6 @@ theorem _root_.Lean.Expr.FVarIdsIn.abstractN_instantiate1
   rw [Expr.abstractN_singleton (hc.instantiate1 (a := Expr.fvar fv) trivial).looseBVarRange_le]
   exact H.abstract_instantiate1
 
-theorem _root_.Lean.Expr.FVarIdsIn.abstractN_of
-    {e : Expr} {selected : FVarId} {P : FVarId → Prop} {k : Nat}
-    (H : e.FVarIdsIn (fun fv => fv = selected ∨ P fv)) :
-    (e.abstractN [selected] k).FVarIdsIn P := by
-  induction e generalizing k <;>
-    simp_all [Expr.FVarIdsIn, Expr.abstractN, Expr.lastRevIdx?]
-  case fvar fv =>
-    split
-    next => trivial
-    next hne =>
-      rcases H with heq | hP
-      · subst fv
-        simp at hne
-      · exact hP
-
-theorem _root_.Lean.Expr.FVarIdsIn.mkAppList
-    {fn : Expr} {args : List Expr} {P : FVarId → Prop} :
-    (fn.mkAppList args).FVarIdsIn P ↔
-      fn.FVarIdsIn P ∧ ∀ arg ∈ args, arg.FVarIdsIn P := by
-  induction args generalizing fn <;>
-    simp_all [Expr.mkAppList, Expr.FVarIdsIn, and_assoc]
-
-theorem _root_.Lean.Expr.FVarIdsIn.getAppArgsList
-    {e a : Expr} {P : FVarId → Prop}
-    (H : e.FVarIdsIn P) (ha : a ∈ e.getAppArgsList) :
-    a.FVarIdsIn P := by
-  have H' : (e.getAppFn.mkAppList e.getAppArgsList).FVarIdsIn P := by
-    rw [Expr.mkAppList_getAppArgsList]
-    exact H
-  exact (Expr.FVarIdsIn.mkAppList.mp H').2 a ha
-
 /-- Exact local-declaration extension performed alongside parameter opening.
 Declarations are recorded in binder order; `LocalContext.toList` stores the
 same suffix in reverse because newer declarations are at the front. -/
@@ -393,110 +362,8 @@ theorem ParamOpening.root_mkLambda_tail
     exact ⟨d, hfind d hd⟩
   · exact hnodup
 
-/-- Folding the declarations copied by a forall opening removes exactly the
-new parameter IDs.  `P` describes the free variables allowed before the
-opening; the root specialization uses `P := False`. -/
-theorem ParamOpening.forall_closing_data
-    (Hopen : ParamOpening lctx As e n outLctx outAs tail)
-    (Hwf : outLctx.WF)
-    (Htel : Expr.ForallTelescope e n residual)
-    (Hsource : e.FVarIdsIn P) :
-    ∃ decls : List LocalDecl,
-      outLctx.toList = decls.reverse ++ lctx.toList ∧
-      outAs.toList = As.toList ++
-        decls.map (fun d => Expr.fvar d.fvarId) ∧
-      decls.length = n ∧
-      (decls.map (fun d => d.fvarId)).Nodup ∧
-      (∀ d ∈ decls, outLctx.find? d.fvarId = some d) ∧
-      ∀ newBody,
-        newBody.FVarIdsIn
-          (fun fv => P fv ∨ fv ∈ decls.map (fun d => d.fvarId)) →
-        ((decls.map (fun d => d.fvarId)).foldr
-          (fun fv result =>
-            LocalContext.mkBindingList1N false outLctx [] fv
-              (result.abstractN [fv])) newBody).FVarIdsIn P := by
-  induction Hopen generalizing residual P with
-  | done =>
-    cases Htel
-    refine ⟨[], by simp, by simp, by simp, by simp, by simp, ?_⟩
-    intro newBody Hnew
-    exact Hnew.mono fun fv h => by simpa using h
-  | forallE Hnext ih =>
-    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
-    cases Htel with
-    | cons Hbody =>
-      simp only [Expr.FVarIdsIn] at Hsource
-      have HbodyInst : Expr.ForallTelescope
-          (body.instantiate1 (.fvar id)) n'
-          (residual.instantiate1' (.fvar id) n') := by
-        simpa [Expr.instantiate1_eq] using
-          Hbody.instantiate1' (.fvar id) 0
-      have HopenedSource : (body.instantiate1 (.fvar id)).FVarIdsIn
-          (fun fv => P fv ∨ fv = id) := by
-        have HbodyScope : body.FVarIdsIn
-            (fun fv => P fv ∨ fv = id) :=
-          Hsource.2.mono fun fv hP => Or.inl hP
-        apply HbodyScope.instantiate1
-        simp [Expr.FVarIdsIn]
-      rcases ih Hwf HbodyInst HopenedSource with
-        ⟨decls, hlctx, hparams, hlength, hnodup, hfind, hclose⟩
-      let decl : LocalDecl :=
-        .cdecl lctx'.decls.size id name dom bi .default
-      have hlctx' : outLctx'.toList =
-          (decl :: decls).reverse ++ lctx'.toList := by
-        simp [hlctx, decl, LocalContext.mkLocalDecl_toList]
-      have hparams' : outAs'.toList = As'.toList ++
-          (decl :: decls).map (fun d => Expr.fvar d.fvarId) := by
-        simp [hparams, decl, List.append_assoc, LocalDecl.fvarId]
-      have hallNodup :
-          ((decl :: decls).map (fun d => d.fvarId)).Nodup := by
-        have hall := Hwf.nodup
-        rw [hlctx', List.map_append] at hall
-        have hrev := (List.nodup_append.mp hall).1
-        rw [List.map_reverse] at hrev
-        exact List.nodup_reverse.mp hrev
-      have hfind' : ∀ d ∈ decl :: decls,
-          outLctx'.find? d.fvarId = some d := by
-        intro d hd
-        apply Lean.LocalContext.WF.find?_eq_some_of_mem Hwf
-        rw [hlctx']
-        exact List.mem_append_left _ (List.mem_reverse.mpr hd)
-      refine ⟨decl :: decls, hlctx', hparams', by simp [hlength],
-        hallNodup, hfind', ?_⟩
-      intro newBody Hnew
-      have HnewInner : newBody.FVarIdsIn
-          (fun fv => (P fv ∨ fv = id) ∨
-            fv ∈ decls.map (fun d => d.fvarId)) := by
-        apply Hnew.mono
-        intro fv hfv
-        rcases hfv with hP | hnew
-        · exact Or.inl (Or.inl hP)
-        · simp only [List.map_cons, List.mem_cons, decl,
-            LocalDecl.fvarId] at hnew
-          rcases hnew with hid | hrest
-          · exact Or.inl (Or.inr hid)
-          · exact Or.inr hrest
-      have Hinner := hclose newBody HnewInner
-      have Habstract :
-          ((decls.map (fun d => d.fvarId)).foldr
-            (fun fv result =>
-              LocalContext.mkBindingList1N false outLctx' [] fv
-                (result.abstractN [fv])) newBody).abstractN [id] |>.FVarIdsIn P := by
-        apply Expr.FVarIdsIn.abstractN_of
-        exact Hinner.mono fun fv hfv => by
-          rcases hfv with hP | hid
-          · exact Or.inr hP
-          · exact Or.inl hid
-      simp only [List.map_cons, List.foldr_cons]
-      have hhead := hfind' decl (by simp)
-      have hheadId : outLctx'.find? id = some decl := by
-        simpa [decl, LocalDecl.fvarId] using hhead
-      simpa [LocalContext.mkBindingList1N, hheadId, decl,
-        LocalDecl.fvarId, Expr.FVarIdsIn, Expr.abstractN_nil] using
-        And.intro Hsource.1 Habstract
-  | lam Hnext ih => cases Htel
-/-- Full-scoping twin of `forall_closing_data`: the same closing fold also preserves
-level metavariable freedom recorded by `FVarsIn`.  `P` describes the free variables allowed before the
+/-- The closing fold of a parameter opening preserves the scoping recorded by `FVarsIn`
+(free variables and level metavariable freedom).  `P` describes the free variables allowed before the
 opening; the root specialization uses `P := False`. -/
 theorem ParamOpening.forall_closing_data_fvarsIn
     (Hopen : ParamOpening lctx As e n outLctx outAs tail)
@@ -626,47 +493,6 @@ theorem ParamOpening.root_mkForall_tail
     exact ⟨d, hfind d hd⟩
   · exact hnodup
 
-/-- Closing an arbitrary body scoped by a root opening's selected parameters
-produces an expression with no free-variable IDs. -/
-theorem ParamOpening.root_mkForall_fvarIdsClosed
-    (Hopen : ParamOpening {} #[] e n outLctx outAs tail)
-    (Hwf : outLctx.WF)
-    (Htel : Expr.ForallTelescope e n residual)
-    (Hsource : e.FVarIdsIn fun _ => False)
-    (Hselection : CDeclArray outLctx outAs)
-    (Hbody : body.FVarIdsIn (· ∈ Hselection.fvars)) :
-    (outLctx.mkForall outAs body).FVarIdsIn fun _ => False := by
-  rcases Hopen.forall_closing_data Hwf Htel Hsource with
-    ⟨decls, _hlctx, hparams, _hlength, hnodup, hfind, hclose⟩
-  have harray :
-      outAs = (decls.map (fun d => Expr.fvar d.fvarId)).toArray := by
-    apply Array.toList_inj.mp
-    simpa using hparams
-  have hselectionIds :
-      Hselection.fvars = decls.map (fun d => d.fvarId) := by
-    have harr : (Hselection.fvars.map Expr.fvar).toArray =
-        ((decls.map (fun d => d.fvarId)).map Expr.fvar).toArray := by
-      rw [← Hselection.expressions, harray]
-      simp
-    have hlist : Hselection.fvars.map Expr.fvar =
-        (decls.map (fun d => d.fvarId)).map Expr.fvar := by
-      simpa using congrArg Array.toList harr
-    exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlist
-  have Hbody' : body.FVarIdsIn
-      (fun fv => False ∨ fv ∈ decls.map (fun d => d.fvarId)) := by
-    apply Hbody.mono
-    intro fv hfv
-    exact Or.inr (by simpa [hselectionIds] using hfv)
-  rw [harray, LocalContext.mkForall]
-  rw [show decls.map (fun d => Expr.fvar d.fvarId) =
-      (decls.map (fun d => d.fvarId)).map Expr.fvar by simp]
-  rw [LocalContext.mkBinding_eqN]
-  rw [LocalContext.mkBindingListN_eq_fold]
-  · exact hclose body Hbody'
-  · intro fv hfv
-    rcases List.mem_map.mp hfv with ⟨d, hd, rfl⟩
-    exact ⟨d, hfind d hd⟩
-  · exact hnodup
 /-- Closing an arbitrary body scoped by a root opening's selected parameters
 produces an expression with no free variables and no level metavariables,
 provided the opened source had none. -/

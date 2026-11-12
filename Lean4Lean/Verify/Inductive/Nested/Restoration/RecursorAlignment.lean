@@ -2,19 +2,14 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.LoweredRuleAvoidance
 import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 import Lean4Lean.Verify.Inductive.Nested.Restoration.HeaderRenaming
 import Lean4Lean.Verify.Inductive.Nested.Restoration.FreshRecursorSteps
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
-/-! Recursor alignment of a validated nested run: every recursor of the output is
-aligned with its abstract translation (`NewRecursorsAligned`).
+/-! Lookups of a validated nested run in its lowered and output environments.
 
-`NestedRun.recursorsAligned_of` discharges the `Hprovenance`
-hypothesis of `NestedRun.assemblyOfRun_of_run`.
-
-The hypothesis quantifies over an arbitrary specialization list carrying
-`RestorationTablesAgree`. The restoration `compilationRestoration decl auxiliaries`
-is determined by the table data (`RestorationTablesAgree.expr_eq`,
-`Nested/Restoration/HeaderRenaming.lean`), so the specialization list of
-`restorationTablesRestoringAll`, for which all the formation facts are
-available, may be used instead. -/
+`NestedRun.loweredSourceKeyed`: a source family's header in the lowered environment carries
+its name. `NestedRun.restoredMajorFound`: the major inductive of a restored recursor is an
+inductive type of the output environment, either a restored source family header or the
+container family of the nested occurrence recorded by lowering. -/
 
 namespace Lean4Lean
 
@@ -25,87 +20,6 @@ open InductiveSignature
 namespace VerifyInductive
 
 open private Lean.Kernel.Environment.add from Lean.Environment
-
-
-end VerifyInductive
-
-/-! ### Shapes of restored recursors and their rules -/
-
-namespace InductiveSignature
-
-
-/-- The recursor shape of a restored recursor at the specialization head of
-its translation (`TrRestoredRecursorVal`). -/
-theorem TrRestoredRecursorVal.shape_of_head {s : InductiveSignature} {g : Instance s}
-    {r : Restoration} {sourceNames : List Name} {venv : VEnv}
-    {owner : Fin s.families.size} {rec : Lean.RecursorVal}
-    (H : TrRestoredRecursorVal g r sourceNames venv owner rec)
-    (hconst : ∃ type, r.expr (g.recursorType owner) = some type ∧
-      venv.constants rec.name = some ⟨rec.levelParams.length, type⟩)
-    {head : RestoredFamilyHead}
-    (hargs : ∀ arg ∈ head.arguments, arg.ClosedN s.params.length)
-    (happ : r.expr (g.familyApp owner
-      (vars s.params.length
-        (s.families.size + s.constructors.size + s.families[owner].indices.length))
-      (vars s.families[owner].indices.length 0)) =
-      some (VExpr.mkApps (.const head.name head.levels)
-        (head.arguments.map (fun arg => arg.liftN
-          (s.families.size + s.constructors.size + s.families[owner].indices.length)) ++
-          vars s.families[owner].indices.length 0))) :
-    Nonempty (VRecursorShape venv rec.name rec.levelParams.length rec.numParams
-      head.arguments.length rec.numMotives rec.numMinors rec.numIndices
-      head.name head.levels head.arguments) := by
-  rcases hconst with ⟨type, htype, hconst⟩
-  rcases r.expr_recursorType_eq_some htype with ⟨pre, major, hpre, hm, rfl⟩
-  have hprelen : pre.length = s.params.length + s.families.size +
-      s.constructors.size + s.families[owner].indices.length := by
-    rw [← g.recursorPrefix_length owner]
-    exact (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.mp hpre)).symm
-  have hmaj : major = VExpr.mkApps (.const head.name head.levels)
-      (head.arguments.map (fun arg => arg.liftN
-        (s.families.size + s.constructors.size + s.families[owner].indices.length)) ++
-        vars s.families[owner].indices.length 0) :=
-    Option.some.inj (hm.symm.trans happ)
-  refine ⟨{
-    ctorParams_length := rfl
-    ctorParams_closed := by rw [H.numParams]; exact hargs
-    type := _
-    const := hconst
-    doms := pre ++ [major]
-    result := g.recursorBody owner
-    type_eq := rfl
-    doms_length := by
-      simp [hprelen, H.numParams, H.numMotives, H.numMinors, H.numIndices]
-    major_eq := ?_ }⟩
-  rw [H.numParams, H.numMotives, H.numMinors, H.numIndices, ← hprelen,
-    List.getElem?_concat_length, hmaj, InductiveSignature.vars_eq_bvarRange_add, Nat.add_zero]
-
-
-
-
-end InductiveSignature
-
-/-! ### Constructor shapes of certified containers -/
-
-
-
-namespace InductiveSignature
-
-
-end InductiveSignature
-
-namespace VerifyInductive
-
-open private Lean.Kernel.Environment.add from Lean.Environment
-
-private theorem Restoration.recursor_name {r : Restoration} {v w : VConstVal}
-    (h : r.recursor v = some w) : w.name = r.recursorName v.name := by
-  simp only [Restoration.recursor, Option.bind_eq_bind, Option.pure_def] at h
-  cases ht : r.expr v.type with
-  | none => simp [ht] at h
-  | some type =>
-    simp only [ht, Option.bind_some, Option.some.injEq] at h
-    rw [← h]
 
 theorem Kernel.Environment.find?_eq_constants {env : Environment}
     (hwf : env.constants.WF) (name : Name) :
@@ -139,7 +53,6 @@ theorem NestedRun.loweredSourceKeyed {result : Lean4Lean.ElimNestedInductive.Res
   cases h'
   rw [hname, hun]
 
-
 /-- **The major inductive of a restored recursor is an inductive type of the
 output environment**: a restored source family header, or the container
 family of the nested occurrence recorded by lowering. -/
@@ -151,19 +64,19 @@ theorem NestedRun.restoredMajorFound
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (Haux : List.Forall₂ (SpecializationGenerates
-      (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
+      (ves.venv (safetyOf isUnsafe)) envTypes
       E.lowered.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
-        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+        (ves.venv (safetyOf isUnsafe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+          (ves.venv (safetyOf isUnsafe)) sourceDecl generated))
       generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.lowered.loweredDecl.types ++
       E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)

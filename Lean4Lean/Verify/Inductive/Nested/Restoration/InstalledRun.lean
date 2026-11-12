@@ -25,7 +25,6 @@ structure NestedInstalledRun
     NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams nparams isUnsafe safety
       outEnv L where
   assembly : RestoredBlockBase restoration sourceEnv decl lparams nparams isUnsafe safety
-  lowered_eq : assembly.loweredDecl = L.loweredDecl
 
 section
 

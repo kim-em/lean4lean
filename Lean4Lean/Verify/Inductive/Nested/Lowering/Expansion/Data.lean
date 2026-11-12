@@ -28,7 +28,7 @@ theorem ConstructorCheck.nestedExpansionData
     (R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv res.types.toArray
       ctorEnv)
     {ves : VEnvs} {safety : DefinitionSafety} (wf : ves.WF c.env)
-    (hsourceVEnv : sourceVEnv = ves.venv safety) (Hc : ContextWF c)
+    (hsourceVEnv : sourceVEnv = ves.venv safety)
     (Hlow : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       (loweringInitialState c.lparams sourceTypes) res)
     (hsources : checkInductiveSources c.env sourceTypes = .ok ())
@@ -53,7 +53,7 @@ theorem ConstructorCheck.nestedExpansionData
   have hlen := Hlow.types_length
   obtain ⟨finalState, Hrun, Hcache, Hparams⟩ := Hlow
   obtain ⟨N, -⟩ := Hrun.auxiliaryFamilySources (R := R)
-    (initialState := loweringInitialState c.lparams sourceTypes) Hcache Hparams wf hsourceVEnv Hc
+    (initialState := loweringInitialState c.lparams sourceTypes) Hcache Hparams wf hsourceVEnv
     Hchecked HsourceHeaders HsourceAdded HsourceTypesWF (by rfl) selection Htranslations R.core
   have henv : sourceVEnv.WF := by subst hsourceVEnv; exact wf.tr.wf
   have Htypes := Hrun.allExpansionsOfSources
@@ -67,39 +67,6 @@ theorem ConstructorCheck.nestedExpansionData
   exact ⟨NestedExpansionData.ofConstructorPhases R N.generated hnonempty Hparameters
     (R.core.uvars.trans Hsource.uvars.symm) (R.core.nparams.trans Hsource.nparams.symm)
     (R.core.isUnsafe.trans Hsource.isUnsafe.symm) Htypes, rfl⟩
-
-/-- Nested formation of the source declaration, through the lowered declaration. -/
-theorem ConstructorCheck.nestedFormationWF
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceVEnv : VEnv} {ctorEnv : Environment} {fuel : Nat}
-    {sourceTypes : List InductiveType} {res : ElimNestedInductive.Result}
-    (R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv res.types.toArray
-      ctorEnv)
-    {ves : VEnvs} {safety : DefinitionSafety} (wf : ves.WF c.env)
-    (hsourceVEnv : sourceVEnv = ves.venv safety) (Hc : ContextWF c)
-    (Hlow : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
-      (loweringInitialState c.lparams sourceTypes) res)
-    (hsources : checkInductiveSources c.env sourceTypes = .ok ())
-    {sourceDecl : VInductDecl} {envTypes envCtors : VEnv}
-    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes isUnsafe sourceDecl
-      envTypes envCtors)
-    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
-    (HsourceHeaders : List.Forall₂
-      (fun source target => TrSourceConst sourceVEnv c.lparams source.name
-        source.type target.toVConstVal)
-      sourceTypes (loweredDecl.types.take sourceTypes.length))
-    (HsourceAdded : sourceVEnv.addConstVals
-      ((loweredDecl.types.take sourceTypes.length).map
-        VInductiveType.toVConstVal) = some envTypes)
-    (HsourceTypesWF : envTypes.WF)
-    (selection : CDeclArray res.lctx res.params)
-    (Htranslations : ClosedNestedOccurrenceTypings envTypes c.lparams res selection)
-    (Hparameters : sourceDecl.SourceParameterWF sourceVEnv) :
-    sourceDecl.NestedFormationWF sourceVEnv :=
-  let ⟨D, _⟩ := R.nestedExpansionData wf hsourceVEnv Hc Hlow hsources Hsource Hmetadata
-    HsourceHeaders HsourceAdded HsourceTypesWF selection Htranslations Hparameters
-  D.formation
 
 end VerifyInductive
 end Lean4Lean

@@ -309,19 +309,6 @@ theorem Pattern.Check.OK.map
   | defeq a b rest ih => exact ⟨h _ _ H.1, ih H.2⟩
   | nonzero level rest ih => exact ⟨H.1, ih H.2⟩
 
-/-- `OK.map` with a change of universe instantiation, which must preserve the universe
-guards. -/
-theorem Pattern.Check.OK.map_levels
-    {df df' : VExpr → VExpr → Prop} {p : Pattern} {ck : p.Check} {m1 m2 m1' m2'}
-    (hl : ∀ level : VLevel, ¬(level.inst m1 ≈ .zero) → ¬(level.inst m1' ≈ .zero))
-    (h : ∀ a b : p.RHS,
-      df (a.apply m1 m2) (b.apply m1 m2) → df' (a.apply m1' m2') (b.apply m1' m2'))
-    (H : ck.OK df m1 m2) : ck.OK df' m1' m2' := by
-  induction ck with
-  | true => trivial
-  | defeq a b rest ih => exact ⟨h _ _ H.1, ih H.2⟩
-  | nonzero level rest ih => exact ⟨hl _ H.1, ih H.2⟩
-
 /-- A check without universe guards: the shape of every registered rule. -/
 def Pattern.Check.Unguarded {p : Pattern} : p.Check → Prop
   | .true => True
@@ -341,15 +328,6 @@ def Pattern.Check.Realizes {p : Pattern} (m1 : List VLevel) (m2 : p.Path → VEx
     t.1 = RHS.apply m1 m2 a ∧ t.2.1 = RHS.apply m1 m2 b ∧ rest.Realizes m1 m2 ts
   | .defeq _ _ _, [] => False
   | .nonzero _ _, _ => False
-
-theorem Pattern.Check.Realizes.unguarded {p : Pattern} {m1 m2} {ck : p.Check} {chk}
-    (hr : ck.Realizes m1 m2 chk) : ck.Unguarded := by
-  induction ck generalizing chk with
-  | true => trivial
-  | defeq a b rest ih =>
-    match chk, hr with
-    | _ :: ts, ⟨_, _, hr⟩ => exact ih hr
-  | nonzero _ _ _ => exact (hr : False).elim
 
 /-- If `chk` realizes `ck` and every triple in `chk` is related by `rel` at its
 type, then `ck.OK (untyped rel) holds`. Used to feed the `pat` rule's premises

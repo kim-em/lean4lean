@@ -2,6 +2,7 @@ import Lean4Lean.Verify.TypeChecker
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyRecursors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RestoredRecursorShapes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RuleFree
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! # The stripped checker environment of a nested run
 
@@ -50,18 +51,18 @@ theorem NestedRun.strippedChecker {ves : VEnvs} {res : ElimNestedInductive.Resul
     {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {outEnv : Environment}
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
-    (E : NestedRun res sourceProdEnv sourceTypes (ves.venv (if isUnsafe then .unsafe else .safe))
-      decl lparams nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
-    (B : RestoredBlockBase E.restoration (ves.venv (if isUnsafe then .unsafe else .safe)) decl
-      lparams nparams isUnsafe (if isUnsafe then .unsafe else .safe))
+    (E : NestedRun res sourceProdEnv sourceTypes (ves.venv (safetyOf isUnsafe))
+      decl lparams nparams isUnsafe (safetyOf isUnsafe) outEnv L)
+    (B : RestoredBlockBase E.restoration (ves.venv (safetyOf isUnsafe)) decl
+      lparams nparams isUnsafe (safetyOf isUnsafe))
     (hB : B.loweredDecl = E.lowered.loweredDecl) (wf : ves.WF sourceProdEnv)
     (Hsources : SourceSyntaxChecked sourceTypes)
-    (Hparameters : decl.SourceParameterWF (ves.venv (if isUnsafe then .unsafe else .safe)))
+    (Hparameters : decl.SourceParameterWF (ves.venv (safetyOf isUnsafe)))
     (hnested : res.aux2nested.size ≠ 0) :
-    CheckingEnv.Valid (if isUnsafe then .unsafe else .safe) (stripRecursorRules outEnv
+    CheckingEnv.Valid (safetyOf isUnsafe) (stripRecursorRules outEnv
         (restoredRecursorNames (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.recursorVEnv ∧
-      CheckerEnv (if isUnsafe then .unsafe else .safe) (stripRecursorRules outEnv
+      CheckerEnv (safetyOf isUnsafe) (stripRecursorRules outEnv
           (restoredRecursorNames (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
             sourceTypes (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1))
           B.recursorVEnv := by

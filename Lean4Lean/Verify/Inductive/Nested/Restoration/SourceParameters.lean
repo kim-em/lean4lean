@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.HeaderRenaming
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.AuxiliarySources
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! # Source parameter formation of a nested run
  `NestedRun.sourceCoreTypeShapes`, `NestedRun.sourceCoreParameterWF`: the source families inherit
@@ -147,14 +148,14 @@ theorem NestedRun.sourceCoreParameterWF
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     (Hraw : ∀ type ∈ sourceDecl.types, ∀ ctor ∈ type.ctors,
       sourceDecl.RawCtorShape type ctor) :
-    sourceDecl.SourceParameterWF (ves.venv (if isUnsafe then .unsafe else .safe)) := by
+    sourceDecl.SourceParameterWF (ves.venv (safetyOf isUnsafe)) := by
   let P := E.lowered
-  have hinitial : P.Hc'.venv = ves.venv (if isUnsafe then .unsafe else .safe) :=
+  have hinitial : P.Hc'.venv = ves.venv (safetyOf isUnsafe) :=
     E.lowered_initialEnv
   obtain ⟨paramsL, envTypesL, haddedL, HtypeShapesL, HctorsL, -⟩ :=
     P.constructors.formation.formationWF.sourceParameterWF
@@ -173,11 +174,11 @@ theorem NestedRun.sourceCoreParameterWF
   have S := E.headerInterpretationSound wf hadded henvTypes Haux Hexpansion hnodup
     henvTypes.orderedStrong VEnv.LE.rfl
   have hfresh := E.restorableNames_fresh hadded Haux Hexpansion hnodup
-  have hbaseWF : (ves.venv (if isUnsafe then .unsafe else .safe)).WF := TrEnv'.wf wf.tr
+  have hbaseWF : (ves.venv (safetyOf isUnsafe)).WF := TrEnv'.wf wf.tr
   have hbaseFresh : ∀ n ∈ (InductiveSignature.compilationRestoration sourceDecl auxiliaries).restorableNames,
-      (ves.venv (if isUnsafe then .unsafe else .safe)).constants n = none :=
+      (ves.venv (safetyOf isUnsafe)).constants n = none :=
     fun n hn => (VEnv.addConstVals_le hadded).constants_eq_none_left (hfresh n hn)
-  have Hsource : TrInductDeclCore (ves.venv (if isUnsafe then .unsafe else .safe))
+  have Hsource : TrInductDeclCore (ves.venv (safetyOf isUnsafe))
       lparams nparams sourceTypes isUnsafe sourceDecl E.sourceCore.envTypes
         E.sourceCore.envCtors := by
     simpa only [E.sourceCoreDecl_eq] using E.sourceCore.core

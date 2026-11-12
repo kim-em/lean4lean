@@ -1,6 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.Install.Result
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Restore
 import Lean4Lean.Verify.Inductive.Install.OrdinaryExtension
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! # The nested branch of `addInductiveAfterLowering`
 
@@ -31,7 +32,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
       isUnsafe false fuel res).WF fun outEnv =>
         Nonempty (InductiveExtension env outEnv ves lparams nparams sourceTypes isUnsafe) := by
   have Hout := loweringRun.WF wf Hsources Hlower
-  let safety : DefinitionSafety := if isUnsafe then .unsafe else .safe
+  let safety : DefinitionSafety := safetyOf isUnsafe
   let c := initialContext env lparams safety false fuel
   let Hc : ContextWF c := ContextWF.initial wf safety lparams false fuel
   have hnotPartial : c.safety ≠ .partial := by

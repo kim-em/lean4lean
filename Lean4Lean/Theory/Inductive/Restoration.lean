@@ -303,14 +303,5 @@ theorem Restoration.expr_of_avoid {r : Restoration} {e : VExpr}
     (h : e.containsAnyConst r.restorableNames = false) : r.expr e = some e :=
   Restoration.go_of_avoid (args := []) h
 
-theorem Restoration.mapM_expr_of_avoid {r : Restoration} :
-    ∀ {l : List VExpr}, (∀ e ∈ l, e.containsAnyConst r.restorableNames = false) →
-      l.mapM r.expr = some l
-  | [], _ => rfl
-  | e :: l, h => by
-    rw [List.mapM_cons, Restoration.expr_of_avoid (h e List.mem_cons_self),
-      mapM_expr_of_avoid (fun x hx => h x (List.mem_cons_of_mem _ hx))]
-    rfl
-
 end InductiveSignature
 end Lean4Lean

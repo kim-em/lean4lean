@@ -15,7 +15,7 @@ predicate `VInductDecl.WF` it is checked against: the definitional source and fo
 judgments (`VInductDecl.SourceWF`, `VInductDecl.FormationWF`), the compiled-recursor
 certificate (`VInductDecl.RecsCompiled`) and the typing and shape of the recursors and
 their rules. The syntactic constructor predicates (`CtorPositive`, `CtorResult`,
-`LargeElim`) are no longer clauses of `WF`; `Tests/IotaShape.lean` decides them on the
+`LargeElim`) are not clauses of `WF`; `Tests/IotaShape.lean` decides them on the
 kernel's data.
 -/
 
@@ -324,52 +324,12 @@ theorem VInductDecl.CompilesTo.names {env : VEnv} {decl : VInductDecl} {block : 
     ((block.types ++ block.ctors ++ block.recursors).map (·.name)).Nodup :=
   CompiledInductive.names_nodup H
 
-theorem InductiveSignature.FamilyTypesWF.mono {s : InductiveSignature}
-    {env env' : VEnv} {uvars : Nat}
-    (H : s.FamilyTypesWF env uvars) (hle : env ≤ env') :
-    s.FamilyTypesWF env' uvars :=
-  fun owner => ⟨(H owner).1.mono fun h => h.mono hle, (H owner).2.mono hle⟩
-
-theorem InductiveSignature.Models.mono
-    {s : InductiveSignature} {env env' envTypes' : VEnv} {decl : VInductDecl}
-    (H : s.Models env decl) (henv : env ≤ env')
-    (htypes : env'.addConstVals decl.typeConstants = some envTypes') :
-    s.Models env' decl := by
-  rcases H.constructors with ⟨envTypes, htypesOld, hctors⟩
-  have hle := VEnv.addConstVals_mono henv htypesOld htypes
-  refine { H with
-    families := ?_
-    constructors := ⟨envTypes', htypes, ?_⟩
-    classifiedFields := ?_ }
-  · exact Lean4Lean.List.Forall₂.imp
-      (fun _ _ h => h) H.families
-  · exact Lean4Lean.List.Forall₂.imp
-      (fun _ _ h => ⟨h.1, h.2.1, h.2.2.mono hle⟩) hctors
-  · rcases H.classifiedFields with hunsafe | ⟨envTypesPos, htypesPos, hpos⟩
-    · exact .inl hunsafe
-    · refine .inr ⟨envTypes', htypes, ?_⟩
-      intro ctor hc i hi
-      obtain ⟨normalized, hnormal, hshape⟩ := hpos ctor hc i hi
-      exact ⟨normalized,
-        hnormal.mono (VEnv.addConstVals_mono henv htypesPos htypes), hshape⟩
-
 theorem VInductDecl.CompilesTo.mono
     {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}
     (henv : env ≤ env')
     (Hblock : block.WF env')
     (H : decl.CompilesTo env block) : decl.CompilesTo env' block :=
   CompiledInductive.mono H henv Hblock
-
-theorem VInductDecl.CompilesTo.sourceNames
-    {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
-    (H : decl.CompilesTo env block) : decl.sourceNames.Nodup := by
-  have hprefix : ((block.types ++ block.ctors).map (·.name)).Nodup := by
-    apply List.Nodup.sublist (l₂ :=
-      (block.types ++ block.ctors ++ block.recursors).map (·.name))
-    · simp [List.map_append, List.append_assoc]
-    · exact H.names
-  simpa [VInductDecl.sourceNames, H.types, H.ctors, List.map_append]
-    using hprefix
 
 /-! ## Ordinary-or-nested formation derivations
 
@@ -770,12 +730,12 @@ structure VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop where
   nested block it is a constructor of the container, declared earlier. -/
   rules_ctor : ∀ envC, decl.addTypesCtors env = some envC → ∀ r ∈ decl.recs, ∀ ru ∈ r.rules,
     ∃ ci, envC.constants ru.ctor = some ci ∧ ci.type.CtorShape (ru.ctorParams + ru.nfields)
-  /-- This clause exists because `MajorApp` was weakened to admit the auxiliary recursors of
-  nested blocks. The rule's constructor parameter count is that of the declaration
+  /-- `MajorApp` admits the auxiliary recursors of nested blocks, so it does not fix the
+  parameter count of a rule's constructor; this clause does. The rule's constructor parameter count is that of the declaration
   the constructor belongs to: the block's own `nparams` for its own constructors, a container's
   for a constructor of a container installed below (the auxiliary recursors of a nested block).
   With `rules_ctor` and `VRecRule.OfEquation` it pins the split of a rule's arity into
-  parameters and fields, which `rec_shape`'s weakened `MajorApp` no longer does. -/
+  parameters and fields, which `rec_shape`'s `MajorApp` does not. -/
   rules_ctorParams : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules,
     (∃ c ∈ decl.constructorConstants, ru.ctor = c.name ∧ ru.ctorParams = decl.nparams) ∨
     (∃ D, VEnv.InstalledBelow env D ∧ ∃ c ∈ D.constructorConstants,

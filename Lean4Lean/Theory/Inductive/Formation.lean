@@ -961,12 +961,6 @@ def VInductBlock.WF (env : VEnv) (block : VInductBlock) : Prop :=
       ci.toVConstant.WF (envCtors.addProjections block.projections)) ∧
     ∀ df ∈ block.rules, df.WF envRecursors
 
-theorem VInductBlock.WF.exists_install (H : VInductBlock.WF env block) :
-    ∃ env', VInductBlock.install env block = some env' := by
-  rcases H with ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecs, _⟩
-  exact ⟨envRecursors.addDefEqRules block.rules, by
-    simp [VInductBlock.install, htypes, hctors, hrecs]⟩
-
 /-- Consume an exact forall prefix with the supplied arguments. Ill-shaped
 inputs are left unchanged; the formation judgments rule that branch out. -/
 def VExpr.instantiateForallPrefix : VExpr → List VExpr → VExpr
@@ -1074,39 +1068,6 @@ inductive VExpr.GuardedRuleRhs (recursors : List Name) : VExpr → Prop
       GuardedIota recursors [] 0 domain →
       GuardedRuleRhs recursors body →
       GuardedRuleRhs recursors (.lam domain body)
-
-/-- Guardedness depends on the recursor collection only through membership.
-This permits an executable checker to use the concrete restoration order and
-the abstract block proof to use its generated recursor order, once those two
-orders have been identified extensionally. -/
-theorem VExpr.GuardedIota.congrRecursors
-    {expression : VExpr} {recursors recursors' : List Name}
-    {fieldVars : List Nat} {depth : Nat}
-    (hsame : ∀ name, name ∈ recursors ↔ name ∈ recursors')
-    (H : expression.GuardedIota recursors fieldVars depth) :
-    expression.GuardedIota recursors' fieldVars depth := by
-  induction H with
-  | bvar => exact .bvar
-  | sort => exact .sort
-  | const fresh =>
-      exact .const (fun hmem => fresh ((hsame _).mpr hmem))
-  | app _ _ ihFn ihArg => exact .app ihFn ihArg
-  | proj _ ihMajor => exact .proj ihMajor
-  | lam _ _ ihDomain ihBody => exact .lam ihDomain ihBody
-  | forallE _ _ ihDomain ihBody => exact .forallE ihDomain ihBody
-  | recCall recursorMem arguments majorField ihArguments =>
-      exact .recCall ((hsame _).mp recursorMem) ihArguments majorField
-
-theorem VExpr.GuardedRuleRhs.congrRecursors
-    {expression : VExpr} {recursors recursors' : List Name}
-    (hsame : ∀ name, name ∈ recursors ↔ name ∈ recursors')
-    (H : expression.GuardedRuleRhs recursors) :
-    expression.GuardedRuleRhs recursors' := by
-  induction H with
-  | body fieldVars guarded =>
-      exact .body fieldVars (guarded.congrRecursors hsame)
-  | lam domainGuarded _ ihBody =>
-      exact .lam (domainGuarded.congrRecursors hsame) ihBody
 
 def VInductDecl.ownedConstructors
     (decl : VInductDecl) : List (VInductiveType × VConstVal) :=
@@ -1474,82 +1435,5 @@ structure VInductDecl.IotaRule (env : VEnv)
   recursive_results :
     (rhsArgs.drop (ctorArgs.length - decl.nparams)).length = recursiveArgs.length
   rhs_guarded : rhsBody.GuardedIota (block.recursors.map (·.name)) fieldVars 0
-
-/-- A constructor field selected by a restored nested equation.  Unlike
-`RecursiveField`, this record does not claim that the source field has a
-direct mutual-family head: a genuinely nested field may instead be handled
-by one of the restored auxiliary recursors. -/
-structure VInductDecl.NestedIotaField where
-  fieldIndex : Nat
-  arg : VExpr
-
-/-- Declarative iota equation for a restored source recursor of a nested declaration.
-
-The motives and minors of the auxiliary families remain in the restored source
-recursor's telescope, so their exact counts come from the same
-`NestedRecursorShape` as the recursor itself.  Recursive arguments are
-recorded by their ordered constructor-field positions rather than by
-`RecursiveArg`: the latter deliberately recognizes only direct mutual-family
-heads and therefore cannot classify fields such as `List Tree`.
-
-Typing of the equation remains an independent obligation of
-`VInductBlock.WF`; together with `rhs_guarded`, it ensures that every selected
-field is used only by a well-typed restored recursor call. -/
-structure VInductDecl.NestedIotaRule
-    (decl : VInductDecl) (block : VInductBlock)
-    (owner : VInductiveType) (ctor : VConstVal) (rule : VDefEq) where
-  recursor : VConstVal
-  recursor_mem : recursor ∈ block.recursors
-  recursor_shape : decl.NestedRecursorShape owner recursor
-  rule_uvars : rule.uvars = recursor.uvars
-  domains : List VExpr
-  lhsBody : VExpr
-  rhsBody : VExpr
-  typeBody : VExpr
-  lhs_wrapped : rule.lhs = VExpr.wrapLams domains lhsBody
-  rhs_wrapped : rule.rhs = VExpr.wrapLams domains rhsBody
-  type_wrapped : rule.type = VExpr.wrapForalls domains typeBody
-  recursorLevels : List VLevel
-  leadingArgs : List VExpr
-  ctorLevels : List VLevel
-  ctorArgs : List VExpr
-  lhs_pattern :
-    lhsBody = VExpr.mkApps (.const recursor.name recursorLevels)
-      (leadingArgs ++ [VExpr.mkApps (.const ctor.name ctorLevels) ctorArgs])
-  recursor_levels : recursorLevels.length = recursor.uvars
-  ctor_levels : ctorLevels.length = decl.uvars
-  leading_arity : leadingArgs.length = decl.nparams +
-    recursor_shape.motives.length + recursor_shape.minors.length +
-      owner.numIndices
-  constructor_arity : decl.nparams ≤ ctorArgs.length
-  parameter_args : ctorArgs.take decl.nparams =
-    leadingArgs.take decl.nparams
-  domains_arity : domains.length = decl.nparams +
-    recursor_shape.motives.length + recursor_shape.minors.length +
-      (ctorArgs.length - decl.nparams)
-  recursiveFields : List NestedIotaField
-  fieldPositions : List Nat
-  fieldPositions_eq : fieldPositions = recursiveFields.map (·.fieldIndex)
-  fieldPositions_ordered : fieldPositions.Pairwise (· < ·)
-  fields_at_positions : ∀ field ∈ recursiveFields,
-    ∃ h : field.fieldIndex < (ctorArgs.drop decl.nparams).length,
-      field.arg = (ctorArgs.drop decl.nparams)[field.fieldIndex]'h
-  recursiveArgs : List VExpr
-  recursiveArgs_eq : recursiveArgs = recursiveFields.map (·.arg)
-  recursive_args : List.Sublist recursiveArgs (ctorArgs.drop decl.nparams)
-  fieldVars : List Nat
-  fieldVars_eq : fieldVars = recursiveArgs.filterMap VExpr.bvarHead?
-  fields_in_scope : ∀ field ∈ fieldVars, field < domains.length
-  minorVar : Nat
-  minor_in_scope : minorVar < domains.length
-  rhsArgs : List VExpr
-  rhs_spine : rhsBody.getAppFnArgs = (.bvar minorVar, rhsArgs)
-  field_args : rhsArgs.take (ctorArgs.length - decl.nparams) =
-    ctorArgs.drop decl.nparams
-  recursive_results :
-    (rhsArgs.drop (ctorArgs.length - decl.nparams)).length =
-      recursiveArgs.length
-  rhs_guarded : rhsBody.GuardedIota
-    (block.recursors.map (·.name)) fieldVars 0
 
 end Lean4Lean

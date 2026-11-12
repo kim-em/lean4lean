@@ -43,24 +43,6 @@ theorem _root_.Lean4Lean.InductiveSignature.CompilationData.recursorEntries_name
     RecursorSchema.ofCompilation, Instance.recursors, Instance.recursor]
   simp only [hdata.recursorNames]
 
-/-- Successful installation of the declaration makes every new metadata name fresh in the
-previous environment: the metadata names are the block's recursor names, the declaration's
-recursors (`VInductDecl.RecsOf`), fresh when `VEnv.addInduct` adds them. -/
-theorem _root_.Lean4Lean.InductiveSignature.CompilationData.recursorEntries_fresh
-    {installBase installed : VEnv}
-    (hdata : CompilationData base source expanded s g auxiliaries block)
-    (hrecs : source.RecsOf block)
-    (hinstall : installBase.addInduct source = some installed)
-    (hentry : data ∈ compilationEntries key source s auxiliaries g) :
-    installBase.constants data.name = none := by
-  have hname : data.name ∈ block.recursors.map (·.name) := by
-    rw [← hdata.recursorEntries_names (key := key)]
-    exact List.mem_map.mpr ⟨data, hentry, rfl⟩
-  rw [← hrecs.recursors, List.map_map] at hname
-  obtain ⟨rec, hrec, heq⟩ := List.mem_map.mp hname
-  rw [← heq]
-  exact addInduct_rec_fresh hinstall hrec
-
 /-- Restoration succeeds for every selected family because the
 entire restored recursor list was actually installed. -/
 theorem RecursorRegistered.recursorType_exists

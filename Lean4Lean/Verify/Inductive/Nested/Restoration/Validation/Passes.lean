@@ -76,7 +76,7 @@ theorem validateRestoredRecursorTypes.check.WF (C : CheckerEnv safety env venv)
   · cases h
 
 /-- `validateRestoredRecursorTypes.run`, over the source and auxiliary recursors. -/
-theorem validateRestoredRecursorTypes.run.WF (C : CheckerEnv safety env venv)
+theorem validateRestoredRecursorTypes.run.WF
     (loweredEnv : Environment) (fuel : FuelConfig) (res : ElimNestedInductive.Result)
     (recNameMap : NameMap Name) (allIndNames : List Name) (types : List InductiveType)
     (auxRecNames : List Name)
@@ -85,7 +85,6 @@ theorem validateRestoredRecursorTypes.run.WF (C : CheckerEnv safety env venv)
     ∀ recName ∈ types.map (mkRecName ·.name) ++ auxRecNames,
       validateRestoredRecursorTypes.check env loweredEnv safety fuel res recNameMap allIndNames
         recName = .ok () := by
-  have := C
   exact forM_append_names_eq_ok _ h
 
 /-- `validateRestoredRecursorRules.check`: the lowered recursor exists and the reduct of every
@@ -113,7 +112,7 @@ theorem validateRestoredRecursorRules.check.WF (C : CheckerEnv safety env venv)
   · cases h
 
 /-- `validateRestoredRecursorRules.run`, over the source and auxiliary recursors. -/
-theorem validateRestoredRecursorRules.run.WF (C : CheckerEnv safety env venv)
+theorem validateRestoredRecursorRules.run.WF
     (loweredEnv : Environment) (fuel : FuelConfig) (res : ElimNestedInductive.Result)
     (recNameMap : NameMap Name) (allIndNames : List Name) (types : List InductiveType)
     (auxRecNames : List Name)
@@ -122,7 +121,6 @@ theorem validateRestoredRecursorRules.run.WF (C : CheckerEnv safety env venv)
     ∀ recName ∈ types.map (mkRecName ·.name) ++ auxRecNames,
       validateRestoredRecursorRules.check env loweredEnv safety fuel res recNameMap allIndNames
         recName = .ok () := by
-  have := C
   exact forM_append_names_eq_ok _ h
 
 /-- `validateNestedAuxiliaries`, with the inferred types: in a well-formed checker context `mlctx`
@@ -167,25 +165,6 @@ theorem validateNestedAuxiliaries.WF_typing (C : CheckerEnv safety env venv)
         res.aux2nested)[name]? = some e
       exact hfind
   exact H () h
-
-/-- `validateNestedAuxiliaries`: in a well-formed checker context `mlctx` of the model whose
-local context is the lowering's, every cached nested occurrence `I Ds` translates and is typed
-(`validateNestedAuxiliaries.WF_typing` without the inferred type). -/
-theorem validateNestedAuxiliaries.WF (C : CheckerEnv safety env venv) (lparams : List Name)
-    (fuel : FuelConfig) (res : ElimNestedInductive.Result)
-    (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams) (hlctx : mlctx.lctx = res.lctx)
-    (hfresh : ∀ fv ∈ mlctx.vlctx.fvars, ({} : TypeChecker.State).ngen.Reserves fv)
-    (hfvars : ∀ n nested, res.aux2nested.find? n = some nested →
-      nested.FVarsIn (· ∈ mlctx.vlctx.fvars))
-    (h : validateNestedAuxiliaries env lparams safety fuel res = .ok ()) :
-    ∀ n nested, res.aux2nested.find? n = some nested →
-      ∃ e T, TrExprS venv lparams mlctx.vlctx nested e ∧
-        venv.HasType lparams.length mlctx.vlctx.toCtx e T := by
-  intro n nested hfind
-  obtain ⟨_, e, T, -, he, -, hT⟩ :=
-    validateNestedAuxiliaries.WF_typing C lparams fuel res mlctx hmlctx hlctx hfresh hfvars h
-      n nested hfind
-  exact ⟨e, T, he, hT⟩
 
 /-- **The stripped restored environment** (the output with the new recursors' rules removed,
 in which the restored rules are validated) is a valid checking environment of the recursor

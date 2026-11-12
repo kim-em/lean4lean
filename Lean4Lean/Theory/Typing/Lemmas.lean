@@ -1384,7 +1384,8 @@ theorem Ctx.SubstEq.wf (W : Ctx.SubstEq env U Γ₀ σ σ' Γ) : OnCtx Γ (env.I
   | cons _ hA _ ih => exact ⟨ih, _, hA⟩
 
 variable! (henv : Ordered env) in
-/-- The identity substitution, which `nil` no longer pins: an induction on the context. -/
+/-- The identity substitution relates every well-formed context to itself, by induction on the
+context (`nil` covers only the empty context). -/
 theorem Ctx.SubstEq.id : ∀ {Γ}, OnCtx Γ (env.IsType U) → Ctx.SubstEq env U Γ .id .id Γ
   | [], _ => .nil
   | A::Γ, ⟨hΓ, _, hA⟩ => by

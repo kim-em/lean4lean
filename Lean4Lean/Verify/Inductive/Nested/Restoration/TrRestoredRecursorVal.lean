@@ -102,12 +102,6 @@ structure TrRestoredCompilation (env : VEnv) (source : VInductDecl)
         (source.types.map (·.name)) venv)
       (List.finRange s.families.size) entries
 
-theorem TrRestoredCompilation.compiles
-    (H : TrRestoredCompilation env source block venv entries) :
-    CompiledInductive env source block := by
-  rcases H.generated with ⟨_, _, _, _, hdata, hprior, _⟩
-  exact .intro hdata hprior
-
 /-- The source parameter count is fixed even if the restored constructor has
 additional specialized parameters. Corrupting this concrete count cannot be
 repaired by choosing another existential signature. -/

@@ -129,7 +129,7 @@ theorem singletonReconstruction_levels
   simp only [hS', hE', bind, Option.bind_some, hlenF]
   exact ⟨_, _, rfl, hrel.ctor.mkApps_args (List.Forall₂.append' hps h), h⟩
 
-/-- The singleton prefix unfolding: `prefixUnfolding` with the reconstruction of
+/-- The singleton prefix unfolding: a `PrefixUnfolding` with the reconstruction of
 `singletonReconstruction`. -/
 noncomputable def singletonUnfolding (env : VEnv) (data : RecursorData) (_U : Nat)
     (levels : List VLevel) (arguments : List VExpr) : Option PrefixUnfolding := do

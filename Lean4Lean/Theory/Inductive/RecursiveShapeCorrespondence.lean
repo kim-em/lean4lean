@@ -507,50 +507,6 @@ theorem recursiveShape_correspondence {env env' envTypes : VEnv} {decl : VInduct
     rw [hNlen, hDlen] at hsym
     exact hsym
 
-open VEnv in
-/-- `recursiveShape_correspondence` for the hypotheses of a constructor's minor premise, in an
-environment in which some generated recursor type is well formed (which gives both the typing of
-the induction hypotheses, `generatedIHsWellTyped_of_recursorType`, and of their contexts). -/
-theorem recursiveShape_correspondence_of_recursorType {env env' envTypes : VEnv}
-    {decl : VInductDecl} (g : Instance s) (hM : s.Models env decl) (hsafe : s.isUnsafe = false)
-    (htypes : env.addConstVals decl.typeConstants = some envTypes) (hle : envTypes ≤ env')
-    (henv : env'.WF) (hls : ∀ l ∈ g.levels, l.WF g.uvars)
-    (hrigid : ∀ type ∈ decl.types, env'.Rigid type.name)
-    (owner : Fin s.families.size) (H : env'.IsType g.uvars [] (g.recursorType owner))
-    (index : Fin s.constructors.size) {j i : Nat} {r : Recursive s.families.size}
-    (hj : j < (recursiveFields s.constructors[index]).length)
-    (hp : (recursiveFields s.constructors[index])[j] = (i, r)) :
-    ∃ (hi : i < s.constructors[index].fields.length) (domains : List VExpr) (result : VExpr)
-      (family : VInductiveType),
-      envTypes.IsDefEqU decl.uvars
-        (((s.fieldTypes s.constructors[index]).take i).reverse ++ s.params.reverse)
-        (s.fieldType i s.constructors[index].fields[i]) (VExpr.wrapForalls domains result) ∧
-      (∀ domain ∈ domains, domain.SourceConstFree (decl.types.map (·.name))) ∧
-      decl.ValidIndAppAt none (i + domains.length) result ∧
-      family ∈ decl.types ∧
-      result.getAppFnArgs.1 = .const family.name (VLevel.params decl.uvars) ∧
-      s.families[r.target].name = family.name ∧
-      r.binders.length = domains.length ∧
-      r.indices.length = s.families[r.target].indices.length ∧
-      (∀ k (hk : k < r.binders.length) (hk' : k < domains.length),
-        env'.IsDefEqU g.uvars
-          ((g.hypothesisDomains s.constructors[index] index.val j i r).reverse ++
-            g.hypothesisContext s.constructors[index] index.val j)
-          ((g.hypEmbed s.constructors[index] index.val j i r.binders[k] k).liftN
-            (r.binders.length - k))
-          ((g.hypEmbed s.constructors[index] index.val j i domains[k] k).liftN
-            (r.binders.length - k))) ∧
-      List.Forall₂ (env'.IsDefEqU g.uvars
-          ((g.hypothesisDomains s.constructors[index] index.val j i r).reverse ++
-            g.hypothesisContext s.constructors[index] index.val j))
-        (r.indices.map (g.hypEmbed s.constructors[index] index.val j i · r.binders.length))
-        ((result.getAppFnArgs.2.drop decl.nparams).map
-          (g.hypEmbed s.constructors[index] index.val j i · r.binders.length)) := by
-  have hO := hypothesis_onCtx_of_recursorType g henv owner H index j hj
-  simp only [hp] at hO
-  exact recursiveShape_correspondence g hM hsafe htypes hle henv hls hrigid
-    (Array.getElem_mem_toList _) index.isLt hj hp hO.1 hO.2
-
 end Instance
 end InductiveSignature
 

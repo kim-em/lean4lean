@@ -1,6 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.ProjNames
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.AuxiliaryConstructors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AuxiliaryProjections
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! # The typing of the restored generated equations of a nested run
 
@@ -30,17 +31,17 @@ theorem NestedRun.restoredEquationGaps
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∀ auxiliaries : List ContainerSpecialization,
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
       ∀ B : RestoredBlockBase E.restoration
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-          nparams isUnsafe (if isUnsafe then .unsafe else .safe),
+          (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+          nparams isUnsafe (safetyOf isUnsafe),
         B.loweredDecl = E.lowered.loweredDecl →
-        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
+        CheckingEnv.Valid (safetyOf isUnsafe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
@@ -63,17 +64,17 @@ theorem NestedRun.hrestoredWF_of
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∀ auxiliaries : List ContainerSpecialization,
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
       ∀ B : RestoredBlockBase E.restoration
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-          nparams isUnsafe (if isUnsafe then .unsafe else .safe),
+          (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+          nparams isUnsafe (safetyOf isUnsafe),
         B.loweredDecl = E.lowered.loweredDecl →
-        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
+        CheckingEnv.Valid (safetyOf isUnsafe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes

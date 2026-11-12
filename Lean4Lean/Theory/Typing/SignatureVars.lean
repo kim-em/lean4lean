@@ -59,14 +59,4 @@ theorem Restoration.mapM_expr_vars (r : Restoration) (count below : Nat) :
   | cons i is ih =>
     simpa [List.mapM_cons, Restoration.expr, Restoration.expr.go, VExpr.mkApps] using ih
 
-theorem Restoration.expr_bvar_mkApps {r : Restoration} {i : Nat} {args : List VExpr}
-    {out : VExpr} (h : r.expr (.mkApps (.bvar i) args) = some out) :
-    ∃ args', args.mapM r.expr = some args' ∧ out = .mkApps (.bvar i) args' := by
-  change Restoration.expr.go r (VExpr.mkApps _ _) [] = _ at h
-  rw [restoration_mkApps] at h
-  simp only [bind, Option.bind_eq_some_iff, List.append_nil] at h
-  obtain ⟨args', hargs, h⟩ := h
-  simp only [Restoration.expr.go, Option.some.injEq] at h
-  exact ⟨args', hargs, h.symm⟩
-
 end Lean4Lean.InductiveSignature

@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Environment.Basic
 /-! # The kernel constants of a restoration run
 
 The restoration folds (`NestedRestorationFolds`, `Steps.lean`) read off as lists: the restored
-headers with their constructors (`FoldSteps.inductiveInfos`, PR #43's `ivals`), the restored
+headers with their constructors (`FoldSteps.inductiveInfos`, `ivals`), the restored
 recursors (`FoldSteps.inductiveRecs` for the source families, `FoldSteps.recursorInfos` for
 the auxiliary recursors), the constants in the executable's insertion order
 (`NestedRestorationFolds.entries`), the exact fresh extension
@@ -222,7 +222,7 @@ theorem FoldSteps.inductiveEntries_perm :
   rw [h1, ← h2, ← h3, ← h4]
   exact perm_interleave _
 
-/-- The insertion order is a permutation of PR #43's stage order (`AddInduct.consts`). -/
+/-- The insertion order is a permutation of stage order (`AddInduct.consts`). -/
 theorem NestedRestorationFolds.entries_perm {types : List InductiveType}
     {auxRecNames : List Name} {sourceEnv : Environment} {out : Unit × Environment}
     (H : NestedRestorationFolds result loweredEnv sourceEnv auxRec allIndNames types auxRecNames
@@ -242,7 +242,7 @@ namespace VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-/-- The kernel side of a restoration run in the form of PR #43's `AddInduct`: the run's
+/-- The kernel side of a restoration run in the form of `AddInduct`: the run's
 constants in insertion order, a permutation of the stage order, fresh in the source map, and
 inserted into it to give the output map. -/
 theorem NestedRestorationFolds.kernelOrder {result : Lean4Lean.ElimNestedInductive.Result}

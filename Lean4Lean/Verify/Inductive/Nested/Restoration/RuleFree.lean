@@ -6,6 +6,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyKernel
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyRecursors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledRun
 import Lean4Lean.Verify.Inductive.Nested.Install.DependencyOrder
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! # The rule-free stage of a restored nested block
 
@@ -15,8 +16,9 @@ restored declaration with every recursor's rules removed (`RuleFreeStage`,
 `Validation/Stripped.lean`), stated over a step witness `AddInduct` whose output map is an
 `insertConsts`. The stripped environment re-inserts each recursor, so its constant map is not
 structurally an `insertConsts` of the block's constants. This file builds the rule-free stage
-over `S0`, the source environment extended by the stripped block (`ruleFreeEnv`), shows that
-the stripped environment has the same lookups (`stripRecursorRules_find?`, `ruleFreeEnv_find?`),
+over `S0`, the source environment extended by the stripped block (`addConstsEnv`), shows that
+the stripped environment has the same lookups (`stripRecursorRules_find?`,
+`stripRecursorRules_find?_eq_strip`),
 and transfers the checking invariant along that extensional equality
 (`CheckingEnv.Valid.mapExt`). -/
 
@@ -88,10 +90,6 @@ theorem stripRecCI_nonrec {names : List Name} {x : Name} {ci : ConstantInfo}
     | recInfo r => exact absurd rfl (h r)
     | _ => rfl
   · rfl
-
-theorem stripRecCI_stripped {names : List Name} {x : Name} (r : RecursorVal) :
-    stripRecCI names x (.recInfo { r with rules := [] }) = .recInfo { r with rules := [] } := by
-  unfold stripRecCI; split <;> rfl
 
 /-- **The lookups of the stripped environment**: a named recursor is found with its rules
 removed, every other constant unchanged. -/
@@ -307,23 +305,6 @@ theorem stripRecCI_eq_ctorInfo {names : List Name} {x : Name} {ci : ConstantInfo
 
 /-- A recursor value with its rules removed. -/
 abbrev _root_.Lean.RecursorVal.stripRules (r : RecursorVal) : RecursorVal := { r with rules := [] }
-
-/-- A model recursor with its rules removed. -/
-abbrev _root_.Lean4Lean.VRecursor.stripRules (r : VRecursor) : VRecursor := { r with rules := [] }
-
-/-- **Stripped recursor translation**: removing the rules of a recursor and of its model
-keeps the translation, in any constant map. -/
-theorem TrRecursor.stripRules {safety : DefinitionSafety} {envC envR : VEnv} {m m' : ConstMap}
-    {rval : RecursorVal} {r : VRecursor} (H : TrRecursor safety envC envR m rval r) :
-    TrRecursor safety envC envR m' rval.stripRules r.stripRules where
-  tr := H.tr
-  all := H.all
-  numParams := H.numParams
-  numMotives := H.numMotives
-  numMinors := H.numMinors
-  numIndices := H.numIndices
-  k := H.k
-  rules := .nil
 
 theorem consts_stripEntries (ivals : List (InductiveVal × List ConstructorVal))
     (rvals : List RecursorVal) :
@@ -614,41 +595,41 @@ theorem NestedRun.strippedValid {ves : VEnvs} {res : ElimNestedInductive.Result}
     {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {outEnv : Environment}
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
-    (E : NestedRun res sourceProdEnv sourceTypes (ves.venv (if isUnsafe then .unsafe else .safe))
-      decl lparams nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
-    (B : RestoredBlockBase E.restoration (ves.venv (if isUnsafe then .unsafe else .safe)) decl
-      lparams nparams isUnsafe (if isUnsafe then .unsafe else .safe))
+    (E : NestedRun res sourceProdEnv sourceTypes (ves.venv (safetyOf isUnsafe))
+      decl lparams nparams isUnsafe (safetyOf isUnsafe) outEnv L)
+    (B : RestoredBlockBase E.restoration (ves.venv (safetyOf isUnsafe)) decl
+      lparams nparams isUnsafe (safetyOf isUnsafe))
     (hB : B.loweredDecl = E.lowered.loweredDecl) (wf : ves.WF sourceProdEnv)
     (Hsources : SourceSyntaxChecked sourceTypes)
-    (Hparameters : decl.SourceParameterWF (ves.venv (if isUnsafe then .unsafe else .safe)))
+    (Hparameters : decl.SourceParameterWF (ves.venv (safetyOf isUnsafe)))
     (hk : ∀ r ∈ E.restoration.rvals, r.k = false)
     (hshapes : ∀ r ∈ E.restoration.rvals,
       (if isUnsafe then DefinitionSafety.unsafe else .safe) ≤ (ConstantInfo.recInfo r).safety →
       ∃ cnparams indLevels ctorParams, Nonempty (VRecursorShape B.recursorVEnv r.name
         r.levelParams.length r.numParams cnparams r.numMotives r.numMinors r.numIndices
         r.getMajorInduct indLevels ctorParams)) :
-    CheckingEnv.Valid (if isUnsafe then .unsafe else .safe) (stripRecursorRules outEnv
+    CheckingEnv.Valid (safetyOf isUnsafe) (stripRecursorRules outEnv
         (restoredRecursorNames (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.recursorVEnv ∧
-      (CheckerEnv (if isUnsafe then .unsafe else .safe) sourceProdEnv
-          (ves.venv (if isUnsafe then .unsafe else .safe)) →
-        CheckerEnv (if isUnsafe then .unsafe else .safe) (stripRecursorRules outEnv
+      (CheckerEnv (safetyOf isUnsafe) sourceProdEnv
+          (ves.venv (safetyOf isUnsafe)) →
+        CheckerEnv (safetyOf isUnsafe) (stripRecursorRules outEnv
           (restoredRecursorNames (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
             sourceTypes (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1))
           B.recursorVEnv) := by
-  have hin : CheckingEnv.Valid (if isUnsafe then .unsafe else .safe) sourceProdEnv
-      (ves.venv (if isUnsafe then .unsafe else .safe)) := wf.toCheckingValid _
+  have hin : CheckingEnv.Valid (safetyOf isUnsafe) sourceProdEnv
+      (ves.venv (safetyOf isUnsafe)) := wf.toCheckingValid _
   have hwf : sourceProdEnv.constants.WF := hin.tr.map_wf
   have hlisted : ListedConstructorsPresent sourceProdEnv := by
     have h := E.lowered.constructors.headers.sourcePresent
     rw [E.lowered_c, E.context_env] at h
     exact h
-  have hcoreE : TrInductDeclCore (ves.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
+  have hcoreE : TrInductDeclCore (ves.venv (safetyOf isUnsafe)) lparams nparams
       sourceTypes isUnsafe decl E.sourceCore.envTypes E.sourceCore.envCtors := by
     have h := E.sourceCore.core
     rw [E.sourceCoreDecl_eq] at h
     exact h
-  have hcore : TrInductDeclCore (ves.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
+  have hcore : TrInductDeclCore (ves.venv (safetyOf isUnsafe)) lparams nparams
       sourceTypes isUnsafe decl B.install.venvTypes B.install.venvCtors :=
     B.sourceTranslations.core B.typesSource B.uvars B.numParams B.unsafeEq B.typesAdded
       B.constructorsAdded
