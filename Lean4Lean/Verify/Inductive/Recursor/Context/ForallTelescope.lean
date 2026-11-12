@@ -1677,14 +1677,6 @@ theorem Expr.mkAppN_looseBVarRange_le
       simp only [List.foldl_cons, List.map_cons]
       exact ih (fn := fn.app arg)
 
-@[simp] theorem Expr.getAppFn_liftLooseBVars'
-    {e : Expr} {start amount : Nat} :
-    (e.liftLooseBVars' start amount).getAppFn =
-      e.getAppFn.liftLooseBVars' start amount := by
-  induction e generalizing start with
-  | app fn arg ih => simpa [Expr.getAppFn, Expr.liftLooseBVars'] using ih
-  | _ => rfl
-
 theorem Expr.ForallTelescope.consumeTypeAnnotationsVerified_eq_self_of_pos
     (H : Expr.ForallTelescope outer arity body) (hpos : 0 < arity) :
     (outer.consumeTypeAnnotationsVerified annOk) = outer := by
@@ -1707,18 +1699,6 @@ theorem Expr.ForallTelescope.consumeTypeAnnotationsVerified_arity
             Expr.forallE name dom body bi := by
         apply Expr.consumeTypeAnnotationsVerified_eq_self <;> rfl
       exact ⟨_, houter ▸ Expr.ForallTelescope.cons Htail⟩
-
-theorem Expr.AvoidingLambdaTelescope.abstract1
-    (H : Expr.AvoidingLambdaTelescope names outer arity result)
-    (fv : FVarId) (k : Nat := 0) :
-    Expr.AvoidingLambdaTelescope names (outer.abstract1 fv k) arity
-      (result.abstract1 fv (k + arity)) := by
-  induction H generalizing k with
-  | nil => exact .nil _
-  | cons hdom H ih =>
-    simp only [Expr.abstract1]
-    apply Expr.AvoidingLambdaTelescope.cons (hdom.abstract1 fv k)
-    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (k + 1)
 
 /-- `LocalContext.mkLambda` over a list of free variables denoting ordinary declarations
 gives a lambda telescope with the simultaneous abstraction as residual. -/
@@ -1757,51 +1737,6 @@ theorem LocalContext.mkBindingListN_lambdaTelescope
     List.length_reverse] using
     go fvs.reverse (body.abstractN fvs) (fun fv hfv =>
       hdecl fv (by simpa using hfv))
-
-theorem LocalContext.mkBindingListN_avoidingLambdaTelescope
-    (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
-      lctx.find? fv = some (.cdecl index fv name type bi kind))
-    (havoid : ∀ fv index name type bi kind,
-      fv ∈ fvs →
-      lctx.find? fv = some (.cdecl index fv name type bi kind) →
-      type.AvoidsConsts namesToAvoid) :
-    Expr.AvoidingLambdaTelescope namesToAvoid
-      (LocalContext.mkBindingListN true lctx fvs body)
-      fvs.length (body.abstractN fvs) := by
-  have go : ∀ (xs : List FVarId) (current : Expr),
-      xs ⊆ fvs →
-      (∀ fv ∈ xs, ∃ index name type bi kind,
-        lctx.find? fv = some (.cdecl index fv name type bi kind)) →
-      Expr.AvoidingLambdaTelescope namesToAvoid
-        (LocalContext.mkBindingListN.go true lctx xs current)
-        xs.length current := by
-    intro xs
-    induction xs with
-    | nil =>
-      intro current _ _
-      exact .nil _
-    | cons fv xs ih =>
-      intro current hsubset hxs
-      rw [LocalContext.mkBindingListN.go]
-      have htail := ih
-        (LocalContext.mkBindingList1N true lctx xs.reverse fv current)
-        (fun x hx => hsubset (by simp [hx]))
-        (fun x hx => hxs x (by simp [hx]))
-      rcases hxs fv (by simp) with
-        ⟨index, name, type, bi, kind, hfind⟩
-      have hhead : Expr.AvoidingLambdaTelescope namesToAvoid
-          (LocalContext.mkBindingList1N true lctx xs.reverse fv current)
-          1 current := by
-        simp only [LocalContext.mkBindingList1N, hfind]
-        apply Expr.AvoidingLambdaTelescope.cons
-        · exact (havoid fv index name type bi kind
-            (hsubset (by simp)) hfind).abstractN xs.reverse
-        · exact .nil _
-      simpa using htail.trans hhead
-  simpa only [LocalContext.mkBindingListN, LocalContext.mkBindingListN.core,
-    List.length_reverse] using
-    go fvs.reverse (body.abstractN fvs) (by simp)
-      (fun fv hfv => hdecl fv (by simpa using hfv))
 
 theorem LocalContext.mkLambda_fvars_lambdaTelescopeN
     {lctx : LocalContext} {fvs : List FVarId} {body : Expr}

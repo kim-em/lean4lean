@@ -1348,23 +1348,9 @@ structure GeneratedRecursors
     GeneratedRecursorEntry safety env lparams elimLevel c stats indTypes
       recInfos i entries[i]
 
-/-- Append-oriented form matching the `for dIdx in [:indTypes.size]` loop. -/
-structure GeneratedRecursorsPrefix
-    (safety : DefinitionSafety) (env : VEnv) (lparams : List Name)
-    (elimLevel : Level) (c : AddInductive.Context)
-    (stats : AddInductive.InductiveStats)
-    (indTypes : Array InductiveType)
-    (recInfos : Array AddInductive.RecInfo)
-    (entries : List (ConstantInfo × VConstVal)) where
-  covered : entries.length ≤ recInfos.size
-  entry : ∀ i (hi : i < entries.length),
-    GeneratedRecursorEntry safety env lparams elimLevel c stats indTypes
-      recInfos i entries[i]
-
 /-- Suffix-oriented traversal invariant used by the explicit recursive
-`declareRecursors.loop`. Unlike `GeneratedRecursorsPrefix`, this form can be
-applied recursively at an arbitrary owner index without carrying an
-accumulator through executable code. -/
+`declareRecursors.loop`. It can be applied recursively at an arbitrary owner
+index without carrying an accumulator through executable code. -/
 structure GeneratedRecursorsRange
     (safety : DefinitionSafety) (env : VEnv) (lparams : List Name)
     (elimLevel : Level) (c : AddInductive.Context)
@@ -1438,33 +1424,6 @@ theorem GeneratedRecursors.nonInductive
     simpa using Hentry.source_eq
   rw [hsource]
   simp
-
-/-- Generated recursor entries cannot introduce constructor metadata. -/
-theorem GeneratedRecursors.nonConstructor
-    (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
-      recInfos entries) :
-    ∀ (info : ConstantInfo) (value : VConstVal),
-      (info, value) ∈ entries → ∀ constructorValue,
-        info ≠ ConstantInfo.ctorInfo constructorValue := by
-  intro info value hmem constructorValue
-  rcases List.mem_iff_getElem.mp hmem with ⟨i, hi, heq⟩
-  have Hentry := H.entry i hi
-  rw [heq] at Hentry
-  have hsource : info = .recInfo Hentry.info := by
-    simpa using Hentry.source_eq
-  rw [hsource]
-  simp
-
-def GeneratedRecursorsPrefix.empty
-    (safety : DefinitionSafety) (env : VEnv) (lparams : List Name)
-    (elimLevel : Level) (c : AddInductive.Context)
-    (stats : AddInductive.InductiveStats)
-    (indTypes : Array InductiveType)
-    (recInfos : Array AddInductive.RecInfo) :
-    GeneratedRecursorsPrefix safety env lparams elimLevel c stats indTypes
-      recInfos [] where
-  covered := Nat.zero_le _
-  entry _ hi := by simp at hi
 
 /-- Every family index of the block names a generated recursor. -/
 theorem GeneratedRecursors.recursorName_mem

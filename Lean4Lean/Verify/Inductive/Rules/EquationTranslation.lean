@@ -15,41 +15,6 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- Equation-only payload for the generated rule batches of a recursor check.
-It does not ask its caller to reconstruct field selection or recursive-result
-semantics: each equation is paired with the exact rule alignment
-(`RuleAlignment`) of its rule. -/
-inductive RecursorInstallation.IotaEquationTranslations
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    (H : RecursorInstallation R outEnv)
-    (Us : List Name) (Delta : VLCtx) :
-    Nat → List VDefEq → Prop
-  | nil : H.IotaEquationTranslations Us Delta 0 []
-  | cons
-      (Hprior : H.IotaEquationTranslations Us Delta owner prior)
-      (howner : owner < H.entries.length)
-      (batch : List VDefEq)
-      (hlength : batch.length =
-        (H.generated.entry owner howner).info.rules.length)
-      (hroom : batch.length + prior.length ≤
-        decl.ownedConstructors.length)
-      (equations : ∀ i
-        (hctor : i < indTypes[owner]!.ctors.length)
-        (_hsource : i <
-          (H.generated.entry owner howner).info.rules.length)
-        (habstract : i < batch.length)
-        (_hindex : prior.length + i < decl.ownedConstructors.length),
-        ∃ A : H.RuleAlignment owner howner i hctor,
-          Nonempty (A.rule.EquationTranslation H.outVEnv Us Delta batch[i]) ∧
-          batch[i].uvars = H.entries[owner].2.uvars) :
-      H.IotaEquationTranslations Us Delta (owner + 1)
-        (prior ++ batch)
-
 /-- The independently translated recursor prefix and the genuine constructor
 field suffix have exactly the binder count retained by the executable rule.
 This is the shared context-length invariant for all canonical equation-body

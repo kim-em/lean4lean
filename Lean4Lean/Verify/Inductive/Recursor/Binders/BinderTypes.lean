@@ -38,8 +38,7 @@ structure ConstructorApplicationAt
     introTarget terminalTarget
 
 /-- Translations of an executable binder-type array under the
-recursor universe list.  This is the universe-parametric counterpart of
-`TranslatedOriginTypes`, used for major and motive rows after large
+recursor universe list, used for major and motive rows after large
 elimination has made `ContextWF` unavailable. -/
 structure TrBinderTypes
     {c : AddInductive.Context} {recLparams : List Name}
@@ -386,25 +385,6 @@ structure FVarArrayBinderTypes (c : AddInductive.Context)
   size_eq : origins.size = xs.size
   declaration : ∀ i (_hi : i < xs.size),
     ∃ D : FVarDeclAt c xs i, D.type = origins[i]!
-
-/-- Translations of the declared binder types in
-the current executable context.  Targets are stored explicitly because
-later recursor restoration must weaken them beneath subsequently introduced
-mutual binders. -/
-structure TranslatedOriginTypes (Hc : ContextWF c)
-    (origins : Array Expr) where
-  targets : List VExpr
-  translated : List.Forall₂
-    (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
-    origins.toList targets
-  isType : ∀ target ∈ targets,
-    Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx target
-
-def TranslatedOriginTypes.empty (Hc : ContextWF c) :
-    TranslatedOriginTypes Hc #[] where
-  targets := []
-  translated := .nil
-  isType _ h := by simp at h
 
 /-- Two declarations for the same expression in one local context
 have the same declaration type.  This permits different source

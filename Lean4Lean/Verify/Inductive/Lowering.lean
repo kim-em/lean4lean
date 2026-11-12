@@ -42,14 +42,6 @@ abbrev auxTypes (res : ElimNestedInductive.Result) (sourceTypes : List Inductive
     List InductiveType :=
   res.types.drop sourceTypes.length
 
-/-- The constructors of the auxiliary families are installed in `loweredEnv` as constructors
-of their family: what `ElimNestedInductive.Result.restoreNested` reads off the lowered
-environment (`getNestedIfAuxCtor`). The lowered run establishes it for its output. -/
-def LoweredAuxiliariesInstalled (res : ElimNestedInductive.Result)
-    (sourceTypes : List InductiveType) (loweredEnv : Environment) : Prop :=
-  ∀ t ∈ auxTypes res sourceTypes, ∀ c ∈ t.ctors,
-    ∃ cval : ConstructorVal, loweredEnv.find? c.name = some (.ctorInfo cval) ∧ cval.induct = t.name
-
 /-- **What a successful lowering run certifies** about its result `res` (produced by
 `loweringRun.WF`). The restoration consumers read it through these fields. -/
 structure NestedLoweringOutput (env : Environment) (fuel nparams : Nat)
@@ -112,9 +104,9 @@ structure NestedLoweringOutput (env : Environment) (fuel nparams : Nat)
   /-- Restoration inverts lowering on the source constructors, in any environment in which
   the source constructor type does not mention a cached family or a constructor of one
   (`RestoreSourceDisjoint`): the restored lowered constructor type is the source constructor
-  type up to `Expr.eqv` (binder names). The premise is not `LoweredAuxiliariesInstalled`,
-  which does not exclude a source constant registered in `loweredEnv` as a constructor of an
-  auxiliary family. -/
+  type up to `Expr.eqv` (binder names). The premise is not merely that the auxiliary
+  families are installed, which does not exclude a source constant registered in
+  `loweredEnv` as a constructor of an auxiliary family. -/
   restore_source : SourceSyntaxChecks env sourceTypes → SourceBVarClosed sourceTypes →
     ∀ loweredEnv, List.Forall₂ (fun lowered source => List.Forall₂
         (fun (lc sc : Constructor) => RestoreSourceDisjoint res loweredEnv sc.type →

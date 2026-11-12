@@ -722,10 +722,6 @@ theorem blocks : InstalledBlocks c.safety ctorEnv I.envP .headers := by
     · cases he
   · cases he
 
-theorem headerPresMap {n : Name} {ci : ConstantInfo} (h : headerEnv.constants.find? n = some ci) :
-    ctorEnv.constants.find? n = some ci :=
-  (toEnvFind I.ctorMapWF).mpr (I.headerPres ((toEnvFind I.headerMapWF).mp h))
-
 theorem sourcePresMap {n : Name} {ci : ConstantInfo} (h : c.env.constants.find? n = some ci) :
     ctorEnv.constants.find? n = some ci :=
   (toEnvFind I.ctorMapWF).mpr (I.sourcePres ((toEnvFind I.sourceMapWF).mp h))
@@ -798,7 +794,6 @@ noncomputable def context : ContextWF { c with env := ctorEnv } :=
   -- From the source context
   I.H.sourceContext.withEnv I.valid I.shapes I.iota I.sourceVEnvLE_P
 
-theorem context_venv : I.context.venv = I.envP := rfl
 theorem context_mlctx : I.context.mlctx = I.H.context.mlctx := I.H.contextMLCtx.symm
 
 noncomputable def parameters :

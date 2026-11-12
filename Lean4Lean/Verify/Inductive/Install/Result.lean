@@ -32,14 +32,6 @@ structure SourceAddInduct
 source judgment; this alias documents the ordinary use site. -/
 abbrev OrdinarySourceAddInduct := SourceAddInduct
 
-theorem SourceAddInduct.inductInstalled
-    (H : SourceAddInduct sourceEnv lparams nparams sourceTypes isUnsafe installedVEnv)
-    -- `InductInstalled` records a well-formed compiled block
-    (hcompiled : ∃ block, H.decl.CompilesTo sourceEnv block ∧ H.decl.RecsOf block ∧
-      block.WF sourceEnv) :
-    installedVEnv.InductInstalled H.decl :=
-  VEnv.InductInstalled.of_addInduct H.wf H.installed hcompiled
-
 /-- Uniform declaration-facing result for every inductive execution path. It records a
 complete model of the exact returned environment, pointwise extension of all source observers,
 and the independent specification of the exact submitted source declaration. -/

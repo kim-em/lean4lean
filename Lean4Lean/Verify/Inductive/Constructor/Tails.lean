@@ -178,10 +178,6 @@ theorem ParameterPrefix.forallSpine
     rw [heq]
     exact .step hbody'
 
-/-- The spine count of a forall spine is determined. -/
-theorem Expr.ForallSpine.unique (H₁ : Expr.ForallSpine e k₁) (H₂ : Expr.ForallSpine e k₂) :
-    k₁ = k₂ := H₁.constructorArity.symm.trans H₂.constructorArity
-
 /-- A partially instantiated common-parameter prefix.  Constructor checking
 builds this left-to-right; when `stop = stats.params.size`, it is exactly the
 complete prefix replay required by recursor generation. -/

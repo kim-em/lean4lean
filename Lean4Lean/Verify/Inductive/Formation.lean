@@ -191,20 +191,6 @@ def HeaderCertificate.mono {env env' : VEnv} (henv : env ≤ env')
   commonLevels := H.commonLevels
   typeShapes type htype := typeShape_mono henv (H.typeShapes type htype)
 
-/-- Prefix invariant threaded through `checkInductiveTypes.loopInd`. -/
-structure HeaderPrefixCertificate (env : VEnv) (decl : VInductDecl)
-    (params : List VExpr) (resultLevel : VLevel) (done : Nat) : Prop where
-  commonLevels : ∀ i, i < done → (hi : i < decl.types.length) →
-    decl.types[i].resultLevel ≈ resultLevel
-  typeShapes : ∀ i, i < done → (hi : i < decl.types.length) →
-    decl.TypeShape env params decl.types[i]
-
-theorem HeaderPrefixCertificate.empty (env : VEnv) (decl : VInductDecl)
-    (params : List VExpr) (resultLevel : VLevel) :
-    HeaderPrefixCertificate env decl params resultLevel 0 where
-  commonLevels _ h := by omega
-  typeShapes _ h := by omega
-
 /-- Output of the flattened constructor traversal: the shape of every owned constructor. -/
 structure ConstructorCertificate (env : VEnv) (decl : VInductDecl)
     (envTypes : VEnv) (params : List VExpr) : Prop where
@@ -268,11 +254,6 @@ theorem IndexedPrefix.push {len : Nat} {P : (i : Nat) → i < len → Prop} {don
     by_cases hlast : i = done
     · subst i; exact h
     · exact H.holds i (by omega) hi'
-
-/-- A complete prefix covers every position. -/
-theorem IndexedPrefix.all {len : Nat} {P : (i : Nat) → i < len → Prop}
-    (H : IndexedPrefix len P len) (i : Nat) (hi : i < len) : P i hi :=
-  H.holds i hi hi
 
 theorem getElem!_append_singleton_self {α : Type} [Inhabited α] {l : List α} {x : α} {n : Nat}
     (h : l.length = n) : (l ++ [x])[n]! = x := by
@@ -395,11 +376,6 @@ structure RecursorsWF (env : VEnv) (decl : VInductDecl) : Prop where
       (SimplePattern.iotaRHS r.name ru.ctor
         r.numParams r.numMotives r.numMinors r.numIndices ru.ctorParams ru.nfields ru.rhs hc,
         .true)
-
-theorem VInductDecl.WF.recursorsWF {env : VEnv} {decl : VInductDecl} (H : decl.WF env) :
-    RecursorsWF env decl :=
-  ⟨H.recsCompiled, H.recs_wf, H.rec_shape, H.rules_nodup, H.rules_ctor, H.rules_ctorParams,
-    H.rule_shape, H.rules_wf⟩
 
 /-- The declaration judgment from a formation certificate, the source judgment and the
 recursor half. -/
@@ -945,30 +921,12 @@ theorem TrInductDeclCore.constructorUvars
     ⟨sourceCtor, _hsourceCtor, Hctor⟩
   exact Hctor.uvars.trans H.uvars.symm
 
-theorem TrInductDeclCore.toTrInductDecl
-    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
-      envTypes envCtors)
-    (hnonempty : decl.types ≠ [])
-    (hnames : decl.sourceNames.Nodup) :
-    TrInductDecl env lparams nparams types isUnsafe decl := by
-  exact ⟨TrInductDeclCore.sourceWF H hnonempty hnames,
-    H.uvars, H.nparams, H.isUnsafe,
-    envTypes, envCtors, H.typesAdded, H.ctorsAdded, H.types⟩
-
 theorem TrInductDeclCore.sourceWF_ofNonempty
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl
       envTypes envCtors)
     (hnonempty : decl.types ≠ []) :
     decl.SourceWF env :=
   Lean4Lean.VerifyInductive.TrInductDeclCore.sourceWF H hnonempty
-    (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup H)
-
-theorem TrInductDeclCore.toTrInductDeclOfNonempty
-    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
-      envTypes envCtors)
-    (hnonempty : decl.types ≠ []) :
-    TrInductDecl env lparams nparams types isUnsafe decl :=
-  Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDecl H hnonempty
     (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup H)
 
 theorem TrInductDeclCore.nonempty
@@ -1029,58 +987,6 @@ theorem TrInductiveTypeHeaders.ctorAt
       target.ctors[i] :=
   List.forall₂_getElem H.ctors i hsource htarget
 
-theorem TrSourceConstRaw.checked
-    (H : TrSourceConstRaw env lparams name type ci')
-    (hwf : ci'.toVConstant.WF env) :
-    TrSourceConst env lparams name type ci' :=
-  ⟨H.uvars, H.name, H.type, hwf⟩
-
-/-- Constructor checking supplies exactly the typing facts missing from
-the header phase's raw constructor translations. -/
-theorem CheckedConstructorCertificate.translated
-    {types : List InductiveType}
-    (H : CheckedConstructorCertificate sourceEnv decl envTypes params)
-    (Hdecl : TrInductDeclHeaders sourceEnv lparams nparams types isUnsafe
-      decl envTypes) :
-    List.Forall₂
-      (fun (source : InductiveType) (target : VInductiveType) => List.Forall₂
-        (fun (ctor : Constructor) (ctor' : VConstVal) =>
-          TrSourceConst envTypes lparams ctor.name ctor.type ctor')
-        source.ctors target.ctors)
-      types decl.types := by
-  have hlength : types.length = decl.types.length :=
-    List.Forall₂.length_eq Hdecl.types
-  apply List.forall₂_of_getElem hlength
-  intro i hsource htarget
-  have Htype := List.forall₂_getElem
-    Hdecl.types i hsource htarget
-  have hctorLength : types[i].ctors.length = decl.types[i].ctors.length :=
-    List.Forall₂.length_eq Htype.ctors
-  apply List.forall₂_of_getElem hctorLength
-  intro j hsourceCtor htargetCtor
-  have Hctor := List.forall₂_getElem
-    Htype.ctors j hsourceCtor htargetCtor
-  apply Lean4Lean.VerifyInductive.TrSourceConstRaw.checked Hctor
-  have hwf := H.types decl.types[i].ctors[j] (by
-    simp only [VInductDecl.constructorConstants]
-    apply List.mem_flatMap.mpr
-    exact ⟨decl.types[i], List.getElem_mem htarget,
-      List.getElem_mem htargetCtor⟩)
-  have huvars : decl.types[i].ctors[j].uvars = decl.uvars :=
-    Hctor.uvars.trans Hdecl.uvars.symm
-  simpa [VConstant.WF, huvars] using hwf
-
-theorem TrInductDeclCore.headers
-    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
-      envTypes envCtors) :
-    TrInductDeclHeaders env lparams nparams types isUnsafe decl envTypes where
-  uvars := H.uvars
-  nparams := H.nparams
-  isUnsafe := H.isUnsafe
-  typesAdded := H.typesAdded
-  types := Lean4Lean.List.Forall₂.imp
-    (fun _ _ h => TrInductiveType.headers h) H.types
-
 /-- Inductive metadata does not affect translation of the source header:
 only visibility, universe parameters, name, and type enter the translation from the kernel
 environment. -/
@@ -1092,23 +998,6 @@ theorem TrSourceConst.inductInfo
     (hvisible : safety ≤
       (if info.isUnsafe then DefinitionSafety.unsafe else .safe)) :
     TrConstVal safety env (.inductInfo info) ci' := by
-  subst lparams
-  subst name
-  subst type
-  constructor
-  · exact ⟨by simpa [ConstantInfo.safety, ConstantInfo.isUnsafe,
-        ConstantInfo.isPartial] using hvisible,
-      H.uvars.symm, H.type⟩
-  · exact H.name.symm
-
-theorem TrSourceConst.ctorInfo
-    (H : TrSourceConst env lparams name type ci')
-    (hlevelParams : info.levelParams = lparams)
-    (hname : info.name = name)
-    (htype : info.type = type)
-    (hvisible : safety ≤
-      (if info.isUnsafe then DefinitionSafety.unsafe else .safe)) :
-    TrConstVal safety env (.ctorInfo info) ci' := by
   subst lparams
   subst name
   subst type

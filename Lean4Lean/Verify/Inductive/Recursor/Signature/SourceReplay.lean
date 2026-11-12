@@ -622,54 +622,6 @@ theorem sourceSignature_models
     all_goals simp [declaration, hfamilies, hctors, VInductDecl.constructorConstants, hempty]
   · exact R.sourceSignature_models_of_nonempty hempty
 
-/-- The family applications of the source signature are typed in the header environment. -/
-theorem sourceSignature_familyTypesWF_header
-    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
-    R.sourceSignature.FamilyTypesWF R.headerVEnv decl.uvars := by
-  intro owner
-  have henv := R.headerVEnv_wf
-  have hle : sourceEnv ≤ R.headerVEnv := VEnv.addConstVals_le R.core.typesAdded
-  have hheader : owner.val < R.sourceSignatureHeader.families.size := owner.isLt
-  have hdecl : owner.val < decl.types.length := by
-    have := Lean4Lean.List.Forall₂.length_eq R.sourceSignatureHeader_families
-    simp only [Array.length_toList] at this
-    omega
-  have hfam := Lean4Lean.List.forall₂_getElem R.sourceSignatureHeader_families owner.val
-    (by simpa using hheader) hdecl
-  simp only [Array.getElem_toList] at hfam
-  obtain ⟨hname, _, _, hdefeq⟩ := hfam
-  have hmem : decl.types[owner.val] ∈ decl.types := List.getElem_mem hdecl
-  have hsourceWF := Lean4Lean.VerifyInductive.TrInductDeclCore.sourceWF R.core
-    (List.ne_nil_of_mem hmem) (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup R.core)
-  have huvars : decl.types[owner.val].uvars = decl.uvars := hsourceWF.2.2.1 _ hmem
-  have hlookup : R.headerVEnv.constants decl.types[owner.val].name =
-      some decl.types[owner.val].toVConstant :=
-    VEnv.addConstVals_get R.core.typesAdded (List.mem_map.mpr ⟨_, hmem, rfl⟩)
-  have hconst := VEnv.HasType.const0 hlookup (henv.ordered.constWF hlookup)
-  change R.headerVEnv.HasType decl.types[owner.val].uvars [] (.const decl.types[owner.val].name
-      (VLevel.params decl.types[owner.val].uvars)) decl.types[owner.val].type at hconst
-  rw [huvars, ← hname] at hconst
-  have hW := hconst.defeqU_r henv trivial (hdefeq.symm.mono hle)
-  have hWT := hW.isType henv.ordered trivial
-  have hctx := (VEnv.IsType.wrapForalls_inv henv.ordered (ctx := []) trivial hWT).1
-  simp only [List.append_nil] at hctx
-  have happ := VEnv.HasType.mkApps_bvarRange henv hW hctx trivial
-  have hctx' : OnCtx (R.sourceSignatureHeader.families[owner.val].indices.reverse ++
-      R.sourceSignatureHeader.params.reverse) (R.headerVEnv.IsType decl.uvars) := by
-    simpa [List.reverse_append] using hctx
-  refine ⟨hctx', ?_⟩
-  change R.headerVEnv.HasType decl.uvars
-    (R.sourceSignatureHeader.families[owner.val].indices.reverse ++
-      R.sourceSignatureHeader.params.reverse)
-    (VExpr.mkApps (.const R.sourceSignatureHeader.families[owner.val].name
-      (VLevel.params decl.uvars))
-      (InductiveSignature.vars R.sourceSignatureHeader.params.length
-          R.sourceSignatureHeader.families[owner.val].indices.length ++
-        InductiveSignature.vars R.sourceSignatureHeader.families[owner.val].indices.length 0))
-    (.sort R.sourceSignatureHeader.families[owner.val].resultLevel)
-  rw [InductiveSignature.vars_append_eq_bvarRange, ← List.length_append]
-  simpa [List.reverse_append] using happ
-
 end ConstructorCheck
 
 end VerifyInductive

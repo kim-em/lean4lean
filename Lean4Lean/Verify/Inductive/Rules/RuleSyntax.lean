@@ -141,41 +141,6 @@ theorem RecursiveCall.outerAbstractedBody_eq_named
   rw [H.abstractedBody_eq_named]
   exact Expr.abstractList_app
 
-/-- Shifting loose variables cannot introduce a constant name. -/
-private theorem avoidsConsts_liftLooseBVars'
-    (H : Lean.Expr.AvoidsConsts names e) (start amount : Nat) :
-    Lean.Expr.AvoidsConsts names (e.liftLooseBVars' start amount) := by
-  induction H generalizing start with
-  | bvar i => exact .bvar _
-  | fvar fv => exact .fvar fv
-  | mvar mv => exact .mvar mv
-  | sort u => exact .sort u
-  | const name levels fresh => exact .const name levels fresh
-  | app fn arg _ _ ihFn ihArg =>
-      simpa [Expr.liftLooseBVars'] using
-        Lean.Expr.AvoidsConsts.app _ _ (ihFn start) (ihArg start)
-  | lam name dom body bi _ _ ihDom ihBody =>
-      simpa [Expr.liftLooseBVars'] using
-        Lean.Expr.AvoidsConsts.lam name _ _ bi
-          (ihDom start) (ihBody (start + 1))
-  | forallE name dom body bi _ _ ihDom ihBody =>
-      simpa [Expr.liftLooseBVars'] using
-        Lean.Expr.AvoidsConsts.forallE name _ _ bi
-          (ihDom start) (ihBody (start + 1))
-  | letE name type value body nondep _ _ _ ihType ihValue ihBody =>
-      simpa [Expr.liftLooseBVars'] using
-        Lean.Expr.AvoidsConsts.letE name _ _ _ nondep
-          (ihType start) (ihValue start) (ihBody (start + 1))
-  | lit value expanded _ =>
-      simpa [Expr.liftLooseBVars'] using
-        Lean.Expr.AvoidsConsts.lit value expanded
-  | mdata data body _ ih =>
-      simpa [Expr.liftLooseBVars'] using
-        Lean.Expr.AvoidsConsts.mdata data _ (ih start)
-  | proj structName idx body _ ih =>
-      simpa [Expr.liftLooseBVars'] using
-        Lean.Expr.AvoidsConsts.proj structName idx _ (ih start)
-
 /-- The retained closed call template instantiates its single recursor
 placeholder and leaves the locally abstracted index arguments unchanged. -/
 theorem TypedRecursiveCall.abstractedRecursor_eq
@@ -288,23 +253,6 @@ structure RecursiveCallsPrefix
     Nonempty (RecursiveCall indTypes stats motives minors lvls
       root u[i] v[i]!)
 
-/-- Prefix invariant for recursive-result generation with each executable
-call coupled to the independent recursive-domain judgment for its exact
-selected field. -/
-structure TypedRecursiveCalls
-    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
-    (motives minors : Array Expr) (lvls : List Level)
-    {root : AddInductive.Context} {recLparams : List Name}
-    (R : RecursorContextWF root recLparams)
-    (decl : VInductDecl) (depth : Nat) (P : FVarId → Prop)
-    (u v : Array Expr) (done : Nat) : Prop where
-  covered : done ≤ u.size
-  size : v.size = done
-  entries : ∀ i, i < done → (hi : i < u.size) →
-    ∃ S : TypedRecursiveCall indTypes stats motives
-        minors lvls R decl depth u[i] v[i]!,
-      S.rootScope = P
-
 /-- Typed recursive calls, each in the context in which the minor pass checked
 it.  Hypothesis allocation advances both the local context and validation depth;
 the closed generated rule does not justify collapsing these call contexts to the
@@ -389,29 +337,6 @@ theorem TypedRecursiveCallsAfterHypotheses.toAbove
         hscope, _Hmotive⟩
     exact ⟨originRoot, Rorigin, Hrecent.contextExtension,
       callDepth, S, hscope⟩
-
-theorem TypedRecursiveCalls.empty
-    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
-    (motives minors : Array Expr) (lvls : List Level)
-    {root : AddInductive.Context} {recLparams : List Name}
-    (R : RecursorContextWF root recLparams)
-    (decl : VInductDecl) (depth : Nat) (P : FVarId → Prop)
-    (u : Array Expr) :
-    TypedRecursiveCalls indTypes stats motives minors lvls
-      R decl depth P u #[] 0 where
-  covered := Nat.zero_le _
-  size := rfl
-  entries _ h := by omega
-
-theorem RecursiveCallsPrefix.empty
-    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
-    (motives minors : Array Expr) (lvls : List Level)
-    (root : AddInductive.Context) (u : Array Expr) :
-    RecursiveCallsPrefix indTypes stats motives minors lvls root
-      u #[] 0 where
-  covered := Nat.zero_le _
-  size := rfl
-  entries _ h := by omega
 
 /-- One generated iota rule retaining the constructor-field context and the
 binder-aware certificate for every recursive result. -/
@@ -819,27 +744,6 @@ theorem RecursorRuleSyntax.translatedLhsResidual
     exact hlhsRebuild.symm
   · simpa [leadingSource] using Hleading
   · simpa [ctorArgsSource] using HctorArgs'
-
-/-- Proof-side construction record for the `VDefEq` corresponding to one
-executable `RecursorRule`. The executable record stores only its constructor,
-field count, and RHS; this certificate makes the reconstructed LHS, common
-telescope, and equation type an explicit refinement boundary. -/
-structure RecursorRuleSyntax.EquationTranslation
-    (H : RecursorRuleSyntax indTypes stats motives minors lvls
-      sourceCtor minorIdx sourceRule)
-    (trEnv : VEnv) (Us : List Name) (Δ : VLCtx) (rule : VDefEq) where
-  domains : List VExpr
-  lhsBody : VExpr
-  rhsBody : VExpr
-  typeBody : VExpr
-  domains_length : domains.length = H.binders.length
-  lhs_wrapped : rule.lhs = VExpr.wrapLams domains lhsBody
-  rhs_wrapped : rule.rhs = VExpr.wrapLams domains rhsBody
-  type_wrapped : rule.type = VExpr.wrapForalls domains typeBody
-  lhs_residual : TrExprS trEnv Us (abstractForallContext domains Δ)
-    (H.sourceLhsBody.abstractList H.binders) lhsBody
-  rhs_residual : TrExprS trEnv Us (abstractForallContext domains Δ)
-    (H.sourceRhsBody.abstractList H.binders) rhsBody
 
 /-- The selected minor has a canonical de Bruijn position in the closed rule
 telescope: constructor fields are newer, and the remaining minors occur in

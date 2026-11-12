@@ -137,18 +137,12 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl 
 abbrev headerVEnv (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     VEnv := R.headers.context.venv
 
-theorem headerVEnv_wf (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
-    ctorEnv) : R.headerVEnv.WF := R.headers.context.wf
-
 /-- The projection-stage environment, in which the recursors are checked. -/
 abbrev envP (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     VEnv := R.ctorVEnv.addProjections decl.projectionEntries
 
 theorem envP_eq (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     R.context.venv = R.envP := R.contextVEnv
-
-theorem envP_wf (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
-    R.envP.WF := by have := R.context.wf; rwa [R.contextVEnv] at this
 
 theorem addTypesCtors (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
     ctorEnv) : decl.addTypesCtors sourceEnv = some R.ctorVEnv := by

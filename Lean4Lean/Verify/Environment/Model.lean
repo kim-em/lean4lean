@@ -54,10 +54,6 @@ theorem inductiveConstructorsCoherent (wf : ves.WF env) :
     VerifyInductive.InductiveConstructorsCoherent env :=
   (wf.blocks (safety := .unsafe)).inductiveConstructorsCoherent (by decide)
 
-theorem projectionRegistryCoherent (wf : ves.WF env) {safety : DefinitionSafety} :
-    ProjectionRegistryCoherent safety env.constants (ves.venv safety) :=
-  wf.blocks.projectionRegistryCoherent (wf.tr (safety := safety)).map_wf
-
 /-- Every visible kernel family is a family of an installed declaration. -/
 theorem inductFamiliesInstalled (wf : ves.WF env) {safety : DefinitionSafety}
     (hfind : env.find? familyName = some (.inductInfo familyInfo))
@@ -75,14 +71,6 @@ theorem VEnvs.axiom_of_choice {P : DefinitionSafety → VEnv → Prop} (H : ∀ 
   have ⟨x1, _⟩ := H .safe; have ⟨x2, _⟩ := H .partial; have ⟨x3, _⟩ := H .unsafe
   exact ⟨⟨fun | .safe => x1 | .partial => x2 | .unsafe => x3⟩, by rintro ⟨⟩ <;> assumption⟩
 
-/-- Assemble a `VEnvs` from a pointwise existential by case analysis on the
-three safety levels. -/
-theorem VEnvs.ofPointwiseExists {P : DefinitionSafety → VEnv → Prop}
-    (H : ∀ sf, ∃ x, P sf x) :
-    ∃ x : VEnvs, ∀ sf, P sf (x.venv sf) := by
-  have ⟨x1, _⟩ := H .safe; have ⟨x2, _⟩ := H .partial; have ⟨x3, _⟩ := H .unsafe
-  exact ⟨⟨fun | .safe => x1 | .partial => x2 | .unsafe => x3⟩, by rintro ⟨⟩ <;> assumption⟩
-
 /-- The type checker's model of `env` at one safety level: the translation, the primitives,
 and the installed blocks of every inductive constant (all complete). -/
 structure VEnvAt (env : Environment) (safety : DefinitionSafety) (venv : VEnv) : Prop where
@@ -91,16 +79,6 @@ structure VEnvAt (env : Environment) (safety : DefinitionSafety) (venv : VEnv) :
   safePrimitives : env.find? n = some ci →
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
   blocks : InstalledBlocks safety env venv .complete
-
-/-- Recursor coherence of a single-level model. -/
-theorem VEnvAt.recursors (wf : VEnvAt env safety venv) :
-    RecursorEnvCoherent safety env.constants venv :=
-  wf.blocks.recursorEnvCoherent wf.tr.map_wf wf.tr.equationHeads
-
-/-- Quotient coherence of a single-level model, derived from its translation. -/
-theorem VEnvAt.quot (wf : VEnvAt env safety venv) (hq : env.quotInit = true) :
-    QuotEnvCoherent env.constants venv :=
-  wf.tr.quotEnvCoherent hq
 
 /-- The checking invariant of a single-level model. -/
 theorem VEnvAt.toCheckingValid (wf : VEnvAt env safety venv) :

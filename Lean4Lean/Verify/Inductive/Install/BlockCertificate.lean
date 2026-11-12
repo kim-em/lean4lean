@@ -59,10 +59,6 @@ theorem installed (H : BlockCertificate safety env venv decl outEnv outVEnv) :
 theorem le (H : BlockCertificate safety env venv decl outEnv outVEnv) : venv ≤ outVEnv :=
   H.add.le
 
-theorem inductInstalled (H : BlockCertificate safety env venv decl outEnv outVEnv) :
-    outVEnv.InductInstalled decl :=
-  VEnv.InductInstalled.of_addInduct H.wf H.installed H.compiled
-
 /-- Every constant of the source environment is a constant of the output, to the same value:
 every name the block inserts is fresh. -/
 theorem find?_mono (H : BlockCertificate safety env venv decl outEnv outVEnv)

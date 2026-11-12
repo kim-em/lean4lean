@@ -927,13 +927,6 @@ structure RecInfoMotiveApplications
     MotiveApplicationAbove Rroot stats decl target recInfos[target]!
       elimLevel
 
-theorem RecInfoMotiveApplications.empty
-    (Rroot : RecursorContextWF root recLparams)
-    (stats : AddInductive.InductiveStats) (decl : VInductDecl)
-    (elimLevel : Level) :
-    RecInfoMotiveApplications Rroot stats decl #[] elimLevel where
-  application target htarget := by simp at htarget
-
 theorem RecInfoMotiveTelescopes.applications
     (H : RecInfoMotiveTelescopes Rroot stats decl parameterCtx recInfos
       elimLevel) :

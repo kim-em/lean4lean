@@ -68,28 +68,7 @@ def snoc (H : RawHeaderTranslations env Us sources)
   translations := List.Forall₂.append'
     H.translations (.cons payload.translation .nil)
 
-@[simp] theorem empty_targets : (empty env Us).targets = [] := rfl
-
-@[simp] theorem snoc_targets
-    (H : RawHeaderTranslations env Us sources)
-    (payload : RawHeaderTranslation env Us source) :
-    (H.snoc source payload).targets = H.targets ++ [payload.target] := rfl
-
 end RawHeaderTranslations
-
-/-- Exact loop-indexed view of the accumulated mutual-header payloads. -/
-structure CheckedSourceHeaderTraversal (env : VEnv) (Us : List Name)
-    (indTypes : Array InductiveType) (dIdx : Nat) where
-  accumulator : RawHeaderTranslations env Us
-    (indTypes.toList.take dIdx)
-
-namespace CheckedSourceHeaderTraversal
-
-def empty (env : VEnv) (Us : List Name) (indTypes : Array InductiveType) :
-    CheckedSourceHeaderTraversal env Us indTypes 0 where
-  accumulator := RawHeaderTranslations.empty env Us
-
-end CheckedSourceHeaderTraversal
 
 namespace ClosedHeaderCheck
 

@@ -33,8 +33,6 @@ abbrev ContextWF.toLocal {c : AddInductive.Context} (H : ContextWF c) : LocalCon
   checking := H.checking.tr
   typeCheckerLParams_eq := H.typeCheckerLParams_eq
 
-@[simp] theorem ContextWF.toLocal_venv {c : AddInductive.Context} (H : ContextWF c) :
-    H.toLocal.venv = H.venv := rfl
 @[simp] theorem ContextWF.toLocal_mlctx {c : AddInductive.Context} (H : ContextWF c) :
     H.toLocal.mlctx = H.mlctx := rfl
 

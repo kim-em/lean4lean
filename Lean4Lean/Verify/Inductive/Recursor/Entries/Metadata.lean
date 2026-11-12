@@ -10,48 +10,6 @@ open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
-theorem addConstant_find_self
-    (env : Environment) (info : ConstantInfo)
-    (hwf : env.constants.WF) (hfresh : env.find? info.name = none) :
-    (Lean4Lean.AddInductive.addConstant env info).find? info.name = some info := by
-  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hfresh
-  change (env.constants.insert info.name info).find?' info.name = some info
-  rw [(hwf.insert info.name info hfresh).find?'_eq_find?, hwf.find?_insert]
-  simp
-
-theorem addConstant_find_of_ne
-    (env : Environment) (info : ConstantInfo) (name : Name)
-    (hwf : env.constants.WF) (hfresh : env.find? info.name = none)
-    (hne : info.name ≠ name) (hfind : env.find? name = some found) :
-    (Lean4Lean.AddInductive.addConstant env info).find? name = some found := by
-  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hfresh hfind
-  change (env.constants.insert info.name info).find?' name = some found
-  rw [(hwf.insert info.name info hfresh).find?'_eq_find?, hwf.find?_insert]
-  split
-  · rename_i heq
-    exact False.elim (hne (by simpa using heq))
-  · exact hfind
-
-theorem addConstant_find_cases
-    (env : Environment) (info : ConstantInfo) (name : Name)
-    (hwf : env.constants.WF) (hfresh : env.find? info.name = none)
-    (hfind : (Lean4Lean.AddInductive.addConstant env info).find? name =
-      some found) :
-    (name = info.name ∧ found = info) ∨ env.find? name = some found := by
-  have hfreshMap : env.constants.find? info.name = none := by
-    rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hfresh
-  change (env.constants.insert info.name info).find?' name = some found at hfind
-  rw [(hwf.insert info.name info hfreshMap).find?'_eq_find?,
-    hwf.find?_insert] at hfind
-  split at hfind
-  · rename_i heq
-    left
-    simp only [Option.some.injEq] at hfind
-    have hEq : info.name = name := by simpa using heq
-    exact ⟨hEq.symm, hfind.symm⟩
-  · right
-    rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
-
 theorem AddConstants.entryNames
     (H : AddConstants safety env venv entries outEnv outVEnv)
     (hentry : entry ∈ entries) : entry.1.name = entry.2.name := by

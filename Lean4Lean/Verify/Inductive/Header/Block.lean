@@ -25,8 +25,8 @@ namespace checkInductiveTypes.loopInd
 
 /-- At the first mutual header, the executable `whnf` result determines a
 syntax-directed abstract normal form.  Independent translation of the source
-header shows that this normal form is definitionally equal to the header in
-`TrInductDecl`; the checked source type supplies the common typing witness. -/
+header shows that this normal form is definitionally equal to the translated
+header; the checked source type supplies the common typing witness. -/
 theorem initialHeaderNormalization
     {source : InductiveType} {target : VInductiveTypeSkeleton}
     (Hc : ContextWF c) (hctx : Hc.mlctx.vlctx = [])

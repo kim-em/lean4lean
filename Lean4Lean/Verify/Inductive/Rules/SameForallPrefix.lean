@@ -119,30 +119,6 @@ theorem Expr.SameForallPrefix.leftClosed
       simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
         HleftResidualClosed
 
-/-- Identical concrete forall prefixes are complete once their residual
-bodies are identified.  Keeping both telescope witnesses explicit avoids
-relying on a syntactic `isForall` loop when the prefix was produced by two
-independent executable passes. -/
-theorem Expr.SameForallPrefix.eq_of_residual_eq
-    (H : Expr.SameForallPrefix n left right)
-    (Hleft : Expr.ForallTelescope left n leftResidual)
-    (Hright : Expr.ForallTelescope right n rightResidual)
-    (hresidual : leftResidual = rightResidual) :
-    left = right := by
-  induction H generalizing leftResidual rightResidual with
-  | nil =>
-    cases Hleft
-    cases Hright
-    exact hresidual
-  | cons _ ih =>
-    cases Hleft with
-    | cons Hleft =>
-      cases Hright with
-      | cons Hright =>
-        exact congrArg
-          (fun body => Expr.forallE _ _ body _)
-          (ih Hleft Hright hresidual)
-
 /-- Reuse the binder-domain part of one translated forall telescope with a
 different residual.  This is the dependent-type counterpart of
 `SameLambdaPrefix.replaceTranslatedResidual`: the template supplies the

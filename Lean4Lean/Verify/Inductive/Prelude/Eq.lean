@@ -254,18 +254,6 @@ theorem ElimNestedInductive.run'.preludeEqNoop
       · exact hclose _ _ (by simp [NameGenerator.curr, NameGenerator.next])
       · rfl
 
-/-- Predicate-transformer form of the exact `Eq` lowering no-op. -/
-theorem ElimNestedInductive.run'.preludeEqNoopWF
-    (env : Environment) (fuel : Nat) (lparams : List Name)
-    (nparams : Nat) (types : List InductiveType) (isUnsafe : Bool)
-    (Hshape : PreludeEqShape lparams nparams types isUnsafe)
-    (hAbsent : env.find? ``Eq = none) :
-    ((ElimNestedInductive.run fuel nparams types env).run'
-      { lvls := lparams.map .param, newTypes := types.toArray }).WF fun res =>
-        res.types = types ∧ res.aux2nested.size = 0 :=
-  fun res hout => preludeEqNoop env fuel lparams nparams types isUnsafe res
-    Hshape hAbsent hout
-
 /-- The exact prelude `Eq` syntax is necessarily dispatched through the
 ordinary branch: it has one universe parameter and two inductive parameters
 (`α` and the left endpoint), whereas primitive Bool/Nat recognition requires

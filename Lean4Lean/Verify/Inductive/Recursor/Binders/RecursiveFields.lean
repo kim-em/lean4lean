@@ -899,10 +899,6 @@ def RecursiveFieldDomainAt.toSource
   recursive := cert.recursive.instL (List.replicate uvars .zero)
     (by simp [VLevel.WF])
 
-@[simp] theorem RecursiveFieldDomainAt.toSource_fieldIndex
-    (cert : RecursiveFieldDomainAt env decl uvars) :
-    cert.toSource.fieldIndex = cert.fieldIndex := rfl
-
 /-- Field selection does not depend on the universe arity.  Specializing each
 abstract domain therefore converts the minor-pass selections into the
 declaration-universe selections `RecursiveFieldSelections` used by the iota

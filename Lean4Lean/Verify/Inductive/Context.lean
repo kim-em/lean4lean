@@ -71,16 +71,6 @@ def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   kernelFresh := nofun
   check := CheckBase.nil (wf.tr (safety := safety)).wf.orderedStrong trivial
 
-@[simp] theorem ContextWF.initial_venv {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (safety : DefinitionSafety) (lparams : List Name) (allowPrimitive : Bool)
-    (fuel : FuelConfig) :
-    (ContextWF.initial wf safety lparams allowPrimitive fuel).venv = ves.venv safety := rfl
-
-@[simp] theorem ContextWF.initial_mlctx {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (safety : DefinitionSafety) (lparams : List Name) (allowPrimitive : Bool)
-    (fuel : FuelConfig) :
-    (ContextWF.initial wf safety lparams allowPrimitive fuel).mlctx = .nil := rfl
-
 /-- Keep the local checker state while moving to a kernel and abstract environment pair
 known to represent the same extension (`AddInductive.withEnv`). -/
 def ContextWF.withEnv (H : ContextWF c) {env' : Environment} {venv' : VEnv}
@@ -91,32 +81,11 @@ def ContextWF.withEnv (H : ContextWF c) {env' : Environment} {venv' : VEnv}
     ContextWF { c with env := env' } :=
   .ofSemantics (H.toSemantics.withEnv hchecking hshapes hiota hle) H.typeCheckerLParams_eq
 
-@[simp] theorem ContextWF.withEnv_venv (H : ContextWF c) {env' : Environment} {venv' : VEnv}
-    (hchecking : CheckingEnv.Valid c.safety env' venv')
-    (hshapes : RecursorShapesCoherent c.safety env'.constants venv')
-    (hiota : IotaRulesRegistered c.safety env' venv') (hle : H.venv ≤ venv') :
-    (H.withEnv hchecking hshapes hiota hle).venv = venv' := rfl
-
-@[simp] theorem ContextWF.withEnv_mlctx (H : ContextWF c) {env' : Environment} {venv' : VEnv}
-    (hchecking : CheckingEnv.Valid c.safety env' venv')
-    (hshapes : RecursorShapesCoherent c.safety env'.constants venv')
-    (hiota : IotaRulesRegistered c.safety env' venv') (hle : H.venv ≤ venv') :
-    (H.withEnv hchecking hshapes hiota hle).mlctx = H.mlctx := rfl
-
 /-- Replace the checker context by a described sub-context of the main
 context. -/
 def ContextWF.withCheckLCtx (H : ContextWF c) (l : LocalContext) (B : H.Base l) :
     ContextWF { c with checkLCtx := l } :=
   .ofSemantics (H.toSemantics.withCheckLCtx l B) H.typeCheckerLParams_eq
-
-@[simp] theorem ContextWF.withCheckLCtx_venv (H : ContextWF c) (l B) :
-    (H.withCheckLCtx l B).venv = H.venv := rfl
-
-@[simp] theorem ContextWF.withCheckLCtx_mlctx (H : ContextWF c) (l B) :
-    (H.withCheckLCtx l B).mlctx = H.mlctx := rfl
-
-@[simp] theorem ContextWF.withCheckLCtx_chk (H : ContextWF c) (l B) :
-    (H.withCheckLCtx l B).chk = B.m := rfl
 
 /-- The view of a context at its checking context: the checking context, described as
 the main context of the context whose local context is `checkLCtx`.
@@ -124,10 +93,6 @@ Every embedded checker run reads only the checking context, so this view
 verifies the same runs, with facts about the checking context. -/
 abbrev ContextWF.atCheckLCtx (H : ContextWF c) : ContextWF { c with lctx := c.checkLCtx } :=
   .ofSemantics (H.toSemantics.atCheckLCtx) H.typeCheckerLParams_eq
-
-@[simp] theorem ContextWF.atCheckLCtx_venv (H : ContextWF c) : H.atCheckLCtx.venv = H.venv := rfl
-@[simp] theorem ContextWF.atCheckLCtx_mlctx (H : ContextWF c) : H.atCheckLCtx.mlctx = H.chk := rfl
-@[simp] theorem ContextWF.atCheckLCtx_chk (H : ContextWF c) : H.atCheckLCtx.chk = H.chk := rfl
 
 def ContextWF.withLocalDecl (H : ContextWF c)
     (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
@@ -245,14 +210,6 @@ theorem ContextWF.withCheckedLocalDecl_venv (H : ContextWF c)
     (H.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀).venv =
       H.venv := rfl
 
-theorem ContextWF.withCheckedLocalDecl_mlctx (H : ContextWF c)
-    (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
-    (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty')
-    (htr₀ : TrExprS H.venv c.lparams H.chk.vlctx ty ty₀)
-    (hty₀ : H.venv.IsType c.lparams.length H.chk.vlctx.toCtx ty₀) :
-    (H.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀).mlctx =
-      (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx := rfl
-
 theorem ContextWF.withCheckedLocalDecl_toCtx (H : ContextWF c)
     (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
     (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty')
@@ -260,19 +217,6 @@ theorem ContextWF.withCheckedLocalDecl_toCtx (H : ContextWF c)
     (hty₀ : H.venv.IsType c.lparams.length H.chk.vlctx.toCtx ty₀) :
     (H.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀).mlctx.vlctx.toCtx =
       ty' :: H.mlctx.vlctx.toCtx := rfl
-
-theorem ContextWF.withCheckedLocalDecl_chk (H : ContextWF c)
-    (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
-    (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty')
-    (htr₀ : TrExprS H.venv c.lparams H.chk.vlctx ty ty₀)
-    (hty₀ : H.venv.IsType c.lparams.length H.chk.vlctx.toCtx ty₀) :
-    (H.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀).chk =
-      .vlam ⟨c.ngen.curr⟩ name ty ty₀ bi H.chk := rfl
-
-theorem ContextWF.withLocalDecl_chk (H : ContextWF c)
-    (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
-    (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty') :
-    (H.withLocalDecl (name := name) (bi := bi) htr hty).chk = H.chk := rfl
 
 theorem ContextWF.withLocalDecl_venv (H : ContextWF c)
     (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
@@ -364,41 +308,15 @@ def ContextWF.prependRecursorLevelParam
       exact H.kernelFresh fv (hfv ▸ hmem)
     check := H.check.prependLevelParam H.checking.tr.wf hfresh }
 
-@[simp] theorem ContextWF.prependRecursorLevelParam_venv
-    (H : ContextWF c) (hfresh : fresh ∉ c.lparams) :
-    (H.prependRecursorLevelParam hfresh).venv = H.venv := rfl
-
-@[simp] theorem ContextWF.prependRecursorLevelParam_mlctx
-    (H : ContextWF c) (hfresh : fresh ∉ c.lparams) :
-    (H.prependRecursorLevelParam hfresh).mlctx =
-      H.mlctx.prependLevelParam c.lparams.length := rfl
-
 def RecursorContextWF.withCheckLCtx (H : RecursorContextWF c recLparams)
     (l : LocalContext) (B : H.Base l) :
     RecursorContextWF { c with checkLCtx := l } recLparams :=
   .ofSemantics (H.toSemantics.withCheckLCtx l B) H.typeCheckerLParams_eq H.lparams_origin
 
-@[simp] theorem RecursorContextWF.withCheckLCtx_venv
-    (H : RecursorContextWF c recLparams) (l B) :
-    (H.withCheckLCtx l B).venv = H.venv := rfl
-
-@[simp] theorem RecursorContextWF.withCheckLCtx_mlctx
-    (H : RecursorContextWF c recLparams) (l B) :
-    (H.withCheckLCtx l B).mlctx = H.mlctx := rfl
-
-@[simp] theorem RecursorContextWF.withCheckLCtx_chk
-    (H : RecursorContextWF c recLparams) (l B) :
-    (H.withCheckLCtx l B).chk = B.m := rfl
-
 /-- The view of a recursor frame at its checking context: `checkLCtx` as main context. -/
 abbrev RecursorContextWF.atCheckLCtx (H : RecursorContextWF c recLparams) :
     RecursorContextWF { c with lctx := c.checkLCtx } recLparams :=
   .ofSemantics (H.toSemantics.atCheckLCtx) H.typeCheckerLParams_eq H.lparams_origin
-
-@[simp] theorem RecursorContextWF.atCheckLCtx_venv (H : RecursorContextWF c recLparams) :
-    H.atCheckLCtx.venv = H.venv := rfl
-@[simp] theorem RecursorContextWF.atCheckLCtx_mlctx (H : RecursorContextWF c recLparams) :
-    H.atCheckLCtx.mlctx = H.chk := rfl
 
 /-- Extend a universe-rebased recursor context by one semantically checked
 raw local declaration. -/
@@ -412,31 +330,6 @@ def RecursorContextWF.withLocalDecl
   .ofSemantics (H.toSemantics.withLocalDecl (name := name) (bi := bi) htr hty)
     H.typeCheckerLParams_eq H.lparams_origin
 
-/-- `ContextWF` for `headerCheckContext`. -/
-def ContextWF.headerCheck (Hc : ContextWF c) (stats : AddInductive.InductiveStats)
-    (j : Nat) (hj : j ≤ Hc.mlctx.length)
-    (hfv : paramCheckFVars stats stats.params.size = (Hc.mlctx.dropN j hj).fvarList) :
-    ContextWF (headerCheckContext c stats) :=
-  Hc.paramCheck stats stats.params.size j hj hfv
-
-@[simp] theorem ContextWF.paramCheck_venv (Hc : ContextWF c) (stats n j hj hfv) :
-    (Hc.paramCheck stats n j hj hfv).venv = Hc.venv := rfl
-
-@[simp] theorem ContextWF.paramCheck_mlctx (Hc : ContextWF c) (stats n j hj hfv) :
-    (Hc.paramCheck stats n j hj hfv).mlctx = Hc.mlctx := rfl
-
-@[simp] theorem ContextWF.paramCheck_chk (Hc : ContextWF c) (stats n j hj hfv) :
-    (Hc.paramCheck stats n j hj hfv).chk = Hc.mlctx.dropN j hj := rfl
-
-@[simp] theorem ContextWF.headerCheck_venv (Hc : ContextWF c) (stats j hj hfv) :
-    (Hc.headerCheck stats j hj hfv).venv = Hc.venv := rfl
-
-@[simp] theorem ContextWF.headerCheck_mlctx (Hc : ContextWF c) (stats j hj hfv) :
-    (Hc.headerCheck stats j hj hfv).mlctx = Hc.mlctx := rfl
-
-@[simp] theorem ContextWF.headerCheck_chk (Hc : ContextWF c) (stats j hj hfv) :
-    (Hc.headerCheck stats j hj hfv).chk = Hc.mlctx.dropN j hj := rfl
-
 def RecursorContextWF.paramCheck (Hc : RecursorContextWF c recLparams)
     (stats : AddInductive.InductiveStats) (n : Nat) (j : Nat) (hj : j ≤ Hc.mlctx.length)
     (hfv : paramCheckFVars stats n = (Hc.mlctx.dropN j hj).fvarList) :
@@ -444,10 +337,6 @@ def RecursorContextWF.paramCheck (Hc : RecursorContextWF c recLparams)
       { c with checkLCtx := c.lctx.restrictTo (paramCheckFVars stats n) }
       recLparams :=
   Hc.withCheckLCtx _ (Hc.baseParams stats n j hj hfv)
-
-@[simp] theorem RecursorContextWF.paramCheck_chk (Hc : RecursorContextWF c recLparams)
-    (stats n j hj hfv) :
-    (Hc.paramCheck stats n j hj hfv).chk = Hc.mlctx.dropN j hj := rfl
 
 /-- Open a binder in both the main and the checker context of a recursor
 frame. -/
@@ -490,15 +379,6 @@ def RecursorContextWF.withCheckedLocalDeclOn
     (H.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀).venv =
       H.venv := rfl
 
-theorem RecursorContextWF.withCheckedLocalDecl_mlctx
-    (H : RecursorContextWF c recLparams)
-    (htr : TrExprS H.venv recLparams H.mlctx.vlctx ty ty')
-    (hty : H.venv.IsType recLparams.length H.mlctx.vlctx.toCtx ty')
-    (htr₀ : TrExprS H.venv recLparams H.chk.vlctx ty ty₀)
-    (hty₀ : H.venv.IsType recLparams.length H.chk.vlctx.toCtx ty₀) :
-    (H.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀).mlctx =
-      (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx := rfl
-
 @[simp] theorem RecursorContextWF.withCheckedLocalDecl_toCtx
     (H : RecursorContextWF c recLparams)
     (htr : TrExprS H.venv recLparams H.mlctx.vlctx ty ty')
@@ -507,21 +387,6 @@ theorem RecursorContextWF.withCheckedLocalDecl_mlctx
     (hty₀ : H.venv.IsType recLparams.length H.chk.vlctx.toCtx ty₀) :
     (H.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀).mlctx.vlctx.toCtx =
       ty' :: H.mlctx.vlctx.toCtx := rfl
-
-theorem RecursorContextWF.withCheckedLocalDecl_chk
-    (H : RecursorContextWF c recLparams)
-    (htr : TrExprS H.venv recLparams H.mlctx.vlctx ty ty')
-    (hty : H.venv.IsType recLparams.length H.mlctx.vlctx.toCtx ty')
-    (htr₀ : TrExprS H.venv recLparams H.chk.vlctx ty ty₀)
-    (hty₀ : H.venv.IsType recLparams.length H.chk.vlctx.toCtx ty₀) :
-    (H.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀).chk =
-      .vlam ⟨c.ngen.curr⟩ name ty ty₀ bi H.chk := rfl
-
-theorem RecursorContextWF.withLocalDecl_chk
-    (H : RecursorContextWF c recLparams)
-    (htr : TrExprS H.venv recLparams H.mlctx.vlctx ty ty')
-    (hty : H.venv.IsType recLparams.length H.mlctx.vlctx.toCtx ty') :
-    (H.withLocalDecl (name := name) (bi := bi) htr hty).chk = H.chk := rfl
 
 @[simp] theorem RecursorContextWF.withLocalDecl_venv
     (H : RecursorContextWF c recLparams)
@@ -725,13 +590,6 @@ theorem withCheckedLocalDecl.WF {k : Expr → AddInductive.M α} (Hc : ContextSe
     (H.withCheckedLocalDeclOn (name := name) (bi := bi) (ty₀ := ty₀) base B htr
       hty htr₀ hty₀).mlctx.vlctx.toCtx = ty' :: H.mlctx.vlctx.toCtx := rfl
 
-theorem RecursorContextWF.withCheckedLocalDeclOn_chk
-    (H : RecursorContextWF c recLparams) (base B)
-    (htr : TrExprS H.venv recLparams H.mlctx.vlctx ty ty')
-    (hty : H.venv.IsType recLparams.length H.mlctx.vlctx.toCtx ty') (htr₀ hty₀) :
-    (H.withCheckedLocalDeclOn (name := name) (bi := bi) (ty₀ := ty₀) base B htr
-      hty htr₀ hty₀).chk = .vlam ⟨c.ngen.curr⟩ name ty ty₀ bi B.m := rfl
-
 theorem ContextWF.withCheckedLocalDeclOn_venv
     (H : ContextWF c) (base B)
     (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
@@ -745,13 +603,6 @@ theorem ContextWF.withCheckedLocalDeclOn_toCtx
     (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty') (htr₀ hty₀) :
     (H.withCheckedLocalDeclOn (name := name) (bi := bi) (ty₀ := ty₀) base B htr
       hty htr₀ hty₀).mlctx.vlctx.toCtx = ty' :: H.mlctx.vlctx.toCtx := rfl
-
-theorem ContextWF.withCheckedLocalDeclOn_chk
-    (H : ContextWF c) (base B)
-    (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
-    (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty') (htr₀ hty₀) :
-    (H.withCheckedLocalDeclOn (name := name) (bi := bi) (ty₀ := ty₀) base B htr
-      hty htr₀ hty₀).chk = .vlam ⟨c.ngen.curr⟩ name ty ty₀ bi B.m := rfl
 
 theorem withCheckedLocalDeclOn.WF {k : Expr → AddInductive.M α}
     {c : AddInductive.Context} {base : LocalContext}

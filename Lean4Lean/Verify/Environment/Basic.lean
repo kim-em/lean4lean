@@ -85,46 +85,6 @@ def ListedConstructorsPresent (env : Environment) : Prop :=
   ∀ familyName familyInfo, env.find? familyName = some (.inductInfo familyInfo) →
     ∀ name ∈ familyInfo.ctors, ∃ ci, env.find? name = some ci
 
-/-- `InductiveMemberInfos` depends only on kernel constant lookup. -/
-theorem InductiveMemberInfos.mapEnvironmentEq
-    {source targetEnv : Environment}
-    (H : InductiveMemberInfos source names)
-    (heq : ∀ name, source.find? name = targetEnv.find? name) :
-    InductiveMemberInfos targetEnv names := by
-  induction H with
-  | nil => exact .nil
-  | @cons name info names hfind _ ih =>
-    exact .cons (by rw [← heq name]; exact hfind) ih
-
-/-- One closed mutual family transports across extensionally equal kernel
-constant maps. -/
-theorem MutualInductiveClosure.mapEnvironmentEq
-    {source targetEnv : Environment}
-    (H : MutualInductiveClosure source targetName value)
-    (heq : ∀ name, source.find? name = targetEnv.find? name) :
-    MutualInductiveClosure targetEnv targetName value where
-  members := H.members.mapEnvironmentEq heq
-  target := H.target
-  names := H.names
-  parameters := by
-    intro member info hmember hfind
-    exact H.parameters member info hmember (by
-      rw [heq member]
-      exact hfind)
-
-/-- Closure of every mutual family is invariant under extensional equality of
-kernel constant lookup. -/
-theorem MutualInductivesClosed.mapEnvironmentEq
-    {source targetEnv : Environment}
-    (H : MutualInductivesClosed source)
-    (heq : ∀ name, source.find? name = targetEnv.find? name) :
-    MutualInductivesClosed targetEnv := by
-  intro targetName value htarget
-  have hsource : source.find? targetName = some (.inductInfo value) := by
-    rw [heq targetName]
-    exact htarget
-  exact (H targetName value hsource).mapEnvironmentEq heq
-
 /-- The kernel metadata for one constructor listed by an inductive
 header agrees with that header at every field needed to specialize the
 constructor at the family's common parameters. -/
@@ -193,12 +153,6 @@ def ConstructorParameterAlignment
         env venv familyName familyInfo i hi)
 
 end VerifyInductive
-
-theorem ConstantInfo.hasValue_eq (ci : ConstantInfo) : ci.hasValue = ci.value?.isSome := by
-  cases ci <;> rfl
-
-theorem ConstantInfo.value!_eq (ci : ConstantInfo) : ci.value! = ci.value?.get! := by
-  cases ci <;> simp [ConstantInfo.value?, ConstantInfo.value!]
 
 
 /-- Kernel-environment contract for a unary type-annotation wrapper.
@@ -609,21 +563,6 @@ structure TrInductiveTypeHeaders (env envTypes : VEnv) (lparams : List Name)
       TrSourceConstRaw envTypes lparams ctor.name ctor.type ctor')
     type.ctors type'.ctors
 
-/-- Translation of the source (pre-lowering) inductive declaration. The
-constructor relation deliberately uses `envTypes`, obtained by installing all
-translated mutual headers, so an ill-typed nested parameter cannot disappear
-behind auxiliary declarations. -/
-def TrInductDecl (env : VEnv) (lparams : List Name) (nparams : Nat)
-    (types : List InductiveType) (isUnsafe : Bool) (decl : VInductDecl) : Prop :=
-  decl.SourceWF env ∧
-  decl.uvars = lparams.length ∧
-  decl.nparams = nparams ∧
-  decl.isUnsafe = isUnsafe ∧
-  ∃ envTypes envCtors,
-    env.addConstVals decl.typeConstants = some envTypes ∧
-    envTypes.addConstVals decl.constructorConstants = some envCtors ∧
-    List.Forall₂ (TrInductiveType env envTypes lparams) types decl.types
-
 /-- Source translation without assuming the aggregate `SourceWF` judgment.
 The pointwise `TrSourceConst` translations still retain the independently checked
 typing of every source header and constructor; only block nonemptiness and
@@ -665,10 +604,6 @@ structure TrInductDeclConstructors (envTypes : VEnv) (lparams : List Name)
         TrSourceConst envTypes lparams ctor.name ctor.type ctor')
       source.ctors target.ctors)
     types decl.types
-
-theorem TrInductDecl.sourceWF
-    (H : TrInductDecl env lparams nparams types isUnsafe decl) : decl.SourceWF env :=
-  H.1
 
 theorem TrConstant.sf_mono (hsf : safety ≤ safety')
     (H : TrConstant safety' env ci ci') : TrConstant safety env ci ci' :=
@@ -978,7 +913,7 @@ theorem insertConsts_find?_self : ∀ {cis : List ConstantInfo} {C : ConstMap}, 
 type former's `inductInfo` translates in the environment before the block (`env₁`); the
 constructors' `ctorInfo`s in the environment holding the type formers (`envT`), where their
 types are meaningful, and their `numParams + numFields` is the Π-arity of the model type,
-which is how the kernel's `nfields` reaches the ι bookkeeping (`AddInduct.ctor_find`).
+which is how the kernel's `nfields` reaches the ι bookkeeping.
 `ival.ctors` lists exactly the translated constructors. -/
 structure TrIndType (safety : DefinitionSafety) (env₁ envT : VEnv) (ival : InductiveVal)
     (cvals : List ConstructorVal) (t : VInductiveType) : Prop where
@@ -1025,8 +960,8 @@ the four successful stages of `VEnv.addInduct` (`stT`…`stP`, with their interm
 environments), the translation of each type former, constructor and recursor at the
 stage where the kernel checks it (`types`, `recs`), freshness of every inserted name in
 `m₁`, and that `m₂` is the insertion of the block's constants in the order the kernel
-inserted them (`order`, a permutation of `consts`). Everything else — `env_eq`, `wf`,
-`find?_mono`, `value_find`, `rec_find`, `rec_reg`, `ctor_find` — is derived below. -/
+inserted them (`order`, a permutation of `consts`). Everything else (`env_eq`, `wf`,
+`find?_mono`, `value_find`, `rec_find`, `rec_reg`) is derived below. -/
 structure AddInduct (safety : DefinitionSafety) (m₁ : ConstMap) (env₁ : VEnv)
     (decl : VInductDecl) (m₂ : ConstMap) (env₂ : VEnv) where
   ivals : List (InductiveVal × List ConstructorVal)
@@ -1251,30 +1186,6 @@ theorem rec_reg {r : VRecursor} (H : AddInduct safety m₁ env₁ decl m₂ env�
       rw [List.Forall₂.map_eq (fun _ _ h => h.1.symm) htr.rules]; exact hwf.rules_nodup r hr
     refine ⟨rule, ?_, h2, by rw [h1]; exact h3, h4.mono H.leR⟩
     rw [h1]; exact List.find?_eq_of_nodup_map hnd rule hrule
-
-/-- A kernel constructor resolvable after the block was resolvable before, or is one of
-the block's constructors: then it is registered in the constructor stage, and the
-kernel's `numParams + numFields` is the Π-arity of its model type (`TrIndType`).
-
-PR #43 additionally concluded that some rule of the block fires on it with
-`ctorParams = numParams` of its own recursor; that reading (`ctors_have_rules`,
-`rules_own_params`) is false for the auxiliary recursors of a nested block, so the rule
-side is read from `rec_reg` instead. -/
-theorem ctor_find {ctorName : Name} {cval : ConstructorVal}
-    (H : AddInduct safety m₁ env₁ decl m₂ env₂) (wf : m₁.WF)
-    (h : m₂.find? ctorName = some (.ctorInfo cval)) :
-    m₁.find? ctorName = some (.ctorInfo cval) ∨
-    ∃ t ∈ decl.types, ∃ c ∈ t.ctors, c.name = ctorName ∧
-      H.envC.constants ctorName = some c.toVConstant ∧
-      cval.numParams + cval.numFields = c.type.piArity := by
-  rcases H.find? wf h with h' | ⟨hci, hname⟩
-  · exact .inl h'
-  · right
-    rcases mem_consts.1 hci with ⟨_, _, h'⟩ | ⟨iv, hiv, _, hcval, h'⟩ | ⟨_, _, h'⟩ <;> cases h'
-    obtain ⟨t, ht, htr⟩ := H.types.forall_exists_l iv hiv
-    obtain ⟨c, hc, hctr, harity⟩ := htr.ctors.forall_exists_l _ hcval
-    have hcn : c.name = ctorName := hctr.2.symm.trans hname
-    exact ⟨t, ht, c, hc, hcn, hcn ▸ VEnv.addCtors_find H.stC t ht c hc, harity⟩
 
 end AddInduct
 

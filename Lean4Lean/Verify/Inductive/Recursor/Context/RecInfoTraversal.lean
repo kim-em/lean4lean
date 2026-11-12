@@ -128,12 +128,6 @@ end mkRecInfos.loopCtors
 
 namespace mkRecInfos.loopInd2
 
-def SameFrame (a b : AddInductive.RecInfo) : Prop :=
-  { a with minors := #[], ruleTemplates := #[] } =
-    { b with minors := #[], ruleTemplates := #[] }
-
-theorem SameFrame.refl (a : AddInductive.RecInfo) : SameFrame a a := rfl
-
 end mkRecInfos.loopInd2
 
 end VerifyInductive

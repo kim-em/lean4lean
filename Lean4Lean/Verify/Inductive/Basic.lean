@@ -181,12 +181,4 @@ theorem AddInductive.M.WF_bind {x : AddInductive.M α} {f : α → AddInductive.
     ((x >>= f) c).WF Q :=
   Except.WF.bind h1 h2
 
-@[simp] theorem AddInductive.withEnv_apply (env : Environment) (x : AddInductive.M α)
-    (c : AddInductive.Context) : AddInductive.withEnv env x c = x { c with env := env } := rfl
-
-@[simp] theorem AddInductive.withTypeCheckerLParams_apply (lparams : List Name)
-    (x : AddInductive.M α) (c : AddInductive.Context) :
-    AddInductive.withTypeCheckerLParams lparams x c =
-      x { c with typeCheckerLParams := some lparams } := rfl
-
 end Lean4Lean

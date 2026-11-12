@@ -17,11 +17,6 @@ open Lean hiding Environment Exception
 open Kernel
 open private Lean.Kernel.Environment.add markQuotInit from Lean.Environment
 
-theorem withLocalDecl_run {m} [Monad m] (n : Name) (bi : BinderInfo) (ty : Expr)
-    (k : Expr → ExprBuildT m α) (lctx : LocalContext) (ngen : NameGenerator) :
-    (withLocalDecl n bi ty k : ExprBuildT m α) lctx ngen =
-      k (.fvar ⟨ngen.curr⟩) (lctx.mkLocalDecl ⟨ngen.curr⟩ n ty bi) ngen.next := rfl
-
 namespace AddQuotAux
 
 abbrev ng0 : NameGenerator := {}

@@ -316,12 +316,6 @@ def HeaderPhase.statsWF {c c' : AddInductive.Context} {Hc : ContextWF c} {nparam
     have hsize : stats.params.size = decl.nparams := P.params_size.trans D.2.1.symm
     simpa [hsize] using P.suffix.suffixParams
 
-@[simp] theorem HeaderPhase.statsWF_headers_params {c c' : AddInductive.Context}
-    {Hc : ContextWF c} {nparams : Nat} {indTypes : Array InductiveType} {Hc' : ContextWF c'}
-    {stats : AddInductive.InductiveStats} (P : HeaderPhase Hc nparams indTypes c' Hc' stats)
-    {decl : VInductDecl} (D : P.headers.Describes decl) :
-    (P.statsWF D).headers.params = P.commonParams := rfl
-
 /-- Move a header parameter context to a larger environment over the same local context. -/
 def HeaderParameterContext.withEnv {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {params : List VExpr} {depth : Nat}

@@ -28,47 +28,13 @@ structure HeaderTranslations (env : VEnv) (Us : List Name)
 
 namespace HeaderTranslations
 
-def empty (env : VEnv) (Us : List Name) :
-    HeaderTranslations env Us [] where
-  targets := []
-  translations := .nil
-
-def snoc (H : HeaderTranslations env Us sources)
-    (source : InductiveType) (target : VConstVal)
-    (Htarget : TrSourceConst env Us source.name source.type target) :
-    HeaderTranslations env Us (sources ++ [source]) where
-  targets := H.targets ++ [target]
-  translations := List.Forall₂.append'
-    H.translations (.cons Htarget .nil)
-
 def raw (H : HeaderTranslations env Us sources) :
     RawHeaderTranslations env Us sources where
   targets := H.targets
   translations := Lean4Lean.List.Forall₂.imp
     (fun _ _ h => h.raw) H.translations
 
-@[simp] theorem empty_targets : (empty env Us).targets = [] := rfl
-
-@[simp] theorem snoc_targets
-    (H : HeaderTranslations env Us sources)
-    (Htarget : TrSourceConst env Us source.name source.type target) :
-    (H.snoc source target Htarget).targets = H.targets ++ [target] := rfl
-
 end HeaderTranslations
-
-/-- Exact loop-indexed view of the fully formed mutual-header prefix. -/
-structure MaterializedSourceHeaderTraversal (env : VEnv) (Us : List Name)
-    (indTypes : Array InductiveType) (dIdx : Nat) where
-  accumulator : HeaderTranslations env Us
-    (indTypes.toList.take dIdx)
-
-namespace MaterializedSourceHeaderTraversal
-
-def empty (env : VEnv) (Us : List Name) (indTypes : Array InductiveType) :
-    MaterializedSourceHeaderTraversal env Us indTypes 0 where
-  accumulator := HeaderTranslations.empty env Us
-
-end MaterializedSourceHeaderTraversal
 
 namespace TrSourceConstRaw
 

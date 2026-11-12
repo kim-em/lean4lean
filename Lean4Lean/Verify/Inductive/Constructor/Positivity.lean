@@ -530,11 +530,6 @@ theorem ValidAppStatsWF.withFVar
   rw [← VInductDecl.paramVars_liftN]
   exact hparams
 
-theorem IndConstArray.empty (levels : List Level) :
-    IndConstArray levels #[] [] where
-  exact := rfl
-  names := by simp [IndConstNames, Array.any]
-
 theorem IndConstArray.ofExact
     {levels : List Level} {indConsts : Array Expr} {names : List Name}
     (h : indConsts = (names.map fun name => .const name levels).toArray) :
@@ -938,41 +933,6 @@ namespace mkRecInfos.loopUArgs
 
 end mkRecInfos.loopUArgs
 
-/-- Exact concrete syntax of one recursive call generated for an argument
-selected by `loopCtorArgs`. -/
-def GeneratedRecursiveCall
-    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
-    (motives minors : Array Expr) (lvls : List Level)
-    (field value : Expr) : Prop :=
-  ∃ (exposedType : Expr) (localArgs : Array Expr) (lctx : LocalContext),
-    let (typeIdx, indices) := AddInductive.getIIndices stats exposedType
-    let recursor := .const (Lean.mkRecName indTypes[typeIdx]!.name) lvls
-    let recursor := mkAppN (mkAppN (mkAppN recursor stats.params) motives)
-      minors
-    value = (lctx.mkLambda localArgs <|
-      (mkAppN (.bvar localArgs.size) indices).app
-        (mkAppN field localArgs)).instantiate1 recursor
-
-/-- Prefix invariant for the generated recursive calls: generated values correspond
-pointwise to the selected recursive fields. -/
-structure GeneratedRecursiveCalls
-    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
-    (motives minors : Array Expr) (lvls : List Level)
-    (u v : Array Expr) (done : Nat) : Prop where
-  covered : done ≤ u.size
-  size : v.size = done
-  entries : ∀ i, i < done → (hi : i < u.size) →
-    GeneratedRecursiveCall indTypes stats motives minors lvls u[i]
-      v[i]!
-
-theorem GeneratedRecursiveCalls.empty
-    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
-    (motives minors : Array Expr) (lvls : List Level) (u : Array Expr) :
-    GeneratedRecursiveCalls indTypes stats motives minors lvls u #[] 0 where
-  covered := Nat.zero_le _
-  size := rfl
-  entries _ h := by omega
-
 /-- A validated concrete parameter argument translates to the corresponding
 abstract de Bruijn parameter.  The fvar-shape invariant is what upgrades
 structural `Expr` equality to exact syntax translation here. -/
@@ -1010,50 +970,6 @@ typing judgment. -/
 
 /- `Expr.AvoidsConsts` (source-syntax absence of a set of constants) is defined in
 `Lean4Lean/Verify/ExprParamUniform.lean`. -/
-
-/-- Closing a free variable cannot introduce a constant name. -/
-theorem _root_.Lean.Expr.AvoidsConsts.abstract1
-    (H : Lean.Expr.AvoidsConsts names e) (fv : FVarId) (k : Nat := 0) :
-    Lean.Expr.AvoidsConsts names (Lean.Expr.abstract1 fv e k) := by
-  induction H generalizing k with
-  | bvar i => exact Lean.Expr.AvoidsConsts.bvar _
-  | fvar other =>
-      by_cases h : fv == other
-      · simpa [Expr.abstract1, h] using
-          (Lean.Expr.AvoidsConsts.bvar k :
-            Lean.Expr.AvoidsConsts names (.bvar k))
-      · simpa [Expr.abstract1, h] using
-          (Lean.Expr.AvoidsConsts.fvar other :
-            Lean.Expr.AvoidsConsts names (.fvar other))
-  | mvar mv => simpa [Expr.abstract1] using
-      (Lean.Expr.AvoidsConsts.mvar mv :
-        Lean.Expr.AvoidsConsts names (.mvar mv))
-  | sort u => simpa [Expr.abstract1] using
-      (Lean.Expr.AvoidsConsts.sort u :
-        Lean.Expr.AvoidsConsts names (.sort u))
-  | const name levels fresh =>
-      simpa [Expr.abstract1] using
-        Lean.Expr.AvoidsConsts.const name levels fresh
-  | app fn arg _ _ ihFn ihArg =>
-      simpa [Expr.abstract1] using Lean.Expr.AvoidsConsts.app _ _
-        (ihFn k) (ihArg k)
-  | lam name dom body bi _ _ ihDom ihBody =>
-      simpa [Expr.abstract1] using Lean.Expr.AvoidsConsts.lam name _ _ bi
-        (ihDom k) (ihBody (k + 1))
-  | forallE name dom body bi _ _ ihDom ihBody =>
-      simpa [Expr.abstract1] using Lean.Expr.AvoidsConsts.forallE name _ _ bi
-        (ihDom k) (ihBody (k + 1))
-  | letE name type value body nondep _ _ _ ihType ihValue ihBody =>
-      simpa [Expr.abstract1] using Lean.Expr.AvoidsConsts.letE name _ _ _
-        nondep (ihType k) (ihValue k) (ihBody (k + 1))
-  | lit value expanded ih =>
-      simpa [Expr.abstract1] using
-        Lean.Expr.AvoidsConsts.lit value expanded
-  | mdata data body _ ih =>
-      simpa [Expr.abstract1] using Lean.Expr.AvoidsConsts.mdata data _ (ih k)
-  | proj structName idx body _ ih =>
-      simpa [Expr.abstract1] using
-        Lean.Expr.AvoidsConsts.proj structName idx _ (ih k)
 
 /-- Simultaneous (one-pass) abstraction cannot introduce a constant name. -/
 theorem _root_.Lean.Expr.AvoidsConsts.abstractN
@@ -1500,32 +1416,6 @@ theorem forallE.sourceWF
 end checkPositivityStep
 
 namespace checkConstructors.loopCtor
-
-/-- The terminal constructor target check discharges the declarative
-`CtorTailWF.result` rule. -/
-theorem result.refines
-    {decl : VInductDecl} {depth : Nat} {result type' exprType : VExpr}
-    {ctorCtx : List VExpr}
-    (Hstats : checkPositivityStep.ValidAppStatsWF env Us Δ stats decl depth)
-    (hi : targetIdx < decl.types.length)
-    (htr : TrExprS env Us Δ type type')
-    (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
-    (hvalid : AddInductive.isValidIndAppIdx stats type targetIdx = true)
-    (hlit : checkPositivityStep.AvailableLiteralDisjoint env stats.indConsts)
-    (hctx : checkPositivityStep.VLCtx.NoIndConsts
-      (decl.types.map (·.name)) Δ)
-    (hdefeq : env.IsDefEq decl.uvars ctorCtx result type' exprType) :
-    (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
-      type i (fuel + 1) c).WF
-      (fun _ => decl.CtorTailWF env decl.types[targetIdx]
-        ctorCtx depth result) := by
-  exact checkConstructors.loopCtor.result.WF
-    (Q := fun _ => decl.CtorTailWF env decl.types[targetIdx]
-      ctorCtx depth result)
-    hforall hvalid (.result
-      (checkPositivityStep.isValidIndAppIdx.validIndAppAt
-        Hstats hi htr hvalid (Or.inr rfl) hlit hctx)
-      hdefeq)
 
 
 end checkConstructors.loopCtor

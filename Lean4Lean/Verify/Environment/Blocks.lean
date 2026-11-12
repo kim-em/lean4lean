@@ -61,9 +61,6 @@ theorem le_trans {a b c : InstallStage} : a ≤ b → b ≤ c → a ≤ c := Nat
 
 theorem headers_le (a : InstallStage) : headers ≤ a := Nat.zero_le _
 
-theorem le_complete (a : InstallStage) : a ≤ complete := by
-  cases a <;> decide
-
 theorem eq_complete {a : InstallStage} (h : complete ≤ a) : a = complete := by
   cases a <;> first | rfl | exact absurd h (by decide)
 
@@ -295,14 +292,6 @@ theorem safety_inductInfo {B : InstalledBlock} {v : InductiveVal} (h : v.isUnsaf
     (ConstantInfo.inductInfo v).safety = B.defSafety := by
   simp [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial, h,
     InstalledBlock.defSafety]
-
-theorem safety_ctorInfo {B : InstalledBlock} {v : ConstructorVal} (h : v.isUnsafe = B.isUnsafe) :
-    (ConstantInfo.ctorInfo v).safety = B.defSafety := by
-  simp [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial, h,
-    InstalledBlock.defSafety]
-
-theorem Visible.mono {B : InstalledBlock} (h : safety ≤ safety') (H : B.Visible safety') :
-    B.Visible safety := DefinitionSafety.le_trans h H
 
 theorem mem_names {B : InstalledBlock} {F : InstalledFamily} (h : F ∈ B.families) :
     F.header.name ∈ B.names := List.mem_map_of_mem h
@@ -1453,23 +1442,6 @@ theorem addFreshListed (H : InstalledBlocks safety env venv st) (hwf : env.const
 
 end InstalledBlocks
 
-/-- The declaration of an inductive installation has the `isUnsafe` of its new headers. -/
-theorem InductInfosFromDecl.declUnsafe {env env' : Environment} {decl : VInductDecl}
-    (hwf : env.constants.WF) (hwf' : env'.constants.WF)
-    (horigins : InductInfosFromDecl env.constants env'.constants decl)
-    (hcover : ∀ T ∈ decl.types,
-      ∃ v, env'.find? T.name = some (.inductInfo v) ∧ env.find? T.name = none)
-    (hnonempty : decl.types ≠ [])
-    (hnew : ∀ {n v}, env'.find? n = some (.inductInfo v) → env.find? n = none →
-      v.isUnsafe = b) : decl.isUnsafe = b := by
-  obtain ⟨T, hT⟩ := List.exists_mem_of_ne_nil _ hnonempty
-  obtain ⟨v, hv, hnone⟩ := hcover T hT
-  have hvMap : env'.constants.find? T.name = some (.inductInfo v) := by
-    rwa [Lean.Kernel.Environment.find?, hwf'.find?'_eq_find?] at hv
-  rcases horigins _ v hvMap with hold | ⟨i, -, ⟨A⟩⟩
-  · rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?, hold] at hnone; cases hnone
-  · rw [← A.isUnsafe]; exact hnew hv hnone
-
 /-- Every family of an installed declaration is a new kernel header, read off the abstract
 side: the family constant is registered, so some visible kernel constant carries its name; it
 is new because the name was fresh in the source model, and it is a header because the only new
@@ -1534,23 +1506,6 @@ theorem InductInfosFromDecl.cover {env env' : Environment} {venv venv' : VEnv}
         exact (List.nodup_append.mp hnodup).2.2 _ htypeName _ hctorName rfl
   obtain ⟨v, rfl⟩ := hind
   exact ⟨v, hci, hnone⟩
-
-/-- Declaration alignment transfers to a constant map with the same headers and
-constructors. -/
-theorem InductInfosFromDecl.transfer {C₀ C C' : ConstMap} {decl : VInductDecl}
-    (H : InductInfosFromDecl C₀ C decl)
-    (hind : ∀ {n v}, C'.find? n = some (.inductInfo v) → C.find? n = some (.inductInfo v))
-    (hfam : ∀ {n v}, C.find? n = some (.inductInfo v) → C'.find? n = some (.inductInfo v))
-    (hctor : ∀ {n v}, C.find? n = some (.ctorInfo v) → C'.find? n = some (.ctorInfo v)) :
-    InductInfosFromDecl C₀ C' decl := by
-  intro familyName familyInfo hfind
-  rcases H familyName familyInfo (hind hfind) with hold | ⟨i, hname, ⟨A⟩⟩
-  · exact .inl hold
-  · refine .inr ⟨i, hname, ⟨{ A with
-      lookup := hfam A.lookup
-      constructor := fun k hk => ?_ }⟩⟩
-    obtain ⟨Ck⟩ := A.constructor k hk
-    exact ⟨{ Ck with lookup := hctor Ck.lookup }⟩
 
 /-! ## Installed families -/
 

@@ -4,8 +4,7 @@ import Lean4Lean.Verify.Inductive.Formation
 /-!
 # The abstract `Bool` and `Nat` constants
 
-The abstract family and constructor constants of the primitive declarations, and
-`PrimitiveConstantsInstallation`, a complete batch of them installed in one step. The
+The abstract family and constructor constants of the primitive declarations. The
 invariant `HasPrimitives` holds again once the whole batch is installed
 (`VEnv.HasPrimitives.addBoolConstants`, `addNatConstants`) and is false after the family
 header alone, which is why the primitive path installs headers and constructors atomically.
@@ -52,13 +51,6 @@ def primitiveNatSucc : VConstVal :=
 `Nat` declaration. -/
 def primitiveNatConstants : List VConstVal :=
   [primitiveNatType, primitiveNatZero, primitiveNatSucc]
-
-/-- A complete finite batch installed in one abstract environment
-transition.  In particular, this certificate makes no claim that
-any proper prefix of `constants` produces a valid checking environment. -/
-structure PrimitiveConstantsInstallation
-    (env out : VEnv) (constants : List VConstVal) : Prop where
-  installed : env.addConstVals constants = some out
 
 /-- A complete canonical Bool batch restores the primitive invariant.  No
 intermediate environment is asserted to satisfy `HasPrimitives`. -/
@@ -211,20 +203,6 @@ theorem VEnv.HasPrimitives.addNatConstants
     exact Option.some.inj h |>.symm
   exact PrimSpec.Holds.extend (s := spec) (H (name, spec) hp) hle
     (same name hNatName hZeroName hSuccName)
-
-/-- The complete atomic Bool batch restores `HasPrimitives`; no validity
-claim is made about its family-only prefix. -/
-theorem PrimitiveConstantsInstallation.boolHasPrimitives
-    (B : PrimitiveConstantsInstallation env out primitiveBoolConstants)
-    (H : env.HasPrimitives) : out.HasPrimitives :=
-  VEnv.HasPrimitives.addBoolConstants H B.installed
-
-/-- The complete atomic Nat batch restores `HasPrimitives`; no validity claim
-is made about its family-only prefix. -/
-theorem PrimitiveConstantsInstallation.natHasPrimitives
-    (B : PrimitiveConstantsInstallation env out primitiveNatConstants)
-    (H : env.HasPrimitives) : out.HasPrimitives :=
-  VEnv.HasPrimitives.addNatConstants H B.installed
 
 end VerifyInductive
 end Lean4Lean

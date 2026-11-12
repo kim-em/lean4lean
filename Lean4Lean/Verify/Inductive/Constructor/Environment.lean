@@ -24,10 +24,6 @@ theorem CheckingEnv.of_constants_eq {safety : DefinitionSafety} {env env' : Envi
   of_value := fun hfind => H.of_value (by
     rw [Kernel.Environment.find?, heq] at hfind; exact hfind)
 
-theorem find?_of_constants_eq {env env' : Environment} (heq : env'.constants = env.constants)
-    (n : Name) : env'.find? n = env.find? n := by
-  simp only [Kernel.Environment.find?, heq]
-
 theorem constants_foldl_add : ∀ (cis : List ConstantInfo) (env : Environment),
     (cis.foldl (fun e ci => Lean.Kernel.Environment.add e ci) env).constants =
       insertConsts env.constants cis

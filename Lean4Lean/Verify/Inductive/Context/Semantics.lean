@@ -58,9 +58,6 @@ theorem ContextFrame.kernel_reserves_current (H : ContextFrame c Us) :
   apply NameGenerator.Reserves.num_of_prefix_ne
   simp [H.ngen_prefix]
 
-theorem ContextFrame.lctxWF (H : ContextFrame c Us) : c.lctx.WF :=
-  H.lctx_eq ▸ H.mlctx_wf.tr.1
-
 abbrev ContextFrame.chk (H : ContextFrame c Us) : TypeChecker.MLCtx := H.check.m
 
 theorem ContextFrame.checkSub (H : ContextFrame c Us) : c.checkLCtx.SubContextOf c.lctx :=

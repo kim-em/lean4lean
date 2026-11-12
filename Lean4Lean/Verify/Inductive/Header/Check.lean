@@ -96,12 +96,6 @@ def ofLoop
   simp [ofLoop, metadata, checkInductiveTypes.loopType.CheckedHeaders.metadata,
     CheckedHeader.ofLoop]
 
-@[simp] theorem ofLoop_targets
-    (H : checkInductiveTypes.loopType.CheckedHeaders env Us nparams params commonLevel sources) :
-    (ofLoop H).targets = H.headers.targets := by
-  simp [ofLoop, targets, checkInductiveTypes.loopType.CheckedHeaders.headers,
-    CheckedHeader.ofLoop]
-
 /-- A declaration whose headers are these: same universe and parameter counts, families with
 the checked constants, index counts and result levels, and the source constructor names. The
 constructor types are fixed later, by the constructor phase. -/

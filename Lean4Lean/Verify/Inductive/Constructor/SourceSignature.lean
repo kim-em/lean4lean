@@ -120,22 +120,6 @@ theorem _root_.Lean4Lean.VInductDecl.RecursiveNormalForm.recursiveShape
   · intro index hindex
     simpa [hnames] using hindices index hindex
 
-/-- A retained uniform positive normal form is either family-free or determines the
-recursive shape expected by the independent generator (`RecursiveNormalForm.recursiveShape`). -/
-theorem _root_.Lean4Lean.VInductDecl.UniformFieldNormalForm.recursiveShape
-    {decl : VInductDecl} {s : InductiveSignature}
-    (huvars : s.uvars = decl.uvars) (hparams : s.params.length = decl.nparams)
-    (hnames : s.families.toList.map (·.name) = decl.types.map (·.name))
-    (H : decl.UniformFieldNormalForm (VLevel.params decl.uvars) depth normalized) :
-    normalized.SourceConstFree (s.families.toList.map (·.name)) ∨
-      ∃ r : Recursive s.families.size,
-        normalized = s.recursiveType depth r ∧
-        (∀ domain ∈ r.binders, domain.SourceConstFree (s.families.toList.map (·.name))) ∧
-        (∀ index ∈ r.indices, index.SourceConstFree (s.families.toList.map (·.name))) := by
-  rcases H with hfree | H
-  · exact .inl (by simpa [hnames] using hfree)
-  · exact .inr (VInductDecl.RecursiveNormalForm.recursiveShape huvars hparams hnames H)
-
 /-- Classification part of the per-field source signature model: an external
 field normalizes to a source-free type, and a recursive field is
 definitionally its generated recursive type with source-free binders and
@@ -428,58 +412,9 @@ end Lean4Lean.VerifyInductive
 
 namespace Lean4Lean
 
-/-- The parameter and index variables of a family application, in one range. -/
-theorem InductiveSignature.vars_append_eq_bvarRange (a b : Nat) :
-    vars a b ++ vars b 0 = VExpr.bvarRange (a + b) (a + b) := by
-  apply List.ext_getElem
-  · simp [vars]
-  · intro j h1 h2
-    simp only [List.length_append, vars, List.length_map, List.length_reverse,
-      List.length_range] at h1
-    rw [VExpr.bvarRange_getElem _ _ _ (by omega)]
-    by_cases hj : j < a
-    · rw [List.getElem_append_left (by simp [vars]; omega)]
-      simp only [vars, List.getElem_map, List.getElem_reverse, List.getElem_range,
-        List.length_range, VExpr.bvar.injEq]
-      omega
-    · rw [List.getElem_append_right (by simp [vars]; omega)]
-      simp only [vars, List.getElem_map, List.getElem_reverse, List.getElem_range,
-        List.length_range, List.length_map, List.length_reverse, VExpr.bvar.injEq]
-      omega
-
 end Lean4Lean
 
 namespace Lean4Lean.VerifyInductive
 open InductiveSignature
-
-/-- Every family of a header certificate is, definitionally, a telescope over the common
-parameters followed by an index telescope of the recorded length, ending in its recorded
-sort. The index domains are those of its own normalized type shape. -/
-theorem HeaderCertificate.familyTelescope {env : VEnv} {decl : VInductDecl}
-    (H : HeaderCertificate env decl) (henv : env.WF)
-    {type : VInductiveType} (htype : type ∈ decl.types)
-    (hwf : env.IsType decl.uvars [] type.type) :
-    ∃ indices : List VExpr, indices.length = type.numIndices ∧
-      env.IsDefEqU decl.uvars [] type.type
-        (VExpr.wrapForalls (H.params ++ indices) (.sort type.resultLevel)) := by
-  obtain ⟨normalized, ownParams, afterParams, indices, result, exprType,
-    hty, hp, hi, hparams, hres⟩ := H.typeShapes type htype
-  have h1 := VExpr.takeForalls_eq_wrapForalls hp
-  have h2 := VExpr.takeForalls_eq_wrapForalls hi
-  refine ⟨indices, h2.2, ?_⟩
-  have hn : normalized = VExpr.wrapForalls (ownParams ++ indices) result := by
-    rw [h1.1, h2.1, VExpr.wrapForalls_append]
-  exact canonicalFamilyOfTelescope henv hwf (hn ▸ hty) hparams hres
-
-/-- The common parameters of a header certificate of a nonempty declaration have the
-declaration's parameter count. -/
-theorem HeaderCertificate.params_length {env : VEnv} {decl : VInductDecl}
-    (H : HeaderCertificate env decl) {type : VInductiveType} (htype : type ∈ decl.types) :
-    H.params.length = decl.nparams := by
-  obtain ⟨_, ownParams, _, _, _, _, _, hp, _, hparams, _⟩ := H.typeShapes type htype
-  have h1 := VExpr.takeForalls_eq_wrapForalls hp
-  have := hparams.length_eq
-  simp only [List.length_reverse] at this
-  omega
 
 end Lean4Lean.VerifyInductive

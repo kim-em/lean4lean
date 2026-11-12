@@ -338,14 +338,5 @@ noncomputable def RecursorInstallation.canonicalGeneration
     InductiveSignature.Instance H.toRecursorConstruction.generationSignature :=
   H.toRecursorConstruction.generationInstance
 
-/-- The construction's instance is admissible in the header environment, with the elimination
-level and singleton decision the executable computed. -/
-theorem RecursorInstallation.canonicalGeneration_admissible
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    (H : RecursorInstallation R outEnv) :
-    H.canonicalGeneration.Admissible R.headerVEnv :=
-  H.toRecursorConstruction.generator.admissible
-
 end VerifyInductive
 end Lean4Lean

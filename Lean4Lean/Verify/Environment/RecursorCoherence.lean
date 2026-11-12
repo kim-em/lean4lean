@@ -169,20 +169,6 @@ theorem EquationHeadsCoherent.rigid_quot {C : ConstMap} (H : EquationHeadsCohere
     rw [heq, h] at hrec
     cases hrec
 
-/-- A constant absent from the map heads no reduction rule. -/
-theorem EquationHeadsCoherent.rigid_of_fresh {C : ConstMap} (H : EquationHeadsCoherent C venv)
-    (h : C.find? n = none) : venv.Rigid n where
-  defeqs df hdf ls heq := by
-    obtain ⟨head, ls', ci, hhead, hci, -, -⟩ := H.defeqs df hdf
-    rw [heq] at hhead
-    cases hhead
-    rw [h] at hci
-    cases hci
-  pats p r hp heq := by
-    obtain ⟨rec, hrec⟩ := H.pats p r hp
-    rw [heq, h] at hrec
-    cases hrec
-
 /-! ## Transport of the rule heads
 
 Every step of the environment translation preserves the map's lookups and adds rules headed

@@ -54,25 +54,6 @@ noncomputable abbrev generation (H : RecursorCheck R outEnv) : InductiveSignatur
 /-- The declaration with the generated recursors: the declaration `addInduct` installs. -/
 noncomputable abbrev decl' (H : RecursorCheck R outEnv) : VInductDecl := decl.withRecs H.recs
 
-/-- The kernel recursors are named after their families, in family order. -/
-theorem rvals_names (H : RecursorCheck R outEnv) :
-    H.rvals.map (·.name) = indTypes.toList.map (Lean.mkRecName ·.name) := by
-  have hsize : H.generationSignature.families.size = indTypes.size := H.generator.familyCount
-  apply List.ext_getElem
-  · simp [hsize]
-  · intro i h₁ h₂
-    have hi : i < H.generationSignature.families.size := by simpa using h₁
-    have hi' : i < indTypes.size := hsize ▸ hi
-    simp only [List.getElem_map, RecursorInstallation.rvals, List.getElem_ofFn,
-      Array.getElem_toList]
-    have hn : (H.rvalAt ⟨i, hi⟩).name = Lean.mkRecName indTypes[i]!.name :=
-      (H.generated.entry i (H.entries_lt ⟨i, hi⟩)).name
-    rw [hn]
-    simp [hi']
-
-theorem rvals_length (H : RecursorCheck R outEnv) : H.rvals.length = indTypes.size := by
-  have := congrArg List.length H.rvals_names; simpa using this
-
 theorem recs_length (H : RecursorCheck R outEnv) : H.recs.length = H.rvals.length :=
   (List.Forall₂.length_eq H.trRecs).symm
 

@@ -22,12 +22,6 @@ cannot be excluded solely from a successful ordinary `checkName`. -/
 def checkPositivityStep.unreservedLiteralConstructorNames : List Name :=
   [``Char, ``List.nil, ``List.cons]
 
-/-- The exact residual literal-name condition left after successful ordinary
-header installation has excluded every primitive-reserved name. -/
-def checkPositivityStep.UnreservedLiteralConstructorNamesDisjoint
-    (names : List Name) : Prop :=
-  ∀ name ∈ unreservedLiteralConstructorNames, names.contains name = false
-
 /-- Once string-literal support is present, `HasPrimitives` and orderedness
 recover all three non-reserved constants used by literal expansion. -/
 theorem unreservedLiteralConstructorsOfStringOfList
