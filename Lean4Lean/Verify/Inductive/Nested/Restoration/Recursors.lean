@@ -15,7 +15,6 @@ Each of these is the abstract restoration
 (`Restoration.recursor`) of the generated recursor of the same owner, so the
 `recursors` field of `NestedCompilationRestorationFacts` holds. -/
 
-
 namespace Lean4Lean
 
 open InductiveSignature
@@ -60,33 +59,6 @@ theorem SourceFamilyTranslations.recursorSteps
       exact Hrecursor.uvars
     · rw [Hstep.restored.recursor.restored.restoration.levelParams]
       exact Hrecursor.type
-
-/-- The auxiliary recursors of `AuxiliaryRecursorRuleBatches`, one per restored
-recursor name, each the translation of the restored recursor at that name. -/
-theorem AuxiliaryRecursorRuleBatches.recursorSteps
-    {result : Lean4Lean.ElimNestedInductive.Result}
-    {loweredEnv : Environment} {auxRec : NameMap Name} {allIndNames : List Name}
-    {names : List Name} {sourceEnv targetEnv : Environment}
-    {Htrace : FoldSteps
-      (RestoredRecursorStep result loweredEnv auxRec allIndNames)
-      names sourceEnv targetEnv}
-    (H : AuxiliaryRecursorRuleBatches safety trEnv Htrace
-      priorRecursors priorRules finalRecursors finalRules) :
-    ∃ added, finalRecursors = priorRecursors ++ added ∧
-      List.Forall₂ (fun (name : Name) (w : VConstVal) =>
-          ∃ (s t : Environment) (Hstep : RestoredRecursorStep result loweredEnv
-            auxRec allIndNames name s t),
-            RecursorRestorationStepValue trEnv Hstep w)
-        names added := by
-  induction H with
-  | nil => exact ⟨[], by simp, .nil⟩
-  | cons Hstep Htail Hsemantic Hrest ih =>
-    obtain ⟨added, hfinal, Hadded⟩ := ih
-    obtain ⟨⟨_, huvars, htype⟩, hname⟩ := Hsemantic.translated
-    refine ⟨Hsemantic.recursor :: added, by simp [hfinal], .cons ⟨_, _, Hstep,
-      ?_, huvars, htype⟩ Hadded⟩
-    rw [← Hstep.restored.restoration.name]
-    exact hname.symm
 
 /-- The auxiliary recursors of `AuxiliaryRecursorTranslations`, one per restored
 recursor name, each the translation of the restored recursor at that name. -/
@@ -543,8 +515,6 @@ theorem NestedRun.restoredRecursorEntries_of_paramUniform
   exact ⟨E.restoredRecursor_of_step hparamsSize D hscoped owner Hstep rfl Hshape
     Hfresh Hw, s, t, Hstep, Hw⟩
 
-
-
 /-- The restored generated recursor list of the lowered declaration is the
 recursor list of a `RestoredBlockBase`, for the specializations of
 `restorationTablesRestoringAll` (via `NestedRun.recursorParamUniform_of_wfCore`). -/
@@ -743,7 +713,6 @@ theorem NestedRun.restoredRecursorShapeFields
 (`Nested/Restoration/CompilationData.lean`), with the rule lists of the
 restored block arbitrary: no field of `CompilationData` but `equations`
 mentions the block's rules. -/
-
 
 /-! ### Generated recursor names are not restoration heads -/
 

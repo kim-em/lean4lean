@@ -434,11 +434,6 @@ theorem TrSyn.headsApplied_of_avoids {Us : List Name} {Δ : VLCtx}
     intro hav hΔ
     cases hav with | proj _ _ _ h => exact .proj (ih h hΔ)
 
-theorem TrExprS.headsApplied_of_avoids {env : VEnv} {Us : List Name} {Δ : VLCtx}
-    {e : Expr} {e' : VExpr} (H : TrExprS env Us Δ e e') :
-    e.AvoidsConsts heads → (∀ x ∈ Δ, VExpr.HeadsApplied heads n k x.2.value) →
-      VExpr.HeadsApplied heads n k e' := H.toTrSyn.headsApplied_of_avoids
-
 /-- **Transport of head arity along the expression translation.** -/
 theorem _root_.Lean.Expr.HeadsApplied.trSyn {Us : List Name}
     (hlit : ∀ l : Literal, (Expr.lit l).AvoidsConsts heads)
@@ -530,8 +525,6 @@ theorem _root_.Lean4Lean.TrExprS.projsRegistered {env : VEnv} {Us : List Name} {
     obtain ⟨_, hty⟩ := hproj
     obtain ⟨info, -, -, -, -, -, -, hinfo, -⟩ := VEnv.HasType.proj_inv henv hΔ.toCtx hty
     exact ⟨info, hinfo⟩
-
-
 
 /-! ### Generic discharges at a recursor construction -/
 

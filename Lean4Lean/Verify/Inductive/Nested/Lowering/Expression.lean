@@ -457,11 +457,6 @@ private theorem nestedAuxFold_find_of_not_mem
       exact False.elim (hnot.1 hname.symm)
     next => rfl
 
-def NestedAuxMapFVarsIn (P : FVarId → Prop)
-    (map : Std.TreeMap Name Expr Name.quickCmp) : Prop :=
-  ∀ (name : Name) (nested : Expr),
-    map[name]? = some nested → nested.FVarsIn P
-
 /-- Every key in a restoration map belongs to the private namespace used by
 the lowering-generated auxiliary families. -/
 def NestedAuxMapNamesReserved
@@ -499,34 +494,6 @@ theorem NestedAuxMapNamesFresh.insert
     rw [← Std.LawfulEqCmp.eq_of_compare hcmp]
     exact Hname
   next => exact Hmap query value hfind
-
-theorem NestedAuxMapFVarsIn.insert
-    (Hmap : NestedAuxMapFVarsIn P map) (Hnested : nested.FVarsIn P) :
-    NestedAuxMapFVarsIn P (map.insert name nested) := by
-  intro query value hfind
-  rw [Std.TreeMap.getElem?_insert] at hfind
-  split at hfind
-  · cases hfind
-    exact Hnested
-  · exact Hmap query value hfind
-
-theorem nestedAuxFold_fvarsIn
-    (entries : List (Expr × Name))
-    (Hentries : ∀ entry ∈ entries, entry.1.FVarsIn P)
-    (Hmap : NestedAuxMapFVarsIn P map) :
-    NestedAuxMapFVarsIn P
-      (entries.foldl
-        (fun (map : Std.TreeMap Name Expr Name.quickCmp)
-          (entry : Expr × Name) => map.insert entry.2 entry.1)
-        map) := by
-  induction entries generalizing map with
-  | nil => exact Hmap
-  | cons entry entries ih =>
-    simp only [List.foldl_cons]
-    apply ih
-    · intro tail htail
-      exact Hentries tail (by simp [htail])
-    · exact Hmap.insert (Hentries entry (by simp))
 
 theorem nestedAuxFold_namesReserved
     (entries : List (Expr × Name))
@@ -1357,8 +1324,6 @@ theorem ExprLowering.Resolved.outputFVarIdsIn
     simpa [Expr.updateMData!, Expr.FVarIdsIn] using ihBody Hinput
   | proj Hnode Hbody ihBody =>
     simpa [Expr.updateProj!, Expr.FVarIdsIn] using ihBody Hinput
-
-
 
 /-- Nested lowering preserves bound-variable closedness at every depth: a
 replacement swaps a closed parameter prefix for an auxiliary head applied to the

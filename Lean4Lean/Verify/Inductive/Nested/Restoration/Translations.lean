@@ -34,37 +34,6 @@ structure AuxiliaryRecursorRuleBatch
     (.recInfo Hstep.restored.newInfo) recursor
   rulesLength : rules.length = Hstep.restored.newInfo.rules.length
 
-/-- The steps of an auxiliary restoration fold, each with an
-`AuxiliaryRecursorRuleBatch`. The rule batches are recorded explicitly, but this
-judgment alone does not constrain their left-hand sides or their translation. -/
-inductive AuxiliaryRecursorRuleBatches
-    (safety : DefinitionSafety) (trEnv : VEnv) :
-    ∀ {names sourceEnv targetEnv},
-      FoldSteps
-        (RestoredRecursorStep result loweredEnv auxRec allIndNames)
-        names sourceEnv targetEnv →
-      List VConstVal → List VDefEq →
-      List VConstVal → List VDefEq → Prop
-  | nil (sourceEnv) (recursors rules) :
-      AuxiliaryRecursorRuleBatches safety trEnv
-        (FoldSteps.nil (P :=
-          RestoredRecursorStep result loweredEnv auxRec allIndNames)
-          (source := sourceEnv)) recursors rules recursors rules
-  | cons
-      (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
-        oldRecName sourceEnv middleEnv)
-      (Htail : FoldSteps
-        (RestoredRecursorStep result loweredEnv auxRec allIndNames)
-        names middleEnv targetEnv)
-      (Hsemantic : AuxiliaryRecursorRuleBatch safety trEnv
-        Hstep)
-      (Hrest : AuxiliaryRecursorRuleBatches safety trEnv
-        Htail (priorRecursors ++ [Hsemantic.recursor])
-          (priorRules ++ Hsemantic.rules) finalRecursors finalRules) :
-      AuxiliaryRecursorRuleBatches safety trEnv
-        (.cons Hstep Htail) priorRecursors priorRules
-          finalRecursors finalRules
-
 /-- Translation, typing and shape of one restored source recursor. -/
 structure SourceRecursorTranslation
     (decl : VInductDecl) (owner : VInductiveType)
@@ -183,57 +152,6 @@ theorem SourceFamilyTranslations.types
   | cons Hstep Htail Hheader Hconstructors Hrecursor Hrest ih =>
     exact .cons ⟨Hheader, Hconstructors.forall₂⟩ ih
 
-/-- Header well-formedness is pointwise data in the source family translations;
-no separate premise of the nested installation is needed. -/
-theorem SourceFamilyTranslations.typeConstantsWF
-    (H : SourceFamilyTranslations decl lparams safety sourceVEnv
-      envTypes envCtors Htrace owners recursors)
-    (htypes : decl.types = owners) :
-    ∀ ci ∈ decl.typeConstants, ci.toVConstant.WF sourceVEnv := by
-  intro ci hci
-  simp only [VInductDecl.typeConstants] at hci
-  rcases List.mem_map.mp hci with ⟨owner, howner, rfl⟩
-  have howner' : owner ∈ owners := by
-    rw [← htypes]
-    exact howner
-  rcases Lean4Lean.List.Forall₂.forall_exists_r H.types owner howner' with
-    ⟨_source, _hsource, Howner⟩
-  exact Howner.header.wf
-
-/-- Constructor well-formedness is likewise fixed by the source family
-translations, in the header environment. -/
-theorem SourceFamilyTranslations.constructorConstantsWF
-    (H : SourceFamilyTranslations decl lparams safety sourceVEnv
-      envTypes envCtors Htrace owners recursors)
-    (htypes : decl.types = owners) :
-    ∀ ci ∈ decl.constructorConstants, ci.toVConstant.WF envTypes := by
-  intro ci hci
-  simp only [VInductDecl.constructorConstants] at hci
-  rcases List.mem_flatMap.mp hci with ⟨owner, howner, hctor⟩
-  have howner' : owner ∈ owners := by
-    rw [← htypes]
-    exact howner
-  rcases Lean4Lean.List.Forall₂.forall_exists_r H.types owner howner' with
-    ⟨_source, _hsource, Howner⟩
-  rcases Lean4Lean.List.Forall₂.forall_exists_r Howner.ctors ci hctor with
-    ⟨_sourceCtor, _hsourceCtor, Hctor⟩
-  exact Hctor.wf
-
-/-- Restored source recursors are typed in the constructor environment, which
-already contains every mutual constructor. -/
-theorem SourceFamilyTranslations.sourceRecursorsWF
-    (H : SourceFamilyTranslations decl lparams safety sourceVEnv
-      envTypes envCtors Htrace owners recursors) :
-    ∀ ci ∈ recursors, ci.toVConstant.WF envCtors := by
-  induction H with
-  | nil => simp
-  | cons Hstep Htail Hheader Hconstructors Hrecursor Hrest ih =>
-    intro ci hci
-    simp only [List.mem_cons] at hci
-    rcases hci with rfl | hrest
-    · exact Hrecursor.wf
-    · exact ih ci hrest
-
 /-- The source declaration translation `TrInductDeclCore`, from the source family
 translations. The restoration fold fixes all pointwise source/target
 correspondences; only the abstract header and constructor environments and the
@@ -277,31 +195,6 @@ def restoredBlock (decl : VInductDecl)
   projections := decl.projectionEntries
   recursors := primaryRecursors ++ auxiliaryRecursors
   rules := primaryRules ++ auxiliaryRules
-
-/-- A successful lockstep installation makes every constructor recognized as
-belonging to a fresh auxiliary family absent from the source abstract
-environment. -/
-theorem AddConstants.restoreAuxConstructorsFresh
-    (H : AddConstants safety sourceProdEnv sourceVEnv entries
-      loweredEnv loweredVEnv)
-    (hwf : sourceProdEnv.constants.WF)
-    (Howners : ConstructorOwnersPresent sourceProdEnv)
-    (Hfamilies : RestoreAuxFamiliesFresh result sourceProdEnv) :
-    RestoreAuxConstructorsFresh result loweredEnv sourceVEnv := by
-  intro name nested auxFamily hrecognized
-  rcases getNestedIfAuxCtor_refines result loweredEnv name nested auxFamily
-      hrecognized with ⟨⟨info, hlookup, hfamily, hmap⟩⟩
-  rcases H.entryOrigin hwf hlookup with hold | hnew
-  · rcases Howners name info hold with ⟨owner, howner, -⟩
-    have hfresh := Hfamilies info.induct nested hmap
-    rw [howner] at hfresh
-    contradiction
-  · rcases hnew with ⟨entry, hentry, hname, hfound⟩
-    have habstractFresh := (VEnv.addConstVals_names_fresh H.abstract).2
-      entry.2 (List.mem_map.mpr ⟨entry, hentry, rfl⟩)
-    have hentryNames := H.entryNames hentry
-    rw [hname, hentryNames]
-    exact habstractFresh
 
 end VerifyInductive
 end Lean4Lean

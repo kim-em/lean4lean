@@ -138,24 +138,4 @@ theorem CompilationData.source_recursors_disjoint
       VInductDecl.constructorConstants, List.map_map, List.map_flatMap, Function.comp_def] using this
   exact (List.nodup_append.mp hnd).2.2 name he' name hr rfl
 
-/-- The auxiliary recursor names of a compilation are fresh and distinct from the declaration's
-names. -/
-theorem CompilationData.recursorNamesFresh {g : Instance s}
-    (H : CompilationData env source expanded s g auxiliaries block) :
-    RecursorNamesFresh env source expanded auxiliaries := by
-  intro name hr
-  obtain ⟨pair, hpair, rfl⟩ := List.mem_map.mp hr
-  have hm := H.recursor_source_mem hpair
-  obtain ⟨rec, hrec, hname⟩ := List.mem_map.mp hm
-  refine ⟨hname ▸ H.recursorsFresh rec hrec, fun hs => ?_, fun he => ?_⟩
-  · apply H.source_recursors_disjoint _ hm
-    apply (familyNames_perm source.types).mem_iff.mpr
-    simpa only [VInductDecl.sourceNames, VInductDecl.typeConstants,
-      VInductDecl.constructorConstants, List.map_map, List.map_flatMap, Function.comp_def]
-      using hs
-  · have hnd := H.generatedNames
-    rw [List.map_append, List.map_append] at hnd
-    exact (List.nodup_append.mp hnd).2.2 _ (by
-      simpa only [VInductDecl.sourceNames, List.map_append] using he) _ hm rfl
-
 end Lean4Lean.InductiveSignature

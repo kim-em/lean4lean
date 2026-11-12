@@ -107,7 +107,6 @@ theorem compilationRestoration_recursorName_of_not_mem
     exact absurd (List.mem_map.mpr ⟨pair, hmem, heq⟩) hname
   · rfl
 
-
 theorem ContainerSpecialization.heads_map_auxiliary (a : ContainerSpecialization)
     (uvars nparams : Nat) :
     (a.heads uvars nparams).map (·.auxiliary) = a.headNames := by
@@ -422,7 +421,6 @@ theorem mkAuxRecNameMap_find_auxiliary
   simp only [Nat.add_comm 1 i] at h
   simpa [Lean4Lean.mkAuxRecNameMap, hfind, hlength'] using h
 
-
 open _root_.Lean4Lean.InductiveSignature in
 /-- The abstract auxiliary-recursor renaming of `compilationRestoration`
 agrees with the executable `mkAuxRecNameMap` on every name, provided the
@@ -474,7 +472,6 @@ theorem compilationRestoration_recursorName_eq_mkAuxRecNameMap
     rw [hrecNames] at hmem
     rw [mkAuxRecNameMap_recMap_find_none main rest env info hfind hmem]
     rfl
-
 
 open _root_.Lean4Lean.InductiveSignature
 
@@ -778,7 +775,6 @@ theorem AuxiliaryFamilySource.auxiliarySpecialization
     rw [hsource, huvars]
     exact N.constructorShapes
 
-
 theorem exists_forall₂_of_forall {R : α → β → Prop} :
     ∀ {l : List β}, (∀ y ∈ l, ∃ x, R x y) → ∃ xs, List.Forall₂ R xs l
   | [], _ => ⟨[], .nil⟩
@@ -947,50 +943,6 @@ theorem AuxiliaryFamilySpec.nested_getAppFn
   apply Expr.getAppFn_abstractN_const
   rw [Expr.mkAppRange_from_zero _ _ _ harity, Expr.getAppFn_mkAppList]
   rfl
-private theorem constructorListEntries_findInduct
-    {stats : AddInductive.InductiveStats} {lparams : List Name}
-    {isUnsafe : Bool} {owner : InductiveType} {ctors : List Constructor}
-    {entries : List (ConstantInfo × VConstVal)} {ctor : Constructor}
-    {initial : Nat}
-    (H : ConstructorListEntries
-      (AddInductive.constructorInfo stats lparams isUnsafe owner)
-      initial ctors entries)
-    (hctor : ctor ∈ ctors) :
-    ∃ info : ConstructorVal, ∃ value : VConstVal,
-      (.ctorInfo info, value) ∈ entries ∧
-      info.name = ctor.name ∧ info.induct = owner.name := by
-  induction H with
-  | nil => simp at hctor
-  | @cons start head tail tailEntries value Htail ih =>
-    simp only [List.mem_cons] at hctor
-    rcases hctor with rfl | htail
-    · exact ⟨AddInductive.constructorInfo stats lparams isUnsafe owner
-        start ctor, value, by simp,
-        by simp [AddInductive.constructorInfo],
-        by simp [AddInductive.constructorInfo]⟩
-    · rcases ih htail with ⟨info, value', hmem, hname, hinduct⟩
-      exact ⟨info, value', by simp [hmem], hname, hinduct⟩
-
-theorem ConstructorTypeEntries.findInduct
-    {stats : AddInductive.InductiveStats} {lparams : List Name}
-    {isUnsafe : Bool} {types : List InductiveType} {owner : InductiveType}
-    {entries : List (ConstantInfo × VConstVal)} {ctor : Constructor}
-    (H : ConstructorTypeEntries
-      (AddInductive.constructorInfo stats lparams isUnsafe) types entries)
-    (howner : owner ∈ types) (hctor : ctor ∈ owner.ctors) :
-    ∃ info : ConstructorVal, ∃ value : VConstVal,
-      (.ctorInfo info, value) ∈ entries ∧
-      info.name = ctor.name ∧ info.induct = owner.name := by
-  induction H generalizing owner with
-  | nil => simp at howner
-  | cons Hhead Htail ih =>
-    simp only [List.mem_cons] at howner
-    rcases howner with rfl | htailOwner
-    · rcases constructorListEntries_findInduct Hhead hctor with
-        ⟨info, value, hmem, hname, hinduct⟩
-      exact ⟨info, value, List.mem_append_left _ hmem, hname, hinduct⟩
-    · rcases ih htailOwner hctor with ⟨info, value, hmem, hname, hinduct⟩
-      exact ⟨info, value, List.mem_append_right _ hmem, hname, hinduct⟩
 
 /-- Every lowered constructor is installed in the lowered kernel
 environment as a constructor of its own lowered family, and its name was
@@ -1308,7 +1260,6 @@ theorem NestedRun.containerSpecializations
     exact htypes.sublist (List.drop_sublist _ _)
   exact compilationRestoration_recursorName_eq_mkAuxRecNameMap sourceDecl
     auxiliaries main rest _ info hfind hfirst hnames hnodup
-
 
 /-- The common header parameter context of the lowered run is a
 well-formed context of the source environment, at the declaration's

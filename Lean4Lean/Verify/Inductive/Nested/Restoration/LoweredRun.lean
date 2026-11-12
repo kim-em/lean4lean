@@ -56,11 +56,6 @@ abbrev headers (L : LoweredRun Hc nparams indTypes loweredEnv) :
       L.headerEnv :=
   L.constructors.headers
 
-/-- The rule translations of the lowered run (the rule phase's boundary theorem). -/
-def rules (L : LoweredRun Hc nparams indTypes loweredEnv) :
-    RuleTranslations (R := L.constructors) L.recursors :=
-  RecursorCheck.generatedRuleTranslation L.recursors
-
 theorem env_eq (L : LoweredRun Hc nparams indTypes loweredEnv) : L.c.env = c₀.env :=
   L.phase.env_eq
 
@@ -73,10 +68,6 @@ theorem lparams_eq (L : LoweredRun Hc nparams indTypes loweredEnv) :
 
 theorem venv_eq (L : LoweredRun Hc nparams indTypes loweredEnv) : L.Hc'.venv = Hc.venv :=
   L.phase.venv_eq
-
-/-- The lowered declaration with its generated recursors, as installed by the lowered run. -/
-noncomputable def decl' (L : LoweredRun Hc nparams indTypes loweredEnv) : VInductDecl :=
-  RecursorCheck.decl' L.recursors
 
 end LoweredRun
 

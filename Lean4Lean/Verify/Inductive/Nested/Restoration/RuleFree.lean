@@ -89,10 +89,6 @@ theorem stripRecCI_nonrec {names : List Name} {x : Name} {ci : ConstantInfo}
     | _ => rfl
   · rfl
 
-theorem stripRecCI_stripped {names : List Name} {x : Name} (r : RecursorVal) :
-    stripRecCI names x (.recInfo { r with rules := [] }) = .recInfo { r with rules := [] } := by
-  unfold stripRecCI; split <;> rfl
-
 /-- **The lookups of the stripped environment**: a named recursor is found with its rules
 removed, every other constant unchanged. -/
 theorem stripRecursorRules_find? :
@@ -307,23 +303,6 @@ theorem stripRecCI_eq_ctorInfo {names : List Name} {x : Name} {ci : ConstantInfo
 
 /-- A recursor value with its rules removed. -/
 abbrev _root_.Lean.RecursorVal.stripRules (r : RecursorVal) : RecursorVal := { r with rules := [] }
-
-/-- A model recursor with its rules removed. -/
-abbrev _root_.Lean4Lean.VRecursor.stripRules (r : VRecursor) : VRecursor := { r with rules := [] }
-
-/-- **Stripped recursor translation**: removing the rules of a recursor and of its model
-keeps the translation, in any constant map. -/
-theorem TrRecursor.stripRules {safety : DefinitionSafety} {envC envR : VEnv} {m m' : ConstMap}
-    {rval : RecursorVal} {r : VRecursor} (H : TrRecursor safety envC envR m rval r) :
-    TrRecursor safety envC envR m' rval.stripRules r.stripRules where
-  tr := H.tr
-  all := H.all
-  numParams := H.numParams
-  numMotives := H.numMotives
-  numMinors := H.numMinors
-  numIndices := H.numIndices
-  k := H.k
-  rules := .nil
 
 theorem consts_stripEntries (ivals : List (InductiveVal × List ConstructorVal))
     (rvals : List RecursorVal) :

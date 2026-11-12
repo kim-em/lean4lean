@@ -105,7 +105,6 @@ theorem CompilationData.equation_lhs_ne_sort
       exact g.restored_equation_lhs_ne_sort index _ hhead.1 u
     · exact ih equation hmem u
 
-
 theorem Restoration.go_head_const {r : Restoration} {e output : VExpr}
     {args : List VExpr} {name : Name} {levels : List VLevel}
     (hname : ∀ head ∈ r.heads, head.auxiliary ≠ name)
@@ -272,61 +271,6 @@ theorem CompilationData.heads_not_recursors
         (List.mem_flatMap.mpr ⟨type, htype, hctor⟩), hname⟩
   exact (List.nodup_append.mp hnd).2.2 _ hn' _ hrec
 
-private theorem forall₂_exists_left {R : α → β → Prop} {left : List α} {right : List β}
-    (H : List.Forall₂ R left right) {b : β} (hb : b ∈ right) :
-    ∃ a ∈ left, R a b := by
-  induction H with
-  | nil => cases hb
-  | @cons a b' left right h _ ih =>
-    rcases List.mem_cons.mp hb with rfl | hb
-    · exact ⟨a, by simp, h⟩
-    · rcases ih hb with ⟨a', ha', h'⟩
-      exact ⟨a', by simp [ha'], h'⟩
-
-private theorem forall₂_exists_right {R : α → β → Prop} {left : List α} {right : List β}
-    (H : List.Forall₂ R left right) {a : α} (ha : a ∈ left) :
-    ∃ b ∈ right, R a b := by
-  induction H with
-  | nil => cases ha
-  | @cons a' b left right h _ ih =>
-    rcases List.mem_cons.mp ha with rfl | ha
-    · exact ⟨b, by simp, h⟩
-    · rcases ih ha with ⟨b', hb', h'⟩
-      exact ⟨b', by simp [hb'], h'⟩
-
-/-- The shared instance determines each equation head and its
-corresponding restored recursor declaration. -/
-theorem CompilationData.equation_head_owned
-    {env : VEnv} {source expanded : VInductDecl} {s : InductiveSignature}
-    {g : Instance s} {auxiliaries : List ContainerSpecialization} {block : VInductBlock}
-    (H : CompilationData env source expanded s g auxiliaries block)
-    {df : VDefEq} (hdf : df ∈ block.rules) :
-    ∃ recursor ∈ block.recursors, ∃ levels,
-      df.lhs.stripLams.getAppFnArgs.1 = .const recursor.name levels := by
-  let r := compilationRestoration source auxiliaries
-  rcases forall₂_exists_left (List.mapM_eq_some.mp H.equations) hdf with
-    ⟨generated, hgenerated, hrestored⟩
-  rcases List.mem_map.mp hgenerated with ⟨index, _, rfl⟩
-  have hrecMem : g.recursor s.constructors[index].owner ∈ g.recursors :=
-    List.mem_map.mpr ⟨_, List.mem_finRange _, rfl⟩
-  rcases forall₂_exists_right (List.mapM_eq_some.mp H.recursors) hrecMem with
-    ⟨recursor, hrecursor, hrecRestore⟩
-  have hrecName : recursor.name = r.recursorName (g.recursorName s.constructors[index].owner) := by
-    simp [Restoration.recursor] at hrecRestore
-    rcases hrecRestore with ⟨type, _, h⟩
-    cases h
-    rfl
-  refine ⟨recursor, hrecursor, VLevel.params g.uvars, ?_⟩
-  rw [hrecName]
-  have hleft : r.expr (g.equation index).lhs = some df.lhs := by
-    simp [Restoration.equation] at hrestored
-    rcases hrestored with ⟨lhs, hleft, rhs, _, type, _, h⟩
-    cases h
-    exact hleft
-  apply Restoration.wrapLams_head_const
-    (H.heads_not_recursors s.constructors[index].owner) ?_ hleft
-  exact VExpr.getAppFnArgs_mkApps_head _ _
-
 end InductiveSignature
 
 /-- All finite ordinary/nested derivations, including environment replay,
@@ -354,23 +298,5 @@ theorem CompiledInductive.reject_sort_lhs
     ¬ CompiledInductive env source block := by
   intro H
   exact H.equation_lhs_ne_sort equation hmem u hlhs
-
-/-- Every generated/restored equation is headed by a recursor installed by
-the same finite compilation; replay preserves this ownership. -/
-theorem CompiledInductive.equation_head_owned
-    {env : VEnv} {source : VInductDecl} {block : VInductBlock}
-    (H : CompiledInductive env source block) :
-    ∀ df ∈ block.rules, ∃ recursor ∈ block.recursors, ∃ levels,
-      df.lhs.stripLams.getAppFnArgs.1 = .const recursor.name levels := by
-  exact CompiledInductive.rec
-    (motive_1 := fun _ _ block _ =>
-      ∀ df ∈ block.rules, ∃ recursor ∈ block.recursors, ∃ levels,
-        df.lhs.stripLams.getAppFnArgs.1 = .const recursor.name levels)
-    (motive_2 := fun _ _ _ => True)
-    (fun data _ _ df hdf => data.equation_head_owned hdf)
-    (fun _ _ _ ih => ih)
-    trivial
-    (fun _ _ _ _ _ _ _ _ => trivial)
-    H
 
 end Lean4Lean

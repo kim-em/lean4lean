@@ -9,9 +9,6 @@ namespace InductiveSignature
 
 /-! The restored major domain, in the source and auxiliary cases. -/
 
-
-
-
 /-! The recursor shape contract for a restored recursor. -/
 
 /-- Exactly the facts about a restored recursor that fix its `VRecursorShape`:
@@ -40,27 +37,6 @@ structure RestoredRecursorShape {s : InductiveSignature} (g : Instance s)
         (head.arguments.map (fun arg => arg.liftN
           (s.families.size + s.constructors.size + s.families[owner].indices.length)) ++
           vars s.families[owner].indices.length 0))
-
-/-- The abstract constant installed for a restored recursor entry is the
-restored generated type at the concrete recursor's name and universe arity. -/
-theorem restoredRecursor_constant {s : InductiveSignature} {g : Instance s}
-    {r : Restoration} {venv : VEnv} {owner : Fin s.families.size}
-    {rec : Lean.RecursorVal} {value : VConstVal}
-    (hvalue : r.recursor (g.recursor owner) = some value)
-    (hconst : venv.constants value.name = some value.toVConstant)
-    (hname : rec.name = r.recursorName (g.recursorName owner))
-    (huvars : rec.levelParams.length = g.uvars) :
-    ∃ type, r.expr (g.recursorType owner) = some type ∧
-      venv.constants rec.name = some ⟨rec.levelParams.length, type⟩ := by
-  simp only [Restoration.recursor, Option.bind_eq_bind, Option.pure_def] at hvalue
-  cases ht : r.expr (g.recursor owner).type with
-  | none => simp [ht] at hvalue
-  | some type =>
-    simp only [ht, Option.bind_some, Option.some.injEq] at hvalue
-    subst hvalue
-    refine ⟨type, ht, ?_⟩
-    rw [hname, huvars]
-    exact hconst
 
 /-- A recursor of a block with more than one family is not K-like. -/
 theorem TrRestoredRecursorVal.k_eq_false {s : InductiveSignature} {g : Instance s}
@@ -107,21 +83,3 @@ theorem RestoredRecursorShape.shape {s : InductiveSignature} {g : Instance s}
     major_eq := ?_ }⟩⟩
   rw [H.numParams, H.numMotives, H.numMinors, H.numIndices, ← hprelen,
     List.getElem?_concat_length, hmaj, ← hmajor, InductiveSignature.vars_eq_bvarRange_add, Nat.add_zero]
-
-/-- The rule-free copy of a restored recursor has its recursor shape (`RecursorShapes`). -/
-theorem RestoredRecursorShape.alignmentCore {s : InductiveSignature} {g : Instance s}
-    {r : Restoration} {venv : VEnv} {owner : Fin s.families.size}
-    {rec : Lean.RecursorVal} (H : RestoredRecursorShape g r venv owner rec)
-    (C : Lean.ConstMap) : RecursorShapes C venv { rec with rules := [] } := by
-  rcases H.shape with ⟨head, _, hshape⟩
-  exact ⟨head.arguments.length, head.levels, head.arguments, hshape, by simp⟩
-
-/-- The rule-free copy of a restored recursor is not K-like. -/
-theorem RestoredRecursorShape.kLike {s : InductiveSignature} {g : Instance s}
-    {r : Restoration} {venv : VEnv} {owner : Fin s.families.size}
-    {rec : Lean.RecursorVal} (H : RestoredRecursorShape g r venv owner rec)
-    (C : Lean.ConstMap) : KLikeRecursor C venv { rec with rules := [] } := by
-  intro hk
-  have : rec.k = true := hk
-  rw [H.k] at this
-  cases this

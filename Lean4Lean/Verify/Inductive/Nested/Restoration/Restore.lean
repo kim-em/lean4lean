@@ -36,12 +36,6 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- The checker context of the nested branch: the executable's own
-(`Environment.addInductiveAfterLowering`, with `allowPrimitive := false`). -/
-abbrev nestedContext (env : Environment) (lparams : List Name) (isUnsafe : Bool)
-    (fuel : FuelConfig) : AddInductive.Context :=
-  initialContext env lparams (if isUnsafe then .unsafe else .safe) false fuel
-
 /-- **The restoration boundary theorem.** -/
 theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     {lparams : List Name} {nparams : Nat} {sourceTypes : List InductiveType} {isUnsafe : Bool}

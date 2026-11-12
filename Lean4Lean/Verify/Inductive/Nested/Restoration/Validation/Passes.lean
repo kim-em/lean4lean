@@ -168,25 +168,6 @@ theorem validateNestedAuxiliaries.WF_typing (C : CheckerEnv safety env venv)
       exact hfind
   exact H () h
 
-/-- `validateNestedAuxiliaries`: in a well-formed checker context `mlctx` of the model whose
-local context is the lowering's, every cached nested occurrence `I Ds` translates and is typed
-(`validateNestedAuxiliaries.WF_typing` without the inferred type). -/
-theorem validateNestedAuxiliaries.WF (C : CheckerEnv safety env venv) (lparams : List Name)
-    (fuel : FuelConfig) (res : ElimNestedInductive.Result)
-    (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams) (hlctx : mlctx.lctx = res.lctx)
-    (hfresh : ∀ fv ∈ mlctx.vlctx.fvars, ({} : TypeChecker.State).ngen.Reserves fv)
-    (hfvars : ∀ n nested, res.aux2nested.find? n = some nested →
-      nested.FVarsIn (· ∈ mlctx.vlctx.fvars))
-    (h : validateNestedAuxiliaries env lparams safety fuel res = .ok ()) :
-    ∀ n nested, res.aux2nested.find? n = some nested →
-      ∃ e T, TrExprS venv lparams mlctx.vlctx nested e ∧
-        venv.HasType lparams.length mlctx.vlctx.toCtx e T := by
-  intro n nested hfind
-  obtain ⟨_, e, T, -, he, -, hT⟩ :=
-    validateNestedAuxiliaries.WF_typing C lparams fuel res mlctx hmlctx hlctx hfresh hfvars h
-      n nested hfind
-  exact ⟨e, T, he, hT⟩
-
 /-- **The stripped restored environment** (the output with the new recursors' rules removed,
 in which the restored rules are validated) is a valid checking environment of the recursor
 stage. It is stated through a rule-free installation `H` of the restored declaration with

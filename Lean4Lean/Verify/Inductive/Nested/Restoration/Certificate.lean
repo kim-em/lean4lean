@@ -220,13 +220,6 @@ theorem rules_ofRestoredEquation (B : RestoredBlock L sourceTypes isUnsafe outEn
   obtain ⟨k, -, rfl⟩ := List.mem_map.mp heq
   exact ⟨k, hrestore⟩
 
-/-- (For `WF.patCtor_rigid`.) The constructor of every restored rule is a constructor of the
-source declaration or of a registered ι rule of the source model (a container's). -/
-theorem rule_ctor_cases (B : RestoredBlock L sourceTypes isUnsafe outEnv)
-    {r : VRecursor} {ru : VRecRule} (hr : r ∈ B.decl.recs) (hru : ru ∈ r.rules) :
-    (∃ ctor ∈ B.decl.constructorConstants, ru.ctor = ctor.name) ∨ VEnv.IsPatCtor Hc.venv ru.ctor :=
-  B.compilesTo.rule_ctor_cases B.recsOf hr hru
-
 /-- `VInductDecl.WF` of the restored declaration, given the typing of its rules
 (`RestoredBlock.rulesWF`, `Nested/Equations/Rules.lean`). -/
 theorem wf (B : RestoredBlock L sourceTypes isUnsafe outEnv) (hsource : sourceTypes ≠ [])

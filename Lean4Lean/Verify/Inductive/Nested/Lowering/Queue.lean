@@ -1455,24 +1455,6 @@ theorem NestedLowering.resultAuxMap
     ⟨first, rest, tail, paramsState, lctx, params, _, _, _, _, _, _, _, _, Hqueue⟩
   exact Hqueue.resultAuxMap
 
-theorem NestedLowering.resultAuxFVarsIn
-    (H : NestedLowering env fuel nparams types initialState out)
-    (Hcache : NestedAuxFVarsIn P out.2) :
-    NestedAuxMapFVarsIn P
-      (show Std.TreeMap Name Expr Name.quickCmp from out.1.aux2nested) := by
-  rw [H.resultAuxMap]
-  change NestedAuxMapFVarsIn P
-    (out.2.nestedAux.foldl
-      (fun (map : Std.TreeMap Name Expr Name.quickCmp)
-        (entry : Expr × Name) => map.insert entry.2 entry.1) {})
-  rw [← Array.foldl_toList]
-  apply nestedAuxFold_fvarsIn out.2.nestedAux.toList
-  · intro entry hentry
-    exact Hcache entry.1 entry.2 (by simpa using hentry)
-  · unfold NestedAuxMapFVarsIn
-    intro name nested hfind
-    simp at hfind
-
 theorem NestedLowering.resultAuxNamesReserved
     (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
@@ -1563,7 +1545,6 @@ theorem NestedLowering.resultFamilyNamesFreshOfEmpty
   have Hmap := H.resultAuxNamesFresh Hnames
   intro name nested hfind
   exact find?_none_of_contains_false hwf (Hmap name nested hfind)
-
 
 theorem NestedLowering.resultNamesNodupOfEmpty
     (H : NestedLowering env fuel nparams types initialState out)
@@ -1789,17 +1770,6 @@ theorem ElimNestedInductive.run.translationClosed
           · exact ⟨Hclosing.selection.fvars,
               Hqueue.1.resultContext.2.trans Hclosing.selection.expressions,
               Hclosing.nodup⟩
-
-end VerifyInductive
-end Lean4Lean
-
-namespace Lean4Lean
-
-open Lean hiding Environment Exception
-open Kernel
-open scoped _root_.List
-
-namespace VerifyInductive
 
 end VerifyInductive
 end Lean4Lean

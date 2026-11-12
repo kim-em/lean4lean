@@ -27,7 +27,6 @@ commutation theorem itself, under the parameter-uniformity side condition
 
 namespace Lean4Lean.InductiveSignature
 
-
 theorem Restoration.expr.go_mkApps (r : Restoration) {xs ys : List VExpr}
     (H : List.Forall₂ (fun x y => Restoration.expr.go r x [] = some y) xs ys)
     (f : VExpr) (args : List VExpr) :
@@ -39,32 +38,6 @@ theorem Restoration.expr.go_mkApps (r : Restoration) {xs ys : List VExpr}
     show Restoration.expr.go r (VExpr.mkApps (.app f x) xs) args = _
     rw [ih]
     simp [Restoration.expr.go, hxy]
-
-
-/-- Restoration is the identity on syntax mentioning none of its names. -/
-theorem Restoration.expr.go_of_not_contains (r : Restoration) {e : VExpr}
-    (H : e.containsAnyConst r.restorableNames = false) (args : List VExpr) :
-    Restoration.expr.go r e args = some (VExpr.mkApps e args) := by
-  induction e generalizing args with
-  | bvar | sort => rfl
-  | const name levels =>
-    have hname : name ∉ r.restorableNames := by
-      simpa [VExpr.containsAnyConst] using H
-    simp only [Restoration.restorableNames, List.mem_append, not_or] at hname
-    simp [Restoration.expr.go, Restoration.heads_find?_eq_none hname.1,
-      Restoration.recursorName_of_not_mem hname.2]
-  | app fn arg ihfn iharg =>
-    simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at H
-    simp [Restoration.expr.go, iharg H.2, ihfn H.1, VExpr.mkApps]
-  | lam domain body ihd ihb =>
-    simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at H
-    simp [Restoration.expr.go, ihd H.1, ihb H.2, VExpr.mkApps]
-  | forallE domain body ihd ihb =>
-    simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at H
-    simp [Restoration.expr.go, ihd H.1, ihb H.2, VExpr.mkApps]
-  | proj name i major ih =>
-    simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at H
-    simp [Restoration.expr.go, ih H.2, VExpr.mkApps]
 
 end Lean4Lean.InductiveSignature
 
@@ -300,7 +273,6 @@ theorem TrExprS.instantiateFVar {env : VEnv} {Us : List Name}
     rwa [Expr.instantiate1'_eq_self Closed.toConstructor.looseBVarRange_le] at this
   | mdata _ ih => exact .mdata (ih W hfresh)
   | proj _ h2 ih => exact .proj (ih W hfresh) (W.toCtx ▸ h2)
-
 
 /-- The fvar-form context of an opened parameter telescope: the innermost
 parameter first, every entry an ordinary binder with no dependencies. -/

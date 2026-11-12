@@ -26,87 +26,6 @@ namespace VerifyInductive
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 
-
-end VerifyInductive
-
-/-! ### Shapes of restored recursors and their rules -/
-
-namespace InductiveSignature
-
-
-/-- The recursor shape of a restored recursor at the specialization head of
-its translation (`TrRestoredRecursorVal`). -/
-theorem TrRestoredRecursorVal.shape_of_head {s : InductiveSignature} {g : Instance s}
-    {r : Restoration} {sourceNames : List Name} {venv : VEnv}
-    {owner : Fin s.families.size} {rec : Lean.RecursorVal}
-    (H : TrRestoredRecursorVal g r sourceNames venv owner rec)
-    (hconst : ∃ type, r.expr (g.recursorType owner) = some type ∧
-      venv.constants rec.name = some ⟨rec.levelParams.length, type⟩)
-    {head : RestoredFamilyHead}
-    (hargs : ∀ arg ∈ head.arguments, arg.ClosedN s.params.length)
-    (happ : r.expr (g.familyApp owner
-      (vars s.params.length
-        (s.families.size + s.constructors.size + s.families[owner].indices.length))
-      (vars s.families[owner].indices.length 0)) =
-      some (VExpr.mkApps (.const head.name head.levels)
-        (head.arguments.map (fun arg => arg.liftN
-          (s.families.size + s.constructors.size + s.families[owner].indices.length)) ++
-          vars s.families[owner].indices.length 0))) :
-    Nonempty (VRecursorShape venv rec.name rec.levelParams.length rec.numParams
-      head.arguments.length rec.numMotives rec.numMinors rec.numIndices
-      head.name head.levels head.arguments) := by
-  rcases hconst with ⟨type, htype, hconst⟩
-  rcases r.expr_recursorType_eq_some htype with ⟨pre, major, hpre, hm, rfl⟩
-  have hprelen : pre.length = s.params.length + s.families.size +
-      s.constructors.size + s.families[owner].indices.length := by
-    rw [← g.recursorPrefix_length owner]
-    exact (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.mp hpre)).symm
-  have hmaj : major = VExpr.mkApps (.const head.name head.levels)
-      (head.arguments.map (fun arg => arg.liftN
-        (s.families.size + s.constructors.size + s.families[owner].indices.length)) ++
-        vars s.families[owner].indices.length 0) :=
-    Option.some.inj (hm.symm.trans happ)
-  refine ⟨{
-    ctorParams_length := rfl
-    ctorParams_closed := by rw [H.numParams]; exact hargs
-    type := _
-    const := hconst
-    doms := pre ++ [major]
-    result := g.recursorBody owner
-    type_eq := rfl
-    doms_length := by
-      simp [hprelen, H.numParams, H.numMotives, H.numMinors, H.numIndices]
-    major_eq := ?_ }⟩
-  rw [H.numParams, H.numMotives, H.numMinors, H.numIndices, ← hprelen,
-    List.getElem?_concat_length, hmaj, InductiveSignature.vars_eq_bvarRange_add, Nat.add_zero]
-
-
-
-
-end InductiveSignature
-
-/-! ### Constructor shapes of certified containers -/
-
-
-
-namespace InductiveSignature
-
-
-end InductiveSignature
-
-namespace VerifyInductive
-
-open private Lean.Kernel.Environment.add from Lean.Environment
-
-private theorem Restoration.recursor_name {r : Restoration} {v w : VConstVal}
-    (h : r.recursor v = some w) : w.name = r.recursorName v.name := by
-  simp only [Restoration.recursor, Option.bind_eq_bind, Option.pure_def] at h
-  cases ht : r.expr v.type with
-  | none => simp [ht] at h
-  | some type =>
-    simp only [ht, Option.bind_some, Option.some.injEq] at h
-    rw [← h]
-
 theorem Kernel.Environment.find?_eq_constants {env : Environment}
     (hwf : env.constants.WF) (name : Name) :
     env.find? name = env.constants.find? name := by
@@ -138,7 +57,6 @@ theorem NestedRun.loweredSourceKeyed {result : Lean4Lean.ElimNestedInductive.Res
   rw [hname, hun, hfind] at h'
   cases h'
   rw [hname, hun]
-
 
 /-- **The major inductive of a restored recursor is an inductive type of the
 output environment**: a restored source family header, or the container

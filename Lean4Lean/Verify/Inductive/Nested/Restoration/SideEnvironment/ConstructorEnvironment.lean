@@ -135,59 +135,6 @@ theorem FoldSteps.sourceFamiliesConstructorInductFresh
           rw [this] at hnone
           cases hnone
 
-/-- Auxiliary recursor restoration adds no constructors: constructor lookups
-after the suffix already hold before it. -/
-theorem FoldSteps.recursorConstructorFind
-    (Htrace : FoldSteps
-      (RestoredRecursorStep result loweredEnv auxRec allIndNames)
-      names sourceEnv targetEnv)
-    (hsourceWF : sourceEnv.constants.WF)
-    (hfind : targetEnv.find? name = some (.ctorInfo info)) :
-    sourceEnv.find? name = some (.ctorInfo info) := by
-  induction Htrace with
-  | nil => exact hfind
-  | @cons head stepSource middle tail target Hstep Htail ih =>
-      let ci : ConstantInfo := .recInfo Hstep.restored.newInfo
-      have hfresh : stepSource.find? ci.name = none :=
-        find?_none_of_contains_false hsourceWF Hstep.restored.fresh
-      have hmiddle : middle = stepSource.add ci :=
-        congrArg Prod.snd Hstep.restored.output
-      have hmiddleWF : middle.constants.WF :=
-        hmiddle.symm ▸ constantsWF_add_checked hsourceWF hfresh
-      have hmid := ih hmiddleWF hfind
-      rw [hmiddle] at hmid
-      rcases findAddFresh_cases hsourceWF ci hfresh hmid with
-          ⟨_, hci⟩ | hsrc
-      · simp [ci] at hci
-      · exact hsrc
-
-theorem NestedRestorationFolds.constructorInductFresh
-    {auxRecNames : List Name}
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
-    {sourceVEnv : VEnv} {ctorEnv loweredEnv : Environment}
-    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
-    {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
-      { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorInstallation R loweredEnv)
-    (hempty : initialState.nestedAux = #[])
-    (Hrestored : NestedRestorationFolds result loweredEnv c.env
-      auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
-      out) :
-    ∀ name info, out.2.find? name = some (.ctorInfo info) →
-      c.env.find? name = some (.ctorInfo info) ∨
-        c.env.find? info.induct = none := by
-  intro name info hfind
-  have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
-  obtain ⟨primaryEntries, HprimaryFresh⟩ :=
-    Hrestored.inductives.inductiveFreshExtension hsourceWF
-  have hprimaryWF : Hrestored.sourceFamiliesEnv.constants.WF :=
-    HprimaryFresh.targetWF hsourceWF
-  exact Hrestored.inductives.sourceFamiliesConstructorInductFresh Hlower Hprod
-    hempty [] (by simp) hsourceWF name info
-    (Hrestored.auxiliaries.recursorConstructorFind hprimaryWF hfind)
-
 /-! ### Membership in the environment after the source-family restoration fold -/
 
 theorem FoldSteps.constructorFindOfMem
@@ -863,7 +810,6 @@ theorem ValidationEnvironment.validProjected
           VEnv.addConstVals_projections Hsource.typesAdded] at hold
         exact hold)
   exact hcore'.toValid hblocks hheads hquot
-
 
 /-! ### The restored environment -/
 

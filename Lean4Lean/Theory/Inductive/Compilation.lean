@@ -184,13 +184,6 @@ structure CaseCompilationData (env : VEnv) (source expanded : VInductDecl)
   ctors : block.ctors = source.constructorConstants
   projections : block.projections = source.projectionEntries
 
-/-- The recursor names reserved by the restoration of a compilation (one per auxiliary family)
-are fresh in the base environment and are not names of the source or expanded declaration. -/
-def RecursorNamesFresh (env : VEnv) (source expanded : VInductDecl)
-    (auxiliaries : List ContainerSpecialization) : Prop :=
-  ∀ n ∈ (compilationRestoration source auxiliaries).recursors.map Prod.fst,
-    env.constants n = none ∧ n ∉ source.sourceNames ∧ n ∉ expanded.sourceNames
-
 /-- A single expansion fixes formation and the generated recursors and rules.
 Every auxiliary family is covered, including semantically unused auxiliaries
 introduced by erased concrete occurrences. -/
@@ -215,7 +208,6 @@ structure CompilationData (env : VEnv) (source expanded : VInductDecl)
   equations : g.restoredEquations (compilationRestoration source auxiliaries) =
     some block.rules
   names : ((block.types ++ block.ctors ++ block.recursors).map (·.name)).Nodup
-
 
 end InductiveSignature
 
@@ -372,45 +364,5 @@ theorem CompiledInductive.ordinary {env : VEnv} {source : VInductDecl}
 end Lean4Lean
 
 namespace Lean4Lean.InductiveSignature
-
-/-- The case part of an ordinary compilation (no auxiliaries), from the source and formation
-judgments, a model of the declaration, and the family typing of the signature. -/
-theorem CaseCompilationData.ofOrdinary {env : VEnv} {source : VInductDecl}
-    {s : InductiveSignature} {block : VInductBlock} {envTypes envCtors : VEnv}
-    (Hsource : VInductDecl.SourceWF env source)
-    (Hformation : VInductDecl.OrdinaryFormationWF env source)
-    (Hmodel : s.Models env source)
-    (hadded : env.addConstVals source.typeConstants = some envTypes)
-    (hctorsAdded : envTypes.addConstVals source.constructorConstants = some envCtors)
-    (hfam : s.FamilyTypesWF (envCtors.addProjections source.projectionEntries) source.uvars)
-    (htypes : block.types = source.typeConstants)
-    (hctors : block.ctors = source.constructorConstants)
-    (hprojections : block.projections = source.projectionEntries) :
-    CaseCompilationData env source source s [] block where
-  sourceWF := Hsource
-  sourceParameters := Hformation.sourceParameterWF
-  expandedWF := Hsource
-  headerPrefix := (List.take_of_length_le (by simp [VInductDecl.typeConstants])).symm
-  expandedFormation := Hformation
-  model := Hmodel
-  uvars := rfl
-  nparams := rfl
-  safety := rfl
-  restorationScoped := by
-    simp [show compilationRestoration source [] = {} from rfl, Restoration.Scoped]
-  correspondence := by
-    refine ⟨envTypes, [], hadded, rfl, ?_, ?_⟩
-    · simp
-    · simpa only [show compilationRestoration source [] = {} from rfl, List.append_nil] using
-        Hmodel.restores_empty Hformation.sourceParameterWF hadded
-  familyTypesWF := ⟨envTypes, envCtors, hadded, hctorsAdded, hfam⟩
-  types := htypes
-  ctors := hctors
-  projections := hprojections
-
-theorem recursorNamesFresh_nil {env : VEnv} {source expanded : VInductDecl} :
-    RecursorNamesFresh env source expanded [] := by
-  intro n hn
-  simp [compilationRestoration] at hn
 
 end Lean4Lean.InductiveSignature

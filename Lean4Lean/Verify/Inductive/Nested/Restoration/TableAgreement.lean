@@ -1110,44 +1110,6 @@ private theorem forall₂_trCtor_names
   | nil => rfl
   | cons h _ ih => simp only [List.map_cons, ih, ← h.name]
 
-theorem ConstructorListEntries.ctorOfEntry
-    {stats : AddInductive.InductiveStats} {lparams : List Name}
-    {isUnsafe : Bool} {owner : InductiveType} {ctors : List Constructor}
-    {entries : List (ConstantInfo × VConstVal)} {initial : Nat}
-    (H : ConstructorListEntries
-      (AddInductive.constructorInfo stats lparams isUnsafe owner)
-      initial ctors entries)
-    {entry : ConstantInfo × VConstVal} (hentry : entry ∈ entries) :
-    ∃ ctor ∈ ctors, ∃ info : ConstructorVal,
-      entry.1 = .ctorInfo info ∧ info.name = ctor.name ∧ info.induct = owner.name := by
-  induction H with
-  | nil => simp at hentry
-  | @cons start ctors tailEntries ctor value Htail ih =>
-    simp only [List.mem_cons] at hentry
-    rcases hentry with rfl | htail
-    · exact ⟨ctor, List.mem_cons_self, _, rfl,
-        by simp [AddInductive.constructorInfo], by simp [AddInductive.constructorInfo]⟩
-    · rcases ih htail with ⟨c, hc, info, he, hn, hi⟩
-      exact ⟨c, List.mem_cons_of_mem _ hc, info, he, hn, hi⟩
-
-theorem ConstructorTypeEntries.ctorOfEntry
-    {stats : AddInductive.InductiveStats} {lparams : List Name}
-    {isUnsafe : Bool} {owners : List InductiveType}
-    {entries : List (ConstantInfo × VConstVal)}
-    (H : ConstructorTypeEntries
-      (AddInductive.constructorInfo stats lparams isUnsafe) owners entries)
-    {entry : ConstantInfo × VConstVal} (hentry : entry ∈ entries) :
-    ∃ owner ∈ owners, ∃ ctor ∈ owner.ctors, ∃ info : ConstructorVal,
-      entry.1 = .ctorInfo info ∧ info.name = ctor.name ∧ info.induct = owner.name := by
-  induction H with
-  | nil => simp at hentry
-  | cons Hhead Htail ih =>
-    rcases List.mem_append.mp hentry with hhead | htail
-    · rcases Hhead.ctorOfEntry hhead with ⟨ctor, hctor, info, he, hn, hi⟩
-      exact ⟨_, List.mem_cons_self, ctor, hctor, info, he, hn, hi⟩
-    · rcases ih htail with ⟨owner, howner, ctor, hctor, info, he, hn, hi⟩
-      exact ⟨owner, List.mem_cons_of_mem _ howner, ctor, hctor, info, he, hn, hi⟩
-
 /-- Every constructor visible in the kernel environment after the lowered run either
 predates the inductive installation or is a constructor of one of the
 installed families, recording that family as its owner. -/

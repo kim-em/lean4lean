@@ -19,7 +19,6 @@ open Kernel
 
 namespace VerifyInductive
 
-
 /-! ### The environment of the recursor pass -/
 
 section Production
@@ -45,46 +44,6 @@ theorem mem_inductiveTypeInfos {stats : AddInductive.InductiveStats} {numParams 
   simp only [AddInductive.inductiveTypeInfos, Array.toList_zipWith] at h
   obtain ⟨indType, hmem, _, rfl⟩ := mem_zipWith_left h
   exact ⟨indType, hmem, rfl, rfl, rfl⟩
-
-theorem ConstructorListEntries.entryInfo {mkInfo : Nat → Constructor → ConstructorVal}
-    {start : Nat} {ctors : List Constructor} {entries : List (ConstantInfo × VConstVal)}
-    (H : ConstructorListEntries mkInfo start ctors entries) {entry : ConstantInfo × VConstVal}
-    (hentry : entry ∈ entries) :
-    ∃ ctor ∈ ctors, ∃ k, entry.1 = .ctorInfo (mkInfo k ctor) := by
-  induction H with
-  | nil => simp at hentry
-  | cons _ ih =>
-    simp only [List.mem_cons] at hentry
-    rcases hentry with rfl | htail
-    · exact ⟨_, List.mem_cons_self, _, rfl⟩
-    · obtain ⟨c, hc, k, he⟩ := ih htail
-      exact ⟨c, List.mem_cons_of_mem _ hc, k, he⟩
-
-theorem ConstructorTypeEntries.entryInfo
-    {mkInfo : InductiveType → Nat → Constructor → ConstructorVal}
-    {owners : List InductiveType} {entries : List (ConstantInfo × VConstVal)}
-    (H : ConstructorTypeEntries mkInfo owners entries) {entry : ConstantInfo × VConstVal}
-    (hentry : entry ∈ entries) :
-    ∃ owner ∈ owners, ∃ ctor ∈ owner.ctors, ∃ k, entry.1 = .ctorInfo (mkInfo owner k ctor) := by
-  induction H with
-  | nil => simp at hentry
-  | cons Hhead _ ih =>
-    rcases List.mem_append.mp hentry with hhead | htail
-    · obtain ⟨ctor, hctor, k, he⟩ := Hhead.entryInfo hhead
-      exact ⟨_, List.mem_cons_self, ctor, hctor, k, he⟩
-    · obtain ⟨owner, howner, ctor, hctor, k, he⟩ := ih htail
-      exact ⟨owner, List.mem_cons_of_mem _ howner, ctor, hctor, k, he⟩
-
-theorem AddConstants.entryNonprimitive
-    (H : AddConstants safety env venv entries outEnv outVEnv)
-    {entry : ConstantInfo × VConstVal} (hentry : entry ∈ entries) :
-    ¬ Kernel.Environment.primitives.contains entry.1.name := by
-  induction H with
-  | nil => simp at hentry
-  | cons _ hnprim _ _ _ _ _ ih =>
-    rcases List.mem_cons.1 hentry with rfl | htail
-    · exact hnprim
-    · exact ih htail
 
 variable {c₀ : AddInductive.Context} {Hc : ContextWF c₀} {nparams : Nat}
   {indTypes : Array InductiveType} {outEnv : Environment}

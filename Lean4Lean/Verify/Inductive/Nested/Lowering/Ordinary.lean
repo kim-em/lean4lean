@@ -256,21 +256,5 @@ theorem NestedLoweringRun.types_eq_source_of_aux2nested_size_eq_zero
     Hpending HpendingB Hmap hsize
   rw [hresult, hinitialTypes]
 
-/-- The executable starts lowering from this exact fresh state.  This
-specialization removes the generic cache premise from the declaration-facing
-ordinary branch. -/
-theorem NestedLoweringRun.ordinary_types_eq_source
-    (H : NestedLoweringRun env fuel nparams sourceTypes
-      { lvls := levels, newTypes := sourceTypes.toArray } result)
-    (Hsources : SourceSyntaxChecked sourceTypes)
-    (HsourcesB : SourceBVarClosed sourceTypes)
-    (hsize : result.aux2nested.size = 0) :
-    result.types = sourceTypes := by
-  apply NestedLoweringRun.types_eq_source_of_aux2nested_size_eq_zero
-    (initialState := { lvls := levels, newTypes := sourceTypes.toArray })
-    H Hsources HsourcesB
-  · rfl
-  · exact hsize
-
 end VerifyInductive
 end Lean4Lean

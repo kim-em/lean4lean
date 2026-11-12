@@ -144,13 +144,6 @@ theorem NestedRun.lowered_c
     (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
       nparams isUnsafe safety outEnv L) : E.lowered.c = E.context := rfl
 
-theorem NestedRun.context_venv
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
-    (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
-      nparams isUnsafe safety outEnv L) : E.contextWF.venv = sourceEnv :=
-  E.lowered_initialEnv
-
 theorem NestedRun.lowered_env
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
@@ -164,13 +157,6 @@ theorem NestedRun.lowered_lparams
     (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
       nparams isUnsafe safety outEnv L) : E.lowered.c.lparams = lparams :=
   E.context_lparams
-
-theorem NestedRun.lowered_safety
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
-    (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
-      nparams isUnsafe safety outEnv L) : E.lowered.c.safety = safety :=
-  E.context_safety
 
 /-- The context certificate already recorded by the nested run, at its lowered context. -/
 def NestedRun.loweredContextWF

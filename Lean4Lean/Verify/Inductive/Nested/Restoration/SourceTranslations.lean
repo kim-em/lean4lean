@@ -865,12 +865,5 @@ The nested branch runs `AddInductive` with primitive declarations disabled.
 Consequently all three freshness fields of `PrimitiveNamesFresh` are vacuous.
 -/
 
-/-- The safety selected by the public inductive entry point is never the
-partial-definition mode rejected by recursor generation. -/
-theorem inductiveSafety_notPartial (isUnsafe : Bool) :
-    (if isUnsafe then DefinitionSafety.unsafe else .safe) ≠
-      DefinitionSafety.partial := by
-  cases isUnsafe <;> decide
-
 end VerifyInductive
 end Lean4Lean

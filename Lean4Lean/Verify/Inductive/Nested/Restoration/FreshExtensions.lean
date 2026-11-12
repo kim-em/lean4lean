@@ -59,38 +59,6 @@ theorem FreshExtension.preservesSourceMapFind
     (H.targetWF hsourceWF).find?'_eq_find?] at htarget
   exact htarget
 
-/-- A fresh extension consisting only of non-definitional constant kinds
-introduces no delta-reducible declaration. -/
-theorem FreshExtension.deltaConservative
-    (H : FreshExtension source entries target)
-    (hsourceWF : source.constants.WF)
-    (hnondelta : ∀ ci ∈ entries, ci.deltaValue? = none) :
-    ∀ {name found}, target.constants.find? name = some found →
-      found.deltaValue?.isSome →
-      source.constants.find? name = some found := by
-  induction H with
-  | nil =>
-      intro name found hfind _hdelta
-      exact hfind
-  | cons hfresh Htail ih =>
-      rename_i cis out env ci
-      intro name found hfind hdelta
-      have hfreshMap : env.constants.find? ci.name = none := by
-        rwa [Lean.Kernel.Environment.find?, hsourceWF.find?'_eq_find?]
-          at hfresh
-      have hnextWF : (env.add ci).constants.WF :=
-        constantsWF_add_checked hsourceWF hfresh
-      have hnext : (env.add ci).constants.find? name = some found :=
-        ih hnextWF (fun entry hentry =>
-          hnondelta entry (by simp [hentry])) hfind hdelta
-      change (env.constants.insert ci.name ci).find? name = some found at hnext
-      rw [hsourceWF.find?_insert] at hnext
-      split at hnext
-      · cases hnext
-        have hnone := hnondelta ci (by simp)
-        simp [hnone] at hdelta
-      · exact hnext
-
 /-- The constructor-restoration fold installs only constructor constants, hence
 it is a fresh extension whose entries are all non-definitional. -/
 theorem FoldSteps.constructorFreshExtensionNondelta

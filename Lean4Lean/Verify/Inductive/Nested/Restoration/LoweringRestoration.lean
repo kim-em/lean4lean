@@ -71,7 +71,6 @@ theorem ConstructorLowering.Resolved.restoredType_translation
   apply Hsource.eqv
   simpa [beq_comm] using Hinverse.restoredType_eqv_source
 
-
 /-- Lockstep alignment of the state-threaded constructor lowering relation
 with the executable restoration fold.  The kernel lookup theorem
 has already identified the `oldInfo.type` read at every step with that step's
@@ -102,7 +101,6 @@ inductive LoweredRestoredConstructors
       LoweredRestoredConstructors result mappingEnv loweredEnv params nparams
         safety lparams (source :: sources) state (target :: targets) finalState
           sourceProdEnv targetProdEnv
-
 
 /-- Interpret the lockstep lowering/restoration relation against the
 independently translated source constructors.  This connects the executable and the
@@ -204,23 +202,6 @@ theorem LoweredRestoredConstructors.ofInstalled
           Htail Hsteps
         intro target htarget
         exact Htargets target (by simp [htarget])
-
-/-- Freshness of auxiliary constructors for restoration: lowering proves auxiliary
-families fresh in the source kernel environment, and lockstep installation turns that
-into abstract freshness for every constructor recognized through those
-families. -/
-theorem NestedLowering.restoreAuxConstructorsFreshOfInstallation
-    (H : NestedLowering sourceProdEnv fuel nparams types initialState
-      (result, finalState))
-    (Hinstall : AddConstants safety sourceProdEnv sourceVEnv entries
-      loweredEnv loweredVEnv)
-    (hwf : sourceProdEnv.constants.WF)
-    (Howners : ConstructorOwnersPresent sourceProdEnv)
-    (hempty : initialState.nestedAux = #[]) :
-    RestoreAuxConstructorsFresh result loweredEnv sourceVEnv :=
-  Hinstall.restoreAuxConstructorsFresh hwf Howners
-    (H.resultFamilyNamesFreshOfEmpty hwf hempty)
-
 
 /-- Over the lowered run's installation: every constructor recognized as belonging to a fresh
 auxiliary family is absent from the source model. -/
