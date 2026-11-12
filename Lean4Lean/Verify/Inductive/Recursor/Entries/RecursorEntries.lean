@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.LocalContext.Binding
 import Lean4Lean.Verify.Inductive.Rules.FromTemplates
 
 namespace Lean4Lean
@@ -39,108 +40,6 @@ theorem CDeclArray.fvar_mem
   rcases hfv with ⟨other, hother, heq⟩
   cases heq
   exact hother
-
-/-- The binder domain selected by `LocalContext.mkForall` is the exact local
-declaration type, simultaneously closed over the strictly earlier selected
-free variables. This is what compares a domain of a generated recursor type with the
-binder type recorded for it (`RecInfoBinderTypes`). -/
-theorem LocalContext.mkBindingListN_forallBinderAt
-    (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
-      lctx.find? fv = some (.cdecl index fv name type bi kind))
-    (hnodup : fvars.Nodup)
-    (i : Nat) (hi : i < fvars.length)
-    (index : Nat) (name : Name) (type : Expr) (bi : BinderInfo)
-    (kind : LocalDeclKind)
-    (hselected : lctx.find? fvars[i] =
-      some (.cdecl index fvars[i] name type bi kind)) :
-    Expr.ForallBinderAt
-      (LocalContext.mkBindingListN false lctx fvars body) i
-      (type.abstractN (fvars.take i)) := by
-  induction fvars generalizing i body with
-  | nil => simp at hi
-  | cons fv fvars ih =>
-    have htailDecl : ∀ other ∈ fvars, ∃ index name type bi kind,
-        lctx.find? other = some (.cdecl index other name type bi kind) := by
-      intro other hother
-      exact hdecl other (by simp [hother])
-    have hnodupParts := List.nodup_cons.mp hnodup
-    rw [LocalContext.mkBindingListN_cons
-      (fun other hother => by
-        rcases htailDecl other hother with
-          ⟨index, name, type, bi, kind, hlookup⟩
-        exact ⟨.cdecl index other name type bi kind, hlookup⟩)
-      hnodup]
-    cases i with
-    | zero =>
-      have hhead := hselected
-      simp only [List.getElem_cons_zero] at hhead
-      simp only [LocalContext.mkBindingList1N, hhead,
-        List.take_zero, Expr.abstractN_nil]
-      exact .here
-    | succ i =>
-      have hiTail : i < fvars.length := by simp at hi; omega
-      rcases hdecl fv (by simp) with
-        ⟨headIndex, headName, headType, headBi, headKind, hheadDecl⟩
-      have htailSelected : lctx.find? fvars[i] =
-          some (.cdecl index fvars[i] name type bi kind) := by
-        simpa using hselected
-      have Htail := ih htailDecl hnodupParts.2 i hiTail htailSelected
-        (body := body)
-      have Habstract := Htail.abstractN [fv] 0
-      have hprefixNodup : (fv :: fvars.take i).Nodup := by
-        apply List.nodup_cons.mpr
-        exact ⟨fun hmem => hnodupParts.1
-          (List.mem_of_mem_take hmem),
-          hnodupParts.2.take⟩
-      have hdomain :
-          (type.abstractN (fvars.take i)).abstractN [fv] i =
-            type.abstractN (fv :: fvars.take i) := by
-        have Hclose := Expr.abstractN_cons (List.nodup_cons.1 hprefixNodup).1 type 0
-        simpa [List.length_take, Nat.min_eq_left (Nat.le_of_lt hiTail)] using Hclose.symm
-      simp only [Nat.zero_add] at Habstract
-      rw [hdomain] at Habstract
-      simpa [LocalContext.mkBindingList1N, hheadDecl] using
-        Expr.ForallBinderAt.there Habstract
-
-/-- `mkForall` specialization of the positional declaration theorem for an
-explicit list of selected free variables. -/
-theorem LocalContext.mkForall_fvars_forallBinderAt
-    {lctx : LocalContext} {fvars : List FVarId} {body : Expr}
-    (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
-      lctx.find? fv = some (.cdecl index fv name type bi kind))
-    (hnodup : fvars.Nodup)
-    (i : Nat) (hi : i < fvars.length)
-    (index : Nat) (name : Name) (type : Expr) (bi : BinderInfo)
-    (kind : LocalDeclKind)
-    (hselected : lctx.find? fvars[i] =
-      some (.cdecl index fvars[i] name type bi kind)) :
-    Expr.ForallBinderAt
-      (lctx.mkForall (fvars.map Expr.fvar).toArray body) i
-      (type.abstractN (fvars.take i)) := by
-  rw [LocalContext.mkForall, LocalContext.mkBinding_eqN]
-  exact LocalContext.mkBindingListN_forallBinderAt hdecl hnodup i hi
-    index name type bi kind hselected
-
-/-- Sequential-model form of `mkForall_fvars_forallBinderAt` for closed binder
-types. -/
-theorem LocalContext.mkForall_fvars_forallBinderAtList
-    {lctx : LocalContext} {fvars : List FVarId} {body : Expr}
-    (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
-      lctx.find? fv = some (.cdecl index fv name type bi kind))
-    (hnodup : fvars.Nodup)
-    (i : Nat) (hi : i < fvars.length)
-    (index : Nat) (name : Name) (type : Expr) (bi : BinderInfo)
-    (kind : LocalDeclKind)
-    (hselected : lctx.find? fvars[i] =
-      some (.cdecl index fvars[i] name type bi kind))
-    (hclosed : Closed type) :
-    Expr.ForallBinderAt
-      (lctx.mkForall (fvars.map Expr.fvar).toArray body) i
-      (type.abstractList (fvars.take i)) := by
-  rw [← Expr.abstractN_eq_abstractList_of_closed
-    (List.Nodup.sublist (List.take_sublist _ _) hnodup) hclosed]
-  exact LocalContext.mkForall_fvars_forallBinderAt hdecl hnodup i hi index name
-    type bi kind hselected
 
 /-- `CDeclArray` form of the positional source-domain theorem. -/
 theorem CDeclArray.forallBinderAt

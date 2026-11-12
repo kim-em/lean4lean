@@ -1,7 +1,15 @@
+import Lean4Lean.Verify.Expr.Abstraction
+import Lean4Lean.Verify.List.Lemmas
+import Lean4Lean.Verify.LocalContext.Binding
+import Lean4Lean.Verify.Typing.Translation
+import Lean4Lean.Verify.Typing.VExprLemmas
+import Lean4Lean.Verify.Typing.VLCtxLemmas
 import Lean4Lean.Verify.Inductive.Recursor.Signature.RecursiveShapes
 import Lean4Lean.Verify.Inductive.Recursor.Signature.Models
 import Lean4Lean.Verify.Inductive.Recursor.Signature.Admissible
-import Lean4Lean.Verify.Inductive.Recursor.Context.TelescopeUniqueness
+import Lean4Lean.Verify.Inductive.Context
+import Lean4Lean.Verify.Inductive.Recursor.Signature.MinorFields
+import Lean4Lean.Verify.Inductive.Recursor.Context.DeclarationUniverses
 import Lean4Lean.Theory.Inductive.HypothesisTyping
 
 /-! The signature of the recursor construction (`RecursorConstruction.signature`), assembled
@@ -17,73 +25,6 @@ open Lean hiding Environment Exception
 open Kernel
 
 /-! ### Universe un-shift without context well-formedness -/
-
-/-- `TrExprS.substLevelParamsCore` without the (unused) context invariant. -/
-theorem TrExprS.substLevelParamsCore_of_levels
-    {env : VEnv} {ps Us : List Name} {Δ : VLCtx} {e : Expr} {e' : VExpr}
-    {ls : List VLevel} {F : Name → Level}
-    (hls : ∀ level ∈ ls, level.WF Us.length)
-    (hlevels : ∀ u u', VLevel.ofLevel ps u = some u' →
-      VLevel.ofLevel Us (u.substParams' F false) = some (u'.inst ls))
-    (H : TrExprS env ps Δ e e') :
-    TrExprS env Us (Δ.instL ls) (Expr.instantiateLevelParamsCore' false F e)
-      (e'.instL ls) := by
-  induction H with
-  | bvar hfind => exact .bvar (VLCtx.find?_instL hfind)
-  | fvar hfind => exact .fvar (VLCtx.find?_instL hfind)
-  | sort hlevel => exact .sort (hlevels _ _ hlevel)
-  | @const _ _ sourceLevels targetLevels info hlookup hlevel harity =>
-    apply TrExprS.const hlookup ?_ (by simpa using harity)
-    have Hmap := List.mapM_eq_some.mp hlevel
-    apply List.mapM_eq_some.mpr
-    apply List.forall₂_map_left_iff.mpr
-    apply List.forall₂_map_right_iff.mpr
-    exact Lean4Lean.List.Forall₂.imp (fun u u' hu => hlevels u u' hu) Hmap
-  | app hfn harg _ _ ihFn ihArg =>
-    exact .app (VLCtx.instL_toCtx _ ▸ hfn.instL hls)
-      (VLCtx.instL_toCtx _ ▸ harg.instL hls) ihFn ihArg
-  | lam hdom _ _ ihDom ihBody =>
-    exact .lam (VLCtx.instL_toCtx _ ▸ hdom.instL hls) ihDom ihBody
-  | forallE hdom hbody _ _ ihDom ihBody =>
-    exact .forallE (VLCtx.instL_toCtx _ ▸ hdom.instL hls)
-      (VLCtx.instL_toCtx _ ▸ hbody.instL hls) ihDom ihBody
-  | letE hval _ _ _ ihTy ihVal ihBody =>
-    exact .letE (VLCtx.instL_toCtx _ ▸ hval.instL hls) ihTy ihVal ihBody
-  | lit hlit _ ih =>
-    exact .lit hlit (Expr.instantiateLevelParamsCore_eq_self
-      Literal.toConstructor_hasLevelParam ▸ ih)
-  | mdata _ ih => exact .mdata ih
-  | proj _ hproj ih =>
-    exact .proj ih (VLCtx.instL_toCtx _ ▸ hproj.instL hls)
-
-/-- `TrExprS.prependLevelParam` without the (unused) context invariant. -/
-theorem TrExprS.prependLevelParam_of_fresh
-    {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Expr} {e' : VExpr} {fresh : Name}
-    (hfresh : fresh ∉ Us) (H : TrExprS env Us Δ e e') :
-    TrExprS env (fresh :: Us) (Δ.instL (VLevel.prependShift Us.length)) e
-      (e'.instL (VLevel.prependShift Us.length)) := by
-  have hshift : ∀ level ∈ VLevel.prependShift Us.length, level.WF (fresh :: Us).length := by
-    simpa using VLevel.prependShift_wf (n := Us.length)
-  induction H with
-  | bvar hfind => exact .bvar (VLCtx.find?_instL hfind)
-  | fvar hfind => exact .fvar (VLCtx.find?_instL hfind)
-  | sort hlevel => exact .sort (VLevel.ofLevel_fresh_cons hfresh hlevel)
-  | const hlookup hlevels harity =>
-    exact .const hlookup (VLevel.mapM_ofLevel_fresh_cons hfresh hlevels) harity
-  | app hfn harg _ _ ihFn ihArg =>
-    exact .app (VLCtx.instL_toCtx _ ▸ hfn.instL hshift)
-      (VLCtx.instL_toCtx _ ▸ harg.instL hshift) ihFn ihArg
-  | lam hdom _ _ ihDom ihBody =>
-    exact .lam (VLCtx.instL_toCtx _ ▸ hdom.instL hshift) ihDom ihBody
-  | forallE hdom hbody _ _ ihDom ihBody =>
-    exact .forallE (VLCtx.instL_toCtx _ ▸ hdom.instL hshift)
-      (VLCtx.instL_toCtx _ ▸ hbody.instL hshift) ihDom ihBody
-  | letE hval _ _ _ ihTy ihVal ihBody =>
-    exact .letE (VLCtx.instL_toCtx _ ▸ hval.instL hshift) ihTy ihVal ihBody
-  | lit hlit _ ih => exact .lit hlit ih
-  | mdata _ ih => exact .mdata ih
-  | proj _ hproj ih =>
-    exact .proj ih (VLCtx.instL_toCtx _ ▸ hproj.instL hshift)
 
 /-- Levels returning recursor-universe syntax to the declaration's
 universes: the fresh elimination universe is dropped to zero, or nothing
@@ -119,12 +60,6 @@ theorem isDeclUnivImage_instL
       (e.instL (recursorDeclarationAbstractLevels Us ha)) := by
   unfold IsDeclUnivImage
   rw [VExpr.instL_instL (e := e), VExpr.instL_instL, recursorToDeclLevels_roundtrip]
-
-theorem VLCtx.instL_abstractForallContext_nil (domains : List VExpr) (levels : List VLevel) :
-    (abstractForallContext domains []).instL levels =
-      abstractForallContext (domains.map (VExpr.instL levels)) [] := by
-  rw [VLCtx.instL_abstractForallContext]
-  rfl
 
 theorem isDeclUnivImage_context {L Q : List VLevel} {domains : List VExpr}
     (h : ∀ d ∈ domains, IsDeclUnivImage L Q d) :
@@ -314,72 +249,6 @@ theorem OnCtx.levelWF_mem {env : VEnv} {U : Nat} :
 
 /-! ### Marking recursive fields -/
 
-theorem List.filterMap_congr_of_mem {α β : Type _} {f g : α → Option β} :
-    ∀ {l : List α}, (∀ x ∈ l, f x = g x) → l.filterMap f = l.filterMap g
-  | [], _ => rfl
-  | a :: l, h => by
-    simp only [List.filterMap_cons, h a (by simp)]
-    rw [List.filterMap_congr_of_mem (fun x hx => h x (by simp [hx]))]
-
-theorem List.filterMap_find?_zipIdx {β γ : Type _} :
-    ∀ (types : List β) (k : Nat) (shapes : List (Nat × γ)),
-      (shapes.map Prod.fst).Pairwise (· < ·) →
-      (∀ p ∈ shapes, k ≤ p.1 ∧ p.1 < k + types.length) →
-      (types.zipIdx k).filterMap
-          (fun x => (shapes.find? (fun p => p.1 == x.2)).map (fun p => (x.2, p.2))) = shapes
-  | [], k, shapes, _, hbound => by
-    cases shapes with
-    | nil => rfl
-    | cons p ps => have := hbound p (by simp); simp at this; omega
-  | t :: ts, k, [], _, _ => by
-    simp only [List.find?_nil, Option.map_none]
-    simp
-  | t :: ts, k, p :: ps, hsorted, hbound => by
-    have hsorted' : (ps.map Prod.fst).Pairwise (· < ·) := (List.pairwise_cons.mp hsorted).2
-    have hgt : ∀ q ∈ ps, p.1 < q.1 := by
-      intro q hq
-      exact (List.pairwise_cons.mp hsorted).1 q.1 (List.mem_map_of_mem hq)
-    have hp := hbound p (by simp)
-    rw [List.zipIdx_cons, List.filterMap_cons]
-    by_cases hpk : p.1 = k
-    · have hfind : (p :: ps).find? (fun q => q.1 == k) = some p := by
-        simp [hpk]
-      rw [hfind]
-      simp only [Option.map_some]
-      have hrest : (ts.zipIdx (k + 1)).filterMap
-          (fun x => ((p :: ps).find? (fun q => q.1 == x.2)).map (fun q => (x.2, q.2))) =
-          (ts.zipIdx (k + 1)).filterMap
-          (fun x => (ps.find? (fun q => q.1 == x.2)).map (fun q => (x.2, q.2))) := by
-        apply List.filterMap_congr_of_mem
-        intro x hx
-        have hx' := List.mem_zipIdx (x := x.1) (i := x.2) (by simpa using hx)
-        have hne : (p.1 == x.2) = false := by simp; omega
-        simp [hne]
-      rw [hrest, List.filterMap_find?_zipIdx ts (k + 1) ps hsorted' (by
-        intro q hq
-        have := hgt q hq
-        have := hbound q (by simp [hq])
-        simp at this ⊢
-        omega)]
-      rw [← hpk]
-    · have hfind : (p :: ps).find? (fun q => q.1 == k) = none := by
-        rw [List.find?_eq_none]
-        intro q hq
-        rcases List.mem_cons.mp hq with rfl | hq
-        · simpa using hpk
-        · have := hgt q hq
-          simp
-          omega
-      rw [hfind, Option.map_none]
-      exact List.filterMap_find?_zipIdx ts (k + 1) (p :: ps) hsorted (by
-        intro q hq
-        have hq' := hbound q hq
-        rcases List.mem_cons.mp hq with rfl | hq
-        · simp at hq' ⊢; omega
-        · have := hgt q hq
-          simp at hq' ⊢
-          omega)
-
 /-- The constructor fields with the given domains, marked recursive exactly
 at the positions listed in `shapes`, with the listed shapes. -/
 def InductiveSignature.markFields {n : Nat} (types : List VExpr)
@@ -448,21 +317,6 @@ def RecursorConstruction.ArgumentUniverses (H : RecursorConstruction R) : Prop :
       (B.recursiveCalls[j]!.lctx.mkForall B.recursiveCalls[j]!.args
           (.sort .zero)).levelParamsIn c.lparams = true ∧
         ∀ e ∈ B.recursiveCalls[j]!.targetIndices.toList, e.levelParamsIn c.lparams = true
-
-theorem Expr.forallDomainList_levelParamsIn {Us : List Name} :
-    ∀ (n : Nat) {e : Expr}, e.levelParamsIn Us = true →
-      ∀ d ∈ Expr.forallDomainList n e, d.levelParamsIn Us = true
-  | 0, _, _ => by simp [Expr.forallDomainList]
-  | n + 1, e, h => by
-    cases e with
-    | forallE name dom body bi =>
-      simp only [Expr.levelParamsIn, Bool.and_eq_true] at h
-      intro d hd
-      simp only [Expr.forallDomainList, List.mem_cons] at hd
-      rcases hd with rfl | hd
-      · exact h.1
-      · exact Expr.forallDomainList_levelParamsIn n h.2 d hd
-    | _ => simp [Expr.forallDomainList]
 
 /-- The argument domains of an induction hypothesis type (`InductionHypothesisType`) mention
 only `Us` when its argument telescope and exposed indices do. -/
@@ -898,8 +752,6 @@ theorem RecursorConstruction.recursorTelescope_minors_eq
     simpa [sources] using Ht
 
 /-! ### Comparing induction hypothesis shapes -/
-
-theorem VExpr.forallArity_app (f a : VExpr) : (VExpr.app f a).forallArity = 0 := rfl
 
 theorem hypothesisForm_app (levels : List VLevel) (nf nfam prior j pos target : Nat)
     (binders indices : List VExpr) :
@@ -1472,27 +1324,6 @@ theorem RecursorConstruction.recursorTelescope_minors_unannotated
   rw [H.signature_constructor HU mowner hmowner localIndex hlocal hk]
 
 /-! ### The parameter, motive and minor prefix of the recursor type -/
-
-theorem LocalContext.forallDomainsOnly_foldN_add
-    {lctx : LocalContext} {fvars : List FVarId}
-    (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
-      lctx.find? fv = some (.cdecl index fv name type bi kind))
-    (k : Nat) (body : Expr) :
-    Expr.forallDomainsOnly (fvars.length + k)
-      (fvars.foldr (fun fv result => LocalContext.mkBindingList1N false lctx [] fv
-        (result.abstractN [fv])) body) =
-      fvars.foldr (fun fv result => LocalContext.mkBindingList1N false lctx [] fv
-        (result.abstractN [fv])) (Expr.forallDomainsOnly k body) := by
-  induction fvars with
-  | nil => simp
-  | cons fv fvars ih =>
-    obtain ⟨index, name, type, bi, kind, hfind⟩ := hdecl fv (by simp)
-    rw [List.length_cons, Nat.add_right_comm]
-    simp only [List.foldr_cons, LocalContext.mkBindingList1N, hfind,
-      Bool.false_eq_true, ↓reduceIte, Expr.forallDomainsOnly, Expr.forallDomainsOnly_abstractN]
-    simpa only [LocalContext.mkBindingList1N, Bool.false_eq_true, ↓reduceIte] using
-      congrArg (fun e => Expr.forallE name (type.abstractN []) (e.abstractN [fv]) bi)
-        (ih (fun other hother => hdecl other (by simp [hother])))
 
 theorem FVarArrayIn.forallDomainsOnly_add
     (H : FVarArrayIn c xs) (Hc : BindingContextWF c)

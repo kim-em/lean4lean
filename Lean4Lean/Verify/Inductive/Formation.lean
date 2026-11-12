@@ -1,3 +1,6 @@
+import Lean4Lean.Verify.Expr.Abstraction
+import Lean4Lean.Verify.List.Lemmas
+import Lean4Lean.Verify.Typing.VExprLemmas
 import Lean4Lean.Verify.Inductive.Basic
 import Lean4Lean.Theory.Inductive.Normalization
 
@@ -103,33 +106,6 @@ theorem ConstructorParameterAlignmentAt.ofShapes
     familyParams := by simpa [hnumParams] using HfamilyParams
     constructorParams := by simpa [hnumParams] using HconstructorParams
     parameterDomains := by simpa [hlevelParams] using Hdomains }⟩
-
-/-- A successful `takeForalls` peels exactly `arity` binders. -/
-theorem VExpr.takeForalls_rebuild
-    (H : type.takeForalls arity = some (domains, result)) :
-    type = VExpr.wrapForalls domains result ∧ domains.length = arity := by
-  induction arity generalizing type domains result with
-  | zero =>
-    change some ([], type) = some (domains, result) at H
-    have hp : ([], type) = (domains, result) := Option.some.inj H
-    cases hp
-    exact ⟨rfl, rfl⟩
-  | succ arity ih =>
-    cases type with
-    | forallE domain body =>
-      cases htail : body.takeForalls arity with
-      | none => simp [VExpr.takeForalls, htail] at H
-      | some out =>
-        rcases out with ⟨tailDomains, tailResult⟩
-        rw [VExpr.takeForalls, htail] at H
-        change some (domain :: tailDomains, tailResult) =
-          some (domains, result) at H
-        have hp : (domain :: tailDomains, tailResult) =
-            (domains, result) := Option.some.inj H
-        cases hp
-        rcases ih htail with ⟨hrebuild, hlength⟩
-        exact ⟨by simp [VExpr.wrapForalls, hrebuild], by simp [hlength]⟩
-    | _ => simp [VExpr.takeForalls] at H
 
 /-- Expose the next family-local parameter from `TypeShape` as a certified
 presentation of the whole source header. -/
@@ -392,86 +368,6 @@ theorem FormationCertificate.wf
   rules_ctorParams := hrecs.rules_ctorParams
   rule_shape := hrecs.rule_shape
   rules_wf := hrecs.rules_wf
-
-/-- `List.Forall₂` from equal lengths and the relation at every index. Recursor and rule
-loops use it to turn indexed facts into a pointwise relation. -/
-theorem List.forall₂_of_getElem
-    {α β : Type} {R : α → β → Prop} {as : List α} {bs : List β}
-    (hlen : as.length = bs.length)
-    (H : ∀ i (ha : i < as.length) (hb : i < bs.length),
-      R as[i] bs[i]) :
-    List.Forall₂ R as bs := by
-  induction as generalizing bs with
-  | nil =>
-    have : bs = [] := List.eq_nil_of_length_eq_zero (by simpa using hlen.symm)
-    subst bs
-    exact .nil
-  | cons a as ih =>
-    cases bs with
-    | nil => simp at hlen
-    | cons b bs =>
-      have htail : as.length = bs.length := by simpa using hlen
-      apply List.Forall₂.cons (H 0 (by simp) (by simp))
-      apply ih htail
-      intro i ha hb
-      have h := H (i + 1) (by simpa) (by simpa)
-      change R as[i] bs[i] at h
-      exact h
-
-/-- Two pointwise translations of a source spine have the same target spine. -/
-theorem List.Forall₂.targets_eq_of_unique
-    (H₁ : List.Forall₂ (TrExprS env Us Δ) source target₁)
-    (H₂ : List.Forall₂ (TrExprS env Us Δ) source target₂) : target₁ = target₂ := by
-  induction H₁ generalizing target₂ with
-  | nil => cases H₂; rfl
-  | cons Hhead _ ih =>
-    let .cons Hhead' Htail' := H₂
-    rw [Hhead.unique_of_syn Hhead', ih Htail']
-
-theorem Expr.getAppFn_mkAppN (fn : Expr) (args : Array Expr) :
-    (mkAppN fn args).getAppFn = fn.getAppFn := by
-  unfold mkAppN
-  rw [← Array.foldl_toList]
-  generalize args.toList = list
-  induction list generalizing fn with
-  | nil => rfl
-  | cons arg args ih =>
-    simp only [List.foldl_cons]
-    simpa [Expr.getAppFn] using ih (.app fn arg)
-
-/-- An application spine headed by a local variable cannot be one of Lean's
-distinguished parameter-annotation applications. -/
-theorem Expr.isAppOfArity_eq_false_of_getAppFn_fvar
-    {e : Expr} (h : e.getAppFn = .fvar fv) (name : Name) (arity : Nat) :
-    e.isAppOfArity name arity = false := by
-  induction e generalizing arity with
-  | app fn arg ihFn _ =>
-    cases arity with
-    | zero => rfl
-    | succ arity =>
-      apply ihFn
-      simpa only [Expr.getAppFn] using h
-  | _ => cases arity <;> simp_all [Expr.getAppFn, Expr.isAppOfArity]
-
-theorem Expr.getAppArgsList_mkAppN (fn : Expr) (args : Array Expr) :
-    (mkAppN fn args).getAppArgsList = fn.getAppArgsList ++ args.toList := by
-  unfold mkAppN
-  rw [← Array.foldl_toList]
-  generalize args.toList = list
-  induction list generalizing fn with
-  | nil => simp
-  | cons arg args ih =>
-    simp only [List.foldl_cons]
-    rw [ih]
-    simp [Expr.getAppArgsList_app, List.append_assoc]
-
-@[simp] theorem Expr.foldl_mkApp_eq (args : List Expr) (fn : Expr) :
-    args.foldl Lean.mkApp fn = args.foldl Expr.app fn := by
-  induction args generalizing fn with
-  | nil => rfl
-  | cons arg args ih =>
-    simp only [List.foldl_cons, Lean.mkApp]
-    exact ih (.app fn arg)
 
 /-- Remove equally long outer prefixes from a context conversion.  Since
 `IsDefEqCtx` is built from the shared innermost suffix outwards, the proof is

@@ -1,3 +1,6 @@
+import Lean4Lean.Verify.Expr.Abstraction
+import Lean4Lean.Verify.Typing.Translation
+import Lean4Lean.Verify.Typing.VLCtxLemmas
 import Lean4Lean.Verify.Inductive.Formation
 import Lean4Lean.Verify.TypeChecker.CheckingContext
 import Lean4Lean.Verify.TypeChecker.MLCtxLemmas
@@ -613,104 +616,6 @@ theorem withCheckedLocalDeclOn.WF {k : Expr → AddInductive.M α}
         checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }).WF Q) :
     (AddInductive.withCheckedLocalDeclOn base name bi ty k c).WF Q := Hk
 
-/-- Invert the syntax-directed part of a translated forall while retaining the
-definitional equality introduced by normalization.  Header and constructor
-loops use this after `whnf`: the kernel expression is syntactically a
-forall, but its abstract translation need only be definitionally equal to one. -/
-theorem TrExpr.forallE_source
-    (H : TrExpr env Us Δ (.forallE name dom body bi) type') :
-    ∃ dom' body',
-      TrExprS env Us Δ dom dom' ∧
-      TrExprS env Us ((none, .vlam dom') :: Δ) body body' ∧
-      env.IsType Us.length Δ.toCtx dom' ∧
-      env.IsType Us.length (dom' :: Δ.toCtx) body' ∧
-      env.IsDefEqU Us.length Δ.toCtx (.forallE dom' body') type' := by
-  rcases H with ⟨_, Hsyntax, Hdefeq⟩
-  cases Hsyntax with
-  | forallE HdomType HbodyType Hdom Hbody =>
-    exact ⟨_, _, Hdom, Hbody, HdomType, HbodyType, Hdefeq⟩
-
-/-- Invert a kernel sort after normalization, retaining both its universe
-translation and its definitional equality to the abstract source tail. -/
-theorem TrExpr.sort_source
-    (H : TrExpr env Us Δ (.sort level) type') :
-    ∃ level', VLevel.ofLevel Us level = some level' ∧
-      env.IsDefEqU Us.length Δ.toCtx (.sort level') type' := by
-  rcases H with ⟨_, Hsyntax, Hdefeq⟩
-  cases Hsyntax with
-  | sort Hlevel => exact ⟨_, Hlevel, Hdefeq⟩
-
-/-- A translated kernel sort pins the type of the abstract conversion to
-the successor sort, not merely to an existentially hidden type. -/
-theorem TrExpr.sort_result
-    (henv : VEnv.WF env) (hctx : OnCtx Δ.toCtx (env.IsType Us.length))
-    (H : TrExpr env Us Δ (.sort level) type') :
-    ∃ level', VLevel.ofLevel Us level = some level' ∧
-      env.IsDefEq Us.length Δ.toCtx type' (.sort level')
-        (.sort (.succ level')) := by
-  rcases TrExpr.sort_source H with ⟨level', hlevel, typeEq⟩
-  exact ⟨level', hlevel, typeEq.symm.of_r henv hctx
-    (.sort (.of_ofLevel hlevel))⟩
-
-/-- Aggregates the final `ensureSort` translation with the independently
-recorded parameter/index telescope into the public `TypeShape` judgment. -/
-theorem TrExpr.typeShape
-    {decl : VInductDecl} {target : VInductiveType}
-    {params ownParams indices : List VExpr}
-    {normalized afterParams result exprType : VExpr}
-    (henv : VEnv.WF env) (hctx : VLCtx.WF env Us.length Δ)
-    (huvars : Us.length = decl.uvars)
-    (hctxEq : Δ.toCtx = indices.reverse ++ ownParams.reverse)
-    (hheader : env.IsDefEq decl.uvars [] target.type normalized exprType)
-    (hparamsTake : normalized.takeForalls decl.nparams =
-      some (ownParams, afterParams))
-    (hindicesTake : afterParams.takeForalls target.numIndices =
-      some (indices, result))
-    (hparams : decl.ParamsDefEq env params ownParams)
-    (hlevel : ∀ resultLevel,
-      VLevel.ofLevel Us level = some resultLevel →
-      resultLevel = target.resultLevel)
-    (H : TrExpr env Us Δ (.sort level) result) :
-    decl.TypeShape env params target := by
-  rcases TrExpr.sort_result henv hctx.toCtx H with
-    ⟨resultLevel, hresultLevel, hresult⟩
-  have hlevelEq := hlevel resultLevel hresultLevel
-  subst resultLevel
-  exact ⟨normalized, ownParams, afterParams, indices, result, exprType,
-    hheader, hparamsTake, hindicesTake, hparams,
-    by simpa [huvars, hctxEq] using hresult⟩
-
-/-- Context-conversion form of `typeShape`.  This is the form needed by the
-executable telescope because annotation consumption changes binder domains
-definitionally, while preserving the same de Bruijn context shape. -/
-theorem TrExpr.typeShapeOfDefEqCtx
-    {decl : VInductDecl} {target : VInductiveType}
-    {params ownParams indices : List VExpr}
-    {normalized afterParams result exprType : VExpr}
-    (henv : VEnv.WF env) (hctx : VLCtx.WF env Us.length Δ)
-    (huvars : Us.length = decl.uvars)
-    (hctxEq : VEnv.IsDefEqCtx env Us.length []
-      (indices.reverse ++ ownParams.reverse) Δ.toCtx)
-    (hheader : env.IsDefEq decl.uvars [] target.type normalized exprType)
-    (hparamsTake : normalized.takeForalls decl.nparams =
-      some (ownParams, afterParams))
-    (hindicesTake : afterParams.takeForalls target.numIndices =
-      some (indices, result))
-    (hparams : decl.ParamsDefEq env params ownParams)
-    (hlevel : ∀ resultLevel,
-      VLevel.ofLevel Us level = some resultLevel →
-      resultLevel = target.resultLevel)
-    (H : TrExpr env Us Δ (.sort level) result) :
-    decl.TypeShape env params target := by
-  rcases TrExpr.sort_result henv hctx.toCtx H with
-    ⟨resultLevel, hresultLevel, hresult⟩
-  have hlevelEq := hlevel resultLevel hresultLevel
-  subst resultLevel
-  have hresult' := hresult.defeqDFC henv.ordered (hctxEq.symm henv.orderedStrong)
-  exact ⟨normalized, ownParams, afterParams, indices, result, exprType,
-    hheader, hparamsTake, hindicesTake, hparams,
-    by simpa [huvars] using hresult'⟩
-
 /-- A checked inductive header is definitionally equal to an exact telescope
 of its recorded parameter and index arity ending in its recorded sort. -/
 theorem typeShape_forallAritySort
@@ -819,14 +724,6 @@ theorem ContextSemantics.UnannotatedDomain.sourceIsType {Hc : ContextSemantics c
     Hc.venv.IsType Us.length Hc.mlctx.vlctx.toCtx source' :=
   let ⟨_, h⟩ := H.source_defeq; ⟨_, h.hasType.1⟩
 
-theorem Expr.consumeTypeAnnotationsVerified_eq_self {dom : Expr}
-    (hopt : dom.isOptParam = false) (hauto : dom.isAutoParam = false)
-    (hout : dom.isOutParam = false) (hsemi : dom.isSemiOutParam = false) :
-    (dom.consumeTypeAnnotationsVerified annOk) = dom := by
-  fun_induction Expr.consumeTypeAnnotationsVerified _ dom
-  all_goals simp_all [Expr.isOptParam, Expr.isAutoParam,
-    Expr.isOutParam, Expr.isSemiOutParam, Expr.isAppOfArity]
-
 theorem MLCtxOnlyLams.mkForall_consumeTypeAnnotations_eq_self
     (H : MLCtxOnlyLams m) (n : Nat) (hn : n ≤ m.length)
     (hbody : (body.consumeTypeAnnotationsVerified annOk) = body) :
@@ -841,17 +738,6 @@ theorem MLCtxOnlyLams.mkForall_consumeTypeAnnotations_eq_self
       apply Expr.consumeTypeAnnotationsVerified_eq_self <;> rfl
     | vlet fv name type value type' value' tail =>
       exact H.vlet_false.elim
-
-/-- Removing binder annotations only selects subexpressions of the original
-domain, so it cannot introduce a new free-variable dependency. -/
-theorem Expr.consumeTypeAnnotationsVerified_fvarsIn
-    (H : FVarsIn P e) : FVarsIn P (e.consumeTypeAnnotationsVerified annOk) := by
-  fun_induction Expr.consumeTypeAnnotationsVerified _ e
-  case case1 ih => exact ih H.1.2
-  case case2 => exact H
-  case case3 ih => exact ih H.2
-  case case4 => exact H
-  case case5 => exact H
 
 /-- Transport the source body translation to the unannotated binder
 type.  This is needed before opening the binder with the executable's
@@ -917,33 +803,6 @@ section ScopeAlignment
 
 variable {env : VEnv} {Us : List Name} {scope chk : VLCtx}
 
-/-- A checker-context result whose input is aligned with a scope transfers
-back to that scope, retargeted at the scope translation of the input. -/
-theorem _root_.Lean4Lean.TrExpr.alignBack (henv : env.WF)
-    (h : VLCtx.IsDefEq env Us.length scope chk)
-    (hin : TrExprS env Us scope input nt)
-    (hin₀ : TrExprS env Us chk input t₀)
-    (hres : TrExpr env Us chk result t₀) :
-    TrExpr env Us scope result nt := by
-  rcases hres with ⟨r₀, hr₀, hr₀eq⟩
-  have hsym := h.symm henv.orderedStrong
-  obtain ⟨r, hr⟩ := hr₀.defeqDFC henv hsym
-  have hu := hr₀.uniq henv hsym hr
-  have hctx := h.defeqCtx.symm henv.orderedStrong
-  have hu' := hu.defeqDFC henv.ordered hctx
-  have heq' := hr₀eq.defeqDFC henv.ordered hctx
-  have hinU := hin.uniq henv h hin₀
-  exact ⟨r, hr, (hu'.symm.trans henv h.wf.toCtx heq').trans henv h.wf.toCtx
-    hinU.symm⟩
-
-/-- A scope translation transfers to an aligned checker context. -/
-theorem _root_.Lean4Lean.TrExprS.alignTo (henv : env.WF)
-    (h : VLCtx.IsDefEq env Us.length scope chk)
-    (hs : TrExprS env Us scope e a) :
-    ∃ b, TrExprS env Us chk e b ∧ env.IsDefEqU Us.length scope.toCtx a b := by
-  obtain ⟨b, hb⟩ := hs.defeqDFC henv h
-  exact ⟨b, hb, hs.uniq henv h hb⟩
-
 /-- Type-hood transfers from a scope to an aligned checker context along a
 definitional equality. -/
 theorem _root_.Lean4Lean.VEnv.IsType.alignTo (henv : env.WF)
@@ -984,68 +843,7 @@ theorem _root_.Lean4Lean.VEnv.HasType.alignBack (henv : env.WF)
   have ht' := ht.defeqDFC henv.ordered (h.defeqCtx.symm henv.orderedStrong)
   exact ht'.defeqU_l henv h.wf.toCtx (hn.uniq henv h h₀).symm
 
-/-- Extend an alignment by a free-variable binder whose two domains are
-definitionally equal. -/
-theorem _root_.Lean4Lean.VLCtx.IsDefEq.consAligned
-    (h : VLCtx.IsDefEq env Us.length scope chk)
-    (hfresh : fv ∉ scope.fvars) (hdeps : deps ⊆ scope.fvars)
-    (hA : env.IsDefEq Us.length scope.toCtx A A₀ (.sort u)) :
-    VLCtx.IsDefEq env Us.length ((some (fv, deps), .vlam A) :: scope)
-      ((some (fv, deps), .vlam A₀) :: chk) :=
-  .cons h (by rintro _ _ ⟨⟩; exact ⟨hfresh, hdeps⟩) (.vlam hA)
-
 end ScopeAlignment
-
-/-- Inverse of `TrExprS.abstract`: a bound variable standing for an abstracted
-free variable may be instantiated back with that free variable. -/
-theorem _root_.Lean4Lean.TrExprS.instantiateFVar {env : VEnv} {Us : List Name}
-    {Δ₀ : VLCtx} {v₀ : FVarId} {d₀ : VLocalDecl} {dk k : Nat} {Δ₁ Δ : VLCtx}
-    (W : VLCtx.Abstract Δ₀ v₀ d₀ dk k Δ₁ Δ) (hfresh : v₀ ∉ Δ₀.fvars)
-    {e : Expr} {e' : VExpr} (H : TrExprS env Us Δ e e') :
-    TrExprS env Us Δ₁ (e.instantiate1' (.fvar v₀) dk) e' := by
-  induction H generalizing dk k Δ₁ with
-  | @bvar _ _ _ i h1 =>
-    have h := W.find? (v := .inl i) (by nofun)
-    simp only at h
-    rw [h] at h1
-    simp only [Expr.instantiate1']
-    by_cases hi : i < dk
-    · rw [if_pos hi] at h1 ⊢
-      exact .bvar h1
-    · rw [if_neg hi] at h1 ⊢
-      by_cases hd : i = dk
-      · rw [if_pos hd] at h1 ⊢
-        simpa [Expr.liftLooseBVars'] using (TrExprS.fvar h1 : TrExprS env Us Δ₁ _ _)
-      · rw [if_neg hd] at h1 ⊢
-        exact .bvar h1
-  | @fvar _ _ _ fv h1 =>
-    have hne : fv ≠ v₀ := by
-      intro heq
-      apply hfresh
-      have hmem := VLCtx.find?_eq_some.1 ⟨_, h1⟩
-      rw [W.fvars_eq.2, heq] at hmem
-      exact hmem
-    have h := W.find? (v := .inr fv) (by simpa using hne)
-    simp only at h
-    rw [h] at h1
-    simp only [Expr.instantiate1']
-    exact .fvar h1
-  | sort h1 => exact .sort h1
-  | const h1 h2 h3 => exact .const h1 h2 h3
-  | app h1 h2 _ _ ih1 ih2 =>
-    exact .app (W.toCtx ▸ h1) (W.toCtx ▸ h2) (ih1 W) (ih2 W)
-  | lam h1 _ _ ih1 ih2 => exact .lam (W.toCtx ▸ h1) (ih1 W) (ih2 W.succ)
-  | forallE h1 h2 _ _ ih1 ih2 =>
-    exact .forallE (W.toCtx ▸ h1) (W.toCtx ▸ h2) (ih1 W) (ih2 W.succ)
-  | letE h1 _ _ _ ih1 ih2 ih3 =>
-    exact .letE (W.toCtx ▸ h1) (ih1 W) (ih2 W) (ih3 W.succ)
-  | lit h1 _ ih =>
-    have := ih W
-    rw [Expr.instantiate1'_eq_self Closed.toConstructor.looseBVarRange_le] at this
-    simp only [Expr.instantiate1']
-    exact .lit h1 this
-  | mdata _ ih => exact .mdata (ih W)
-  | proj _ h2 ih => exact .proj (ih W) (W.toCtx ▸ h2)
 
 /-- Opening a binder in both contexts extends a scope aligned with the
 checker context by the scope translation of the binder's domain. -/
@@ -1075,43 +873,6 @@ theorem ContextSemantics.alignedBinder (Hc : ContextSemantics c Us)
     rw [halign.fvars] at hmem
     exact Hc.current_not_mem (Hc.check.embed.fvars_subset hmem)
   exact halign.consAligned hfresh hdeps (hdomC.of_l henv hscopeΓ hdomTyped)
-
-/-- The checker-context normal form of an opened body, read back in a scope
-aligned with the checker context: the scope translation of the source body
-is definitionally equal to it. -/
-theorem _root_.Lean4Lean.VLCtx.IsDefEq.openedNormalForm {env : VEnv} {Us : List Name}
-    {scope chk : VLCtx} (henv : env.WF)
-    (halign : VLCtx.IsDefEq env Us.length scope chk)
-    {indexType consumed₀ : VExpr} {u : VLevel}
-    (hindex : env.IsDefEq Us.length scope.toCtx indexType consumed₀ (.sort u))
-    (hfresh : ∀ fv deps, ofv = some (fv, deps) → fv ∉ scope.fvars ∧ deps ⊆ scope.fvars)
-    {body : Expr} {narrowBody consumedBody₀ : VExpr}
-    (hbodyNarrow : TrExprS env Us ((none, .vlam indexType) :: scope) body narrowBody)
-    (hbodyConsumed₀ : TrExprS env Us ((none, .vlam consumed₀) :: chk) body consumedBody₀)
-    {normalized : Expr} {normalizedC : VExpr}
-    (hnormalizedC : TrExprS env Us ((ofv, .vlam consumed₀) :: chk) normalized normalizedC)
-    (hnormalizedCEq : env.IsDefEqU Us.length (consumed₀ :: chk.toCtx)
-      normalizedC consumedBody₀) :
-    ∃ normalizedNarrow,
-      TrExprS env Us ((ofv, .vlam indexType) :: scope) normalized normalizedNarrow ∧
-      env.IsDefEqU Us.length (indexType :: scope.toCtx) narrowBody normalizedNarrow := by
-  have halign' : VLCtx.IsDefEq env Us.length ((ofv, .vlam indexType) :: scope)
-      ((ofv, .vlam consumed₀) :: chk) := .cons halign hfresh (.vlam hindex)
-  obtain ⟨normalizedNarrow, hnormalizedNarrow⟩ :=
-    hnormalizedC.defeqDFC henv (halign'.symm henv.orderedStrong)
-  have hnn := hnormalizedNarrow.uniq henv halign' hnormalizedC
-  have hctxB : VLCtx.IsDefEq env Us.length ((none, .vlam indexType) :: scope)
-      ((none, .vlam consumed₀) :: chk) := .cons halign nofun (.vlam hindex)
-  have hbodyU := hbodyNarrow.uniq henv hctxB hbodyConsumed₀
-  have hnormC : env.IsDefEqU Us.length (indexType :: scope.toCtx)
-      normalizedC consumedBody₀ :=
-    hnormalizedCEq.defeqDFC henv.ordered (hctxB.symm henv.orderedStrong).defeqCtx
-  have hΓ' : OnCtx (indexType :: scope.toCtx) (env.IsType Us.length) :=
-    ⟨halign.wf.toCtx, _, hindex.hasType.1⟩
-  have h1 : env.IsDefEqU Us.length (indexType :: scope.toCtx)
-      normalizedNarrow normalizedC := hnn
-  exact ⟨normalizedNarrow, hnormalizedNarrow,
-    hbodyU.trans henv hΓ' (hnormC.symm.trans henv hΓ' h1.symm)⟩
 
 /-- The checker context agrees with the main context, up to definitional
 equality of the recorded binder types. -/
@@ -1509,19 +1270,6 @@ theorem VLCtx.IsDefEq.toIsUniqueCtx_ofOnlyLams
         exact .cons (ih Htail Hm.tail_vlam) .vlam
   | vlet fv name type value type' value' tail ih =>
     exact Hm.vlet_false.elim
-
-/-- Pointwise syntax-directed translation uniqueness, lifted to an aligned
-list of source expressions. -/
-theorem TrExprS.forall₂_unique
-    (Hctx : TrExprS.IsUniqueCtx Δ₁ Δ₂)
-    (H₁ : List.Forall₂ (TrExprS env Us Δ₁) sources targets₁)
-    (H₂ : List.Forall₂ (TrExprS env Us Δ₂) sources targets₂) :
-    targets₁ = targets₂ := by
-  induction H₁ generalizing targets₂ with
-  | nil => cases H₂; rfl
-  | cons Hhead _ ih =>
-    let .cons Hhead₂ Htail₂ := H₂
-    rw [Hhead.uniqueCtx Hctx Hhead₂, ih Htail₂]
 
 
 end VerifyInductive

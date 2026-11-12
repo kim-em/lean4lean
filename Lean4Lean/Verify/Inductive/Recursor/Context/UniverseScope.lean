@@ -1,3 +1,5 @@
+import Lean4Lean.Verify.Expr.Abstraction
+import Lean4Lean.Verify.LocalContext.Binding
 import Lean4Lean.Verify.Typing.UniverseSupport
 import Lean4Lean.Verify.Inductive.Recursor.Binders.MinorAlignment
 
@@ -19,19 +21,6 @@ open Kernel
 theorem _root_.Except.WF.and {ε α : Type} {x : Except ε α} {Q R : α → Prop}
     (h1 : x.WF Q) (h2 : x.WF R) : x.WF fun a => Q a ∧ R a :=
   fun a h => ⟨h1 a h, h2 a h⟩
-
-@[simp] theorem Expr.levelParamsIn_instantiate1_fvar (e : Expr) (fv : FVarId) (k : Nat) :
-    (e.instantiate1' (.fvar fv) k).levelParamsIn params = e.levelParamsIn params := by
-  induction e generalizing k <;> simp [Expr.instantiate1', Expr.levelParamsIn, *]
-  case bvar i =>
-    split
-    · rfl
-    · split <;> rfl
-
-theorem Expr.levelParamsIn_consumeTypeAnnotationsVerified {e : Expr}
-    (H : e.levelParamsIn params = true) : (e.consumeTypeAnnotationsVerified annOk).levelParamsIn params = true := by
-  fun_induction Expr.consumeTypeAnnotationsVerified _ e
-  all_goals simp_all [Expr.levelParamsIn]
 
 namespace VerifyInductive
 
@@ -97,24 +86,6 @@ theorem whnfInRecursorContext.levelsWF
 
 /-! ### Closed telescopes -/
 
-theorem LocalContext.levelParamsIn_mkForall_foldN
-    {lctx : LocalContext} {fvars : List FVarId} {Us : List Name}
-    (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
-      lctx.find? fv = some (.cdecl index fv name type bi kind) ∧
-        type.levelParamsIn Us = true)
-    {body : Expr} (hbody : body.levelParamsIn Us = true) :
-    (fvars.foldr (fun fv result => LocalContext.mkBindingList1N false lctx [] fv
-      (result.abstractN [fv])) body).levelParamsIn Us = true := by
-  induction fvars with
-  | nil => exact hbody
-  | cons fv fvars ih =>
-    obtain ⟨index, name, type, bi, kind, hfind, htype⟩ := hdecl fv (by simp)
-    have ih' := ih (fun other hother => hdecl other (by simp [hother]))
-    simp only [List.foldr_cons, LocalContext.mkBindingList1N, hfind,
-      Bool.false_eq_true, ↓reduceIte, Expr.levelParamsIn, Bool.and_eq_true,
-      Expr.levelParamsIn_abstractN]
-    exact ⟨htype, ih'⟩
-
 /-- A telescope closed over bound ordinary declarations whose types mention
 only `Us` mentions only `Us` when its body does. -/
 theorem FVarArrayIn.mkForall_levelParamsIn
@@ -137,32 +108,6 @@ theorem FVarArrayIn.mkForall_levelParamsIn
   rw [H.expressions, LocalContext.mkForall, LocalContext.mkBinding_eqN,
     LocalContext.mkBindingListN_eq_fold hfind hnodup]
   exact LocalContext.levelParamsIn_mkForall_foldN hdecl hbody
-
-/-- Conversely, a telescope over ordinary declarations mentioning only `Us`
-has its declared binder types in `Us`. -/
-theorem LocalContext.levelParamsIn_mkForall_foldN_types
-    {lctx : LocalContext} {fvars : List FVarId} {Us : List Name}
-    (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
-      lctx.find? fv = some (.cdecl index fv name type bi kind))
-    {body : Expr}
-    (h : (fvars.foldr (fun fv result => LocalContext.mkBindingList1N false lctx [] fv
-      (result.abstractN [fv])) body).levelParamsIn Us = true) :
-    ∀ fv ∈ fvars, ∀ decl, lctx.find? fv = some decl →
-      decl.type.levelParamsIn Us = true := by
-  induction fvars with
-  | nil => simp
-  | cons fv fvars ih =>
-    obtain ⟨index, name, type, bi, kind, hfind⟩ := hdecl fv (by simp)
-    simp only [List.foldr_cons, LocalContext.mkBindingList1N, hfind,
-      Bool.false_eq_true, ↓reduceIte, Expr.levelParamsIn, Bool.and_eq_true,
-      Expr.levelParamsIn_abstractN] at h
-    intro other hother decl hdecl'
-    simp only [List.mem_cons] at hother
-    rcases hother with rfl | hother
-    · rw [hfind] at hdecl'
-      cases hdecl'
-      simpa [LocalDecl.type] using h.1
-    · exact ih (fun o ho => hdecl o (by simp [ho])) h.2 other hother decl hdecl'
 
 /-- A telescope closed over bound ordinary declarations mentions only `Us`
 only if their declared types do. -/

@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.Typing.Translation
 import Lean4Lean.Verify.Inductive.Recursor.Signature.Families
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
@@ -62,44 +63,6 @@ theorem motive_eq_scalar_lift (g : InductiveSignature.Instance s)
     ← vars_eq_bvarSpine, vars_lift, Nat.add_zero, vars_lift_below, vars_lift_above]
   simp [InductiveSignature.Instance.motive, insertBinders_eq_prefix,
     VExpr.wrapForalls]
-
-theorem TrExprS.of_forallBinderTranslations
-    (Htel : Expr.ForallTelescope source n residual)
-    (hlen : domains.length = n)
-    (Hdomains : ∀ i (hi : i < domains.length) sourceDomain,
-      Expr.ForallBinderAt source i sourceDomain →
-      TrExprS env Us (abstractForallContext (domains.take i) Δ) sourceDomain domains[i] ∧
-      env.IsType Us.length (abstractForallContext (domains.take i) Δ).toCtx domains[i])
-    (Hres : TrExprS env Us (abstractForallContext domains Δ) residual result)
-    (HresType : env.IsType Us.length (abstractForallContext domains Δ).toCtx result) :
-    TrExprS env Us Δ source (VExpr.wrapForalls domains result) ∧
-      env.IsType Us.length Δ.toCtx (VExpr.wrapForalls domains result) := by
-  induction Htel generalizing Δ domains result with
-  | nil =>
-    have hnil := List.eq_nil_of_length_eq_zero hlen
-    subst domains
-    simpa [abstractForallContext, VExpr.wrapForalls] using And.intro Hres HresType
-  | @cons body arity residual name sourceDom bi Htel ih =>
-    cases domains with
-    | nil => simp at hlen
-    | cons dom domains =>
-      have Hdom := Hdomains 0 (by simp) sourceDom .here
-      simp only [List.take_zero, abstractForallContext, List.reverse_nil, List.map_nil,
-        List.nil_append, List.getElem_cons_zero] at Hdom
-      have Htail : ∀ i (hi : i < domains.length) sourceDomain,
-          Expr.ForallBinderAt body i sourceDomain →
-          TrExprS env Us (abstractForallContext (domains.take i) ((none, .vlam dom) :: Δ))
-            sourceDomain domains[i] ∧
-          env.IsType Us.length
-            (abstractForallContext (domains.take i) ((none, .vlam dom) :: Δ)).toCtx domains[i] := by
-        intro i hi sourceDomain Hb
-        have Hd := Hdomains (i+1) (by simpa using hi) sourceDomain (.there Hb)
-        simp only [List.getElem_cons_succ] at Hd
-        simpa [abstractForallContext, List.take_succ_cons, List.map_append, List.append_assoc] using Hd
-      obtain ⟨Hbody, HbodyType⟩ := ih (by simpa using hlen) Htail
-        (by simpa [abstractForallContext, List.map_append, List.append_assoc] using Hres)
-        (by simpa [abstractForallContext, List.map_append, List.append_assoc] using HresType)
-      exact ⟨.forallE Hdom.2 HbodyType Hdom.1 Hbody, .forallE Hdom.2 HbodyType⟩
 
 theorem RecursorConstruction.motiveSource_support
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}

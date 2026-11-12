@@ -1,41 +1,9 @@
+import Lean4Lean.Verify.Typing.Translation
 import Lean4Lean.Verify.Inductive.Recursor.Signature.FieldDomains
 
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
-
-/-- Given a translation of a telescope to a type `target` and a translation of its first `n`
-domains to `domains`, the telescope also translates to `wrapForalls domains result` for some
-`result` that translates the residual in the context extended by `domains`; both are types,
-and `target` is definitionally equal to `wrapForalls domains result`. -/
-theorem TrExprS.retargetForallPrefix
-    (henv : env.WF) (hΔ : Δ.WF env Us.length)
-    (Htel : Expr.ForallTelescope source n residual)
-    (hdomains : domains.length = n)
-    (Hfull : TrExprS env Us Δ source target)
-    (Htype : env.IsType Us.length Δ.toCtx target)
-    (Htemplate : TrExprS env Us Δ (Expr.forallDomainsOnly n source)
-      (VExpr.wrapForalls domains (.sort .zero))) :
-    ∃ result,
-      TrExprS env Us Δ source (VExpr.wrapForalls domains result) ∧
-      env.IsType Us.length Δ.toCtx (VExpr.wrapForalls domains result) ∧
-      TrExprS env Us (abstractForallContext domains Δ) residual result ∧
-      env.IsType Us.length (abstractForallContext domains Δ).toCtx result ∧
-      env.IsDefEqU Us.length Δ.toCtx target (VExpr.wrapForalls domains result) := by
-  obtain ⟨oldDomains, oldResult, hlen, heq, _⟩ :=
-    TrExprS.forallTelescope_shape_with_context Htel Hfull
-  subst target
-  have Hprefix := (TrExprS.forallDomainsOnly Htel hlen Hfull).1
-  have Hcontexts := TrExprS.forallPrefixContextEq henv Htel.domainsOnly hlen hdomains
-    Hprefix Htemplate (.refl henv hΔ)
-  obtain ⟨Hres, HresType⟩ := TrExprS.forallTelescope_residual_typed Htel hlen Hfull Htype
-  obtain ⟨result, HnewRes⟩ := Hres.defeqDFC henv Hcontexts
-  have HresEq := Hres.uniq henv Hcontexts HnewRes
-  have HnewType := (HresType.defeqU_l henv Hcontexts.wf.toCtx HresEq).defeqDFC
-    henv.ordered Hcontexts.defeqCtx
-  obtain ⟨Hnew, HnewFullType⟩ := TrExprS.rebuildForallPrefix Htel hdomains Htemplate HnewRes HnewType
-  exact ⟨result, Hnew, HnewFullType, HnewRes, HnewType,
-    Hfull.uniq henv (.refl henv hΔ) Hnew⟩
 
 /-- The field telescope of a minor's constructor traversal, ending in its terminal family
 application and abstracted over the parameters, translates in the header environment to
@@ -96,24 +64,6 @@ end Lean4Lean.VerifyInductive
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
-
-theorem TrExprS.forallTelescope_residual
-    (Htel : Expr.ForallTelescope source n residual) (hlen : domains.length = n)
-    (Htr : TrExprS env Us Δ source (VExpr.wrapForalls domains result)) :
-    TrExprS env Us (abstractForallContext domains Δ) residual result := by
-  induction Htel generalizing Δ domains result with
-  | nil =>
-    have hnil := List.eq_nil_of_length_eq_zero hlen
-    subst domains
-    simpa [abstractForallContext, VExpr.wrapForalls] using Htr
-  | cons Htel ih =>
-    cases domains with
-    | nil => simp at hlen
-    | cons dom domains =>
-      cases Htr with
-      | forallE _ _ _ Hbody =>
-        simpa [abstractForallContext, List.map_append, List.append_assoc] using
-          ih (by simpa using hlen) Hbody
 
 theorem RecursorConstruction.constructorTerminalSpine
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
@@ -212,21 +162,6 @@ theorem RecursorConstruction.constructorClosedParameters
   simp only [List.map_map, Function.comp_def] at hcombined
   rw [hlength] at hcombined
   simpa only [hsource, List.map_map, Function.comp_def] using hcombined
-
-theorem TrExprS.shiftedBvarSpine_eq
-    (Hargs : List.Forall₂ (TrExprS env Us (abstractForallContext domains Δ))
-      (List.ofFn (fun i : Fin n => Expr.bvar (below + (n - 1 - i)))) targets)
-    (hbound : n + below ≤ domains.length) :
-    targets = InductiveSignature.vars n below := by
-  apply List.ext_getElem
-  · have h := Lean4Lean.List.Forall₂.length_eq Hargs
-    simpa [InductiveSignature.vars] using h.symm
-  · intro i hi hj
-    have hin : i < n := by simpa [InductiveSignature.vars] using hj
-    have h := List.forall₂_getElem Hargs i (by simpa using hin) hi
-    simp only [List.getElem_ofFn] at h
-    have heq := TrExprS.bvar_eq_of_abstractForallContext h (by omega)
-    simpa [InductiveSignature.vars, List.getElem_reverse] using heq
 
 theorem RecursorConstruction.constructorResultIndices
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}

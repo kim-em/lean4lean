@@ -1,3 +1,5 @@
+import Lean4Lean.Verify.List.Lemmas
+import Lean4Lean.Verify.Typing.VExprLemmas
 import Lean4Lean.Verify.Inductive.Primitive.Headers
 import Lean4Lean.Verify.Inductive.Primitive.Classes
 import Lean4Lean.Verify.Inductive.Primitive.Constants
@@ -19,16 +21,6 @@ open Kernel
 
 namespace VerifyInductive
 
-theorem List.Forall₂.leftPair
-    (H : List.Forall₂ R [a₁, a₂] bs) :
-    ∃ b₁ b₂, bs = [b₁, b₂] ∧ R a₁ b₁ ∧ R a₂ b₂ := by
-  cases H with
-  | cons ha₁ Htail =>
-    cases Htail with
-    | cons ha₂ Hnil =>
-      cases Hnil
-      exact ⟨_, _, rfl, ha₁, ha₂⟩
-
 /-- The header data of a primitive declaration with its header translation (the constructor
 types translated syntactically in the header environment). -/
 structure PrimitiveHeaderEnvironment (c : AddInductive.Context)
@@ -38,24 +30,6 @@ structure PrimitiveHeaderEnvironment (c : AddInductive.Context)
     HeaderData c stats decl np unsafe' depth sourceEnv indTypes outEnv where
   translation : TrInductDeclHeaders sourceEnv c.lparams np
     indTypes.toList unsafe' decl context.venv
-
-/-- A type definitionally equal to a sort has no outer forall binders: if
-`type.takeForalls n` succeeds then `n = 0`. -/
-theorem VExpr.takeForalls_eq_zero_of_defEqSort
-    {env : VEnv} {U : Nat} {ctx : List VExpr}
-    {type : VExpr} {n : Nat} {domains : List VExpr}
-    {result : VExpr} {u : VLevel}
-    (henv : env.WF) (hctx : OnCtx ctx (env.IsType U))
-    (Htake : type.takeForalls n = some (domains, result))
-    (Hsort : env.IsDefEqU U ctx type (.sort u)) :
-    n = 0 := by
-  cases n with
-  | zero => rfl
-  | succ n =>
-    cases type <;> simp [VExpr.takeForalls] at Htake
-    case forallE domain body =>
-      exact False.elim
-        (VEnv.IsDefEqU.sort_forallE_inv henv hctx Hsort.symm)
 
 /-- Canonical primitive declarations have no cached common parameters. -/
 theorem PrimitiveHeaderEnvironment.params_size_eq_zero

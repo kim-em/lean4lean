@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.Expr.Abstraction
 import Lean4Lean.Verify.Inductive.Recursor.Context.UniverseScope
 import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldOpening
 import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldTypeScope
@@ -65,24 +66,6 @@ theorem RecursorFieldDecisions.levelParamsIn
     refine ⟨?_, fieldUniverseSupport_push Hc ih.2
       (Expr.levelParamsIn_consumeTypeAnnotationsVerified hdom)⟩
     simpa using hbody
-
-theorem Expr.getAppArgs_slice_toList (e : Expr) (n : Nat) :
-    ((e.getAppArgs[n:] : Array Expr)).toList = e.getAppArgsList.drop n := by
-  rw [← Expr.getAppArgs_toList]
-  let suffix := e.getAppArgs.toSubarray n
-  calc
-    (Std.Slice.toArray suffix).toList = suffix.toList := by
-      exact (congrArg Array.toList
-        (Subarray.toArray_eq_sliceToArray (s := suffix)).symm).trans
-          Subarray.toList_toArray
-    _ = e.getAppArgs.toList.drop n := by
-      rw [List.drop_eq_drop_min]
-      simp only [suffix, Subarray.toList_eq, Array.array_toSubarray,
-        Array.start_toSubarray, Array.stop_toSubarray, Nat.min_self,
-        Array.toList_extract, List.extract_eq_take_drop,
-        Array.length_toList]
-      apply List.take_of_length_le
-      simp
 
 /-- `getType` of a translated free variable returns its declared type, which
 lies in every universe scope of the variable. -/

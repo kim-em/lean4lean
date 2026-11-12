@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.Typing.Translation
 import Lean4Lean.Verify.Inductive.Recursor.Signature.FieldDomainsDefEq
 import Lean4Lean.Verify.Inductive.Recursor.Signature.Constructors
 import Lean4Lean.Verify.Inductive.Recursor.Signature.MinorSpine
@@ -17,43 +18,6 @@ are definitionally equal field by field and have syntactically the same result i
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
-
-/-- Translations of a telescope and of its unannotated form, in contexts that differ only in
-binder types, have syntactically equal bodies once the same number of binders is opened,
-provided removing annotations leaves the residual unchanged. -/
-theorem TrExprS.unannotatedTelescope_body_eq {venv : VEnv} {Us : List Name}
-    (Htel : Expr.ForallTelescope raw n residual) :
-    Lean4Lean.Expr.consumeForallTypes annOk residual = residual →
-    ∀ {Δ₁ Δ₂ : VLCtx} {As Cs : List VExpr} {B D : VExpr},
-      TrExprS.IsUniqueCtx Δ₁ Δ₂ →
-      TrExprS venv Us Δ₁ raw (VExpr.wrapForalls As B) →
-      TrExprS venv Us Δ₂ (Lean4Lean.Expr.consumeForallTypes annOk raw) (VExpr.wrapForalls Cs D) →
-      As.length = n → Cs.length = n → B = D := by
-  induction Htel with
-  | nil body =>
-    intro hres Δ₁ Δ₂ As Cs B D hΔ H1 H2 hA hC
-    cases As with
-    | cons => simp at hA
-    | nil =>
-    cases Cs with
-    | cons => simp at hC
-    | nil =>
-    rw [hres] at H2
-    simpa [VExpr.wrapForalls] using TrExprS.uniqueCtx hΔ H1 H2
-  | cons _ ih =>
-    intro hres Δ₁ Δ₂ As Cs B D hΔ H1 H2 hA hC
-    cases As with
-    | nil => simp at hA
-    | cons A As =>
-    cases Cs with
-    | nil => simp at hC
-    | cons C Cs =>
-    simp only [VExpr.wrapForalls, List.foldr_cons, Lean4Lean.Expr.consumeForallTypes] at H1 H2
-    cases H1 with
-    | forallE _ _ _ Hbody =>
-    cases H2 with
-    | forallE _ _ _ Hcbody =>
-    exact ih hres (hΔ.cons .vlam) Hbody Hcbody (by simpa using hA) (by simpa using hC)
 
 /-- Removing type annotations changes only binder domains: the result indices of a minor's
 constructor (`declConstructorIndices`) are syntactically those of the matching checked-formation

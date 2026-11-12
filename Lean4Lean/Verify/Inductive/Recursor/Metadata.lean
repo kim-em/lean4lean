@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.Typing.Translation
 import Lean4Lean.Verify.Inductive.Recursor.Installation
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 
@@ -27,14 +28,6 @@ theorem RecursorVal.getMajorInduct_of_binderAt (rec : Lean.RecursorVal)
   induction H with
   | here => rfl
   | there _ ih => exact ih
-
-/-- The executable arity counts every binder of a concrete forall telescope. -/
-theorem Expr.ForallTelescope.constructorArity
-    (H : Expr.ForallTelescope source n result) :
-    AddInductive.constructorArity source = n + AddInductive.constructorArity result := by
-  induction H with
-  | nil => simp
-  | cons _ ih => simp [AddInductive.constructorArity, ih]; omega
 
 /-- Installed recursor entries are indexed by the families of the construction's
 signature. -/

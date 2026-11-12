@@ -1,3 +1,5 @@
+import Lean4Lean.Verify.Expr.Abstraction
+import Lean4Lean.Verify.Typing.Translation
 import Lean4Lean.Verify.Inductive.Recursor.Installation
 import Lean4Lean.Verify.Inductive.Recursor.Signature.RecursiveShapeTranslations
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
@@ -22,15 +24,6 @@ translation then follows from any typed translation of the same rule
 namespace Lean4Lean
 open Lean hiding Environment Exception
 open VerifyInductive
-
-theorem TrExprS.toSyn {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Expr} {e' : VExpr}
-    (H : TrExprS env Us Δ e e') : TrSyn Us Δ e e' := H.toTrSyn
-
-/-- A typed translation of a source expression whose syntactic translation is
-known has exactly that target. -/
-theorem TrExprS.of_syn {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Expr} {e₁ e₂ : VExpr}
-    (H : TrExprS env Us Δ e e₁) (S : TrSyn Us Δ e e₂) : TrExprS env Us Δ e e₂ :=
-  H.toTrSyn.unique S ▸ H
 
 theorem TrSyn.transportAbstract {Us : List Name} {doms doms' : List VExpr} {e : Lean.Expr}
     {e' : VExpr} (hlen : doms.length = doms'.length)
@@ -90,42 +83,6 @@ theorem TrSyn.lambdaTelescope {Us : List Name} {n : Nat} {Fa L res : Lean.Expr}
             List.map_append, List.append_assoc] using h
         · simpa [abstractForallContext, List.map_append, List.append_assoc] using Hres
 
-theorem Expr.abstractN_mkAppList (fn : Lean.Expr) (args : List Lean.Expr) (xs : List FVarId)
-    (k : Nat) :
-    (Lean.Expr.mkAppList fn args).abstractN xs k =
-      Lean.Expr.mkAppList (fn.abstractN xs k) (args.map fun a => a.abstractN xs k) := by
-  induction args generalizing fn with
-  | nil => rfl
-  | cons a l ih => simp only [Lean.Expr.mkAppList, ih, List.map_cons]; rfl
-
-theorem Expr.instantiate1'_mkAppList (fn : Lean.Expr) (args : List Lean.Expr) (v : Lean.Expr)
-    (k : Nat) :
-    (Lean.Expr.mkAppList fn args).instantiate1' v k =
-      Lean.Expr.mkAppList (fn.instantiate1' v k) (args.map fun a => a.instantiate1' v k) := by
-  induction args generalizing fn with
-  | nil => rfl
-  | cons a l ih => simp only [Lean.Expr.mkAppList, ih, List.map_cons]; rfl
-
-theorem Expr.closed_mkAppList {fn : Lean.Expr} {args : List Lean.Expr} {k : Nat}
-    (hfn : Closed fn k) (hargs : ∀ a ∈ args, Closed a k) :
-    Closed (Lean.Expr.mkAppList fn args) k := by
-  induction args generalizing fn with
-  | nil => exact hfn
-  | cons a l ih =>
-    exact ih ⟨hfn, hargs a (by simp)⟩ (fun b hb => hargs b (by simp [hb]))
-
-/-- Abstracting a duplicate-free list of variables in its own order yields the
-canonical descending bound-variable spine. -/
-theorem Expr.abstractN_fvars_spine {xs : List FVarId} (hnd : xs.Nodup) (k : Nat) :
-    (xs.map Lean.Expr.fvar).map (fun a => a.abstractN xs k) =
-      (List.range xs.length).reverse.map fun i => Lean.Expr.bvar (k + i) := by
-  apply List.ext_getElem
-  · simp
-  · intro l h1 h2
-    simp only [List.getElem_map, List.getElem_reverse, List.getElem_range, List.length_range]
-    simp only [List.length_map] at h1
-    rw [Expr.abstractN_fvar_getElem hnd l h1]
-
 theorem TrSyn.bvarSpine {Us : List Name} (domains : List VExpr) (Δ : VLCtx) (count below : Nat)
     (h : count + below ≤ domains.length) :
     List.Forall₂ (TrSyn Us (abstractForallContext domains Δ))
@@ -139,49 +96,6 @@ theorem TrSyn.bvarSpine {Us : List Name} (domains : List VExpr) (Δ : VLCtx) (co
   simp only [List.length_map, List.length_reverse, List.length_range] at h1
   simp only [List.getElem_reverse, List.getElem_range, List.length_range]
   omega
-
-theorem VerifyInductive.Expr.SameForallLambdaPrefix.instantiate1'
-    (H : Expr.SameForallLambdaPrefix n forallBody lambdaBody) (v : Lean.Expr) (k : Nat) :
-    Expr.SameForallLambdaPrefix n
-      (forallBody.instantiate1' v k) (lambdaBody.instantiate1' v k) := by
-  induction H generalizing k with
-  | nil => exact .nil
-  | cons H ih =>
-    simp only [Lean.Expr.instantiate1']
-    exact .cons (ih (k + 1))
-
-theorem VerifyInductive.Expr.ForallTelescope.forallDomainList_abstractN
-    (H : Expr.ForallTelescope source n residual) (fvs : List FVarId) (k : Nat)
-    {i : Nat} (hi : i < n) :
-    (Expr.forallDomainList n (source.abstractN fvs k))[i]! =
-      (Expr.forallDomainList n source)[i]!.abstractN fvs (k + i) := by
-  induction H generalizing k i with
-  | nil => omega
-  | cons _ ih =>
-    simp only [Lean.Expr.abstractN]
-    cases i with
-    | zero => simp [Expr.forallDomainList]
-    | succ i =>
-      simp only [Expr.forallDomainList, List.getElem!_cons_succ]
-      rw [ih (k + 1) (by omega)]
-      congr 1
-      omega
-
-/-- A forall telescope with closed residual whose `i`-th domain is closed at
-depth `k + i` is closed at depth `k`. -/
-theorem VerifyInductive.Expr.ForallTelescope.closed_of_domains
-    (H : Expr.ForallTelescope source n residual) (k : Nat)
-    (hdom : ∀ i < n, Closed (Expr.forallDomainList n source)[i]! (k + i))
-    (hres : Closed residual (k + n)) : Closed source k := by
-  induction H generalizing k with
-  | nil => simpa using hres
-  | @cons body arity result name dom bi Htel ih =>
-    refine ⟨?_, ih (k + 1) ?_ ?_⟩
-    · simpa [Expr.forallDomainList] using hdom 0 (by omega)
-    · intro i hi
-      have := hdom (i + 1) (by omega)
-      simpa [Expr.forallDomainList, Nat.add_assoc, Nat.add_comm 1] using this
-    · simpa [Nat.add_assoc, Nat.add_comm 1] using hres
 
 /-- Syntactic translation of one generated recursive call, closed over the
 fields and the outer binders: a lambda telescope over the call's argument
@@ -445,30 +359,6 @@ theorem TrSyn.ofShape {env : VEnv} {Us Us' : List Name} {ls : List VLevel}
   have H4 := TrSyn.insertAbstract (a := sp.length) (b := nf + rbT.length) (c := extra)
     (doms' := Γ) (by simp) (by omega) H3
   simpa [InductiveSignature.Instance.underFields, Nat.add_assoc] using H4
-
-/-- The source of a shape translation in the small context is closed at the
-shape's local depth and mentions only the earlier fields and the parameters. -/
-theorem TrExprS.shapeSourceFacts {env : VEnv} {Us : List Name}
-    {sp sfT rbT : List VExpr} {e : Lean.Expr} {t : VExpr} {F P : List FVarId} {pos : Nat}
-    (hpos : pos ≤ F.length) (hsp : sp.length = P.length) (hsfT : sfT.length = pos)
-    (H : TrExprS env Us (abstractForallContext (sp ++ sfT ++ rbT) [])
-      ((e.abstractList (F.take pos) rbT.length).abstractList P (pos + rbT.length)) t) :
-    Closed e rbT.length ∧ e.FVarsIn fun fv => fv ∈ F.take pos ∨ fv ∈ P := by
-  have hFpos : (F.take pos).length = pos := by simp [hpos]
-  have hclosed : Closed ((e.abstractList (F.take pos) rbT.length).abstractList P
-      (pos + rbT.length)) (pos + rbT.length + P.length) := by
-    have := H.closed
-    simp only [abstractForallContext_bvars, List.length_append] at this
-    simpa [hsp, hsfT, VLCtx.bvars, Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using this
-  have hc1 := Expr.closed_of_abstractList hclosed
-  refine ⟨Expr.closed_of_abstractList (by rw [hFpos, Nat.add_comm]; exact hc1), ?_⟩
-  have h := H.fvarsIn
-  simp only [abstractForallContext_fvars] at h
-  have h1 := VerifyInductive.FVarsIn.of_abstractList h
-  exact VerifyInductive.FVarsIn.of_abstractList (h1.mono fun fv hfv => by
-    rcases hfv with hfv | hfv
-    · exact hfv
-    · simp [VLCtx.fvars] at hfv)
 
 /-- A shape source translated in the small context, closed over the earlier
 fields `F.take pos` and the parameters, translates in the equation context once

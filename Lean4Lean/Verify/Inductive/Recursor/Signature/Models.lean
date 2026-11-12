@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.Typing.VExprLemmas
 import Lean4Lean.Verify.Inductive.Recursor.Signature.FieldDomainsDefEq
 import Lean4Lean.Verify.Inductive.Recursor.Signature.Constructors
 import Lean4Lean.Verify.Inductive.Recursor.Signature.MinorSpine
@@ -12,76 +13,6 @@ with the construction's parameters, families, field domains and result indices
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
-
-/-- Changing only the domains of a closed telescope along a context
-conversion preserves the telescope up to definitional equality. -/
-theorem VExpr.wrapForalls_domains_defeqCtx {env : VEnv} {U : Nat} (henv : env.WF) :
-    ∀ {P Q : List VExpr} {Y : VExpr},
-      VEnv.IsDefEqCtx env U [] P.reverse Q.reverse →
-      env.IsType U Q.reverse Y →
-      env.IsDefEqU U [] (VExpr.wrapForalls P Y) (VExpr.wrapForalls Q Y) := by
-  suffices H : ∀ L : List VExpr, ∀ {P Q : List VExpr} {Y : VExpr}, P.reverse = L →
-      VEnv.IsDefEqCtx env U [] P.reverse Q.reverse →
-      env.IsType U Q.reverse Y →
-      env.IsDefEqU U [] (VExpr.wrapForalls P Y) (VExpr.wrapForalls Q Y) from
-    fun {P Q Y} hPQ hY => H P.reverse (P := P) (Q := Q) (Y := Y) rfl hPQ hY
-  intro L
-  induction L with
-  | nil =>
-    intro P Q Y hP hPQ hY
-    have hP' : P = [] := by simpa using hP
-    subst hP'
-    have hlen := hPQ.length_eq
-    have hQ : Q = [] := by simpa using hlen.symm
-    subst hQ
-    obtain ⟨u, h⟩ := hY
-    exact ⟨_, h⟩
-  | cons A L' ih =>
-    intro P Q Y hP hPQ hY
-    have hP' : P = L'.reverse ++ [A] := by
-      rw [← List.reverse_reverse P, hP]; simp
-    subst hP'
-    rcases List.eq_nil_or_concat Q with hQ | ⟨Q', B, hQ⟩
-    · subst hQ
-      have hlen := hPQ.length_eq
-      simp at hlen
-    rw [List.concat_eq_append] at hQ
-    subst hQ
-    simp only [List.reverse_append, List.reverse_cons, List.reverse_nil, List.nil_append,
-      List.singleton_append, List.reverse_reverse] at hPQ hY
-    cases hPQ with
-    | succ hctx hAB =>
-    have hAB' := hAB.defeqDFC henv.ordered hctx
-    have hQctx : OnCtx Q'.reverse (env.IsType U) := (hctx.symm henv.ordered).isType
-    obtain ⟨v, hYB⟩ := hY
-    have hYA : env.HasType U (A :: Q'.reverse) Y (.sort v) :=
-      hYB.defeqDFC henv.ordered (.succ .zero hAB'.symm)
-    have hforallA : env.IsType U Q'.reverse (.forallE A Y) :=
-      ⟨_, .forallEDF hAB'.hasType.1 hYA⟩
-    have hfirst := ih (P := L'.reverse) (by simp) (by simpa using hctx) hforallA
-    obtain ⟨level, hsecond⟩ := VExpr.wrapForalls_defeq (domains := Q') (Γ := [])
-      (by simpa using hQctx)
-      (by simpa using (VEnv.IsDefEq.forallEDF hAB' hYA))
-    simp only [VExpr.wrapForalls_append]
-    exact hfirst.trans henv trivial ⟨_, by simpa [VExpr.wrapForalls] using hsecond⟩
-
-/-- Closing definitionally equal bodies over definitionally equal telescopes gives
-definitionally equal types. -/
-theorem VExpr.wrapForalls_defeqCtx {env : VEnv} {U : Nat} (henv : env.WF)
-    {P Q : List VExpr} {X Y : VExpr}
-    (hPQ : VEnv.IsDefEqCtx env U [] P.reverse Q.reverse)
-    (hY : env.IsType U Q.reverse Y)
-    (hXY : env.IsDefEqU U Q.reverse X Y) :
-    env.IsDefEqU U [] (VExpr.wrapForalls P X) (VExpr.wrapForalls Q Y) := by
-  have hQP := hPQ.symm henv.ordered
-  have hXY' := hXY.defeqDFC henv.ordered hQP
-  have hY' := hY.defeqDFC henv.ordered hQP
-  obtain ⟨u, hYty⟩ := hY'
-  have hXYsort := hXY'.of_r henv hPQ.isType hYty
-  obtain ⟨level, hbody⟩ := VExpr.wrapForalls_defeq (domains := P) (Γ := [])
-    (by simpa using hPQ.isType) (by simpa using hXYsort)
-  exact VEnv.IsDefEqU.trans henv trivial ⟨_, hbody⟩
-    (VExpr.wrapForalls_domains_defeqCtx henv hPQ hY)
 
 /-- Field-by-field definitional equalities, each stated in the right-hand prefix scope, extend
 a context conversion of the base to every prefix. -/

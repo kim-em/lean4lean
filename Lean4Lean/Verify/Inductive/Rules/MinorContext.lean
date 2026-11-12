@@ -1,3 +1,7 @@
+import Lean4Lean.Verify.Expr.Abstraction
+import Lean4Lean.Verify.LocalContext.Binding
+import Lean4Lean.Verify.Typing.Translation
+import Lean4Lean.Verify.Typing.VLCtxLemmas
 import Lean4Lean.Verify.Inductive.Rules.Alignment
 
 /-! The context of a rule's selected minor premise: the generated recursor and the motive
@@ -29,127 +33,6 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
 
 open checkInductiveTypes.loopType
 
-/-- Instantiating an abstracted free variable with itself restores the
-expression. -/
-theorem Expr.instantiate1'_abstract1_self (v : FVarId) :
-    ∀ (e : Expr) (k : Nat), (e.abstract1 v k).instantiate1' (.fvar v) k = e
-  | .bvar i, k => by
-    simp only [Expr.abstract1, Expr.instantiate1']
-    by_cases h : i < k
-    · simp [h]
-    · have h1 : ¬ i + 1 < k := by omega
-      have h2 : i + 1 ≠ k := by omega
-      simp [h, h1, h2]
-  | .fvar w, k => by
-    by_cases h : v = w
-    · subst h
-      simp [Expr.abstract1, Expr.instantiate1', Expr.liftLooseBVars']
-    · have : (v == w) = false := by simpa using h
-      simp [Expr.abstract1, Expr.instantiate1', this]
-  | .mdata m e, k => by
-    simp [Expr.abstract1, Expr.instantiate1', Expr.instantiate1'_abstract1_self v e k]
-  | .proj s i e, k => by
-    simp [Expr.abstract1, Expr.instantiate1', Expr.instantiate1'_abstract1_self v e k]
-  | .app f a, k => by
-    simp [Expr.abstract1, Expr.instantiate1', Expr.instantiate1'_abstract1_self v f k,
-      Expr.instantiate1'_abstract1_self v a k]
-  | .lam n t b bi, k => by
-    simp [Expr.abstract1, Expr.instantiate1', Expr.instantiate1'_abstract1_self v t k,
-      Expr.instantiate1'_abstract1_self v b (k + 1)]
-  | .forallE n t b bi, k => by
-    simp [Expr.abstract1, Expr.instantiate1', Expr.instantiate1'_abstract1_self v t k,
-      Expr.instantiate1'_abstract1_self v b (k + 1)]
-  | .letE n t val b bi, k => by
-    simp [Expr.abstract1, Expr.instantiate1', Expr.instantiate1'_abstract1_self v t k,
-      Expr.instantiate1'_abstract1_self v val k,
-      Expr.instantiate1'_abstract1_self v b (k + 1)]
-  | .const .., _ | .sort _, _ | .mvar _, _ | .lit _, _ => by
-    simp [Expr.abstract1, Expr.instantiate1']
-
-/-- The annotation-only `inferImplicit` pass can be erased from the concrete
-side of a forall telescope translation. -/
-theorem Expr.ForallTelescopeTypeTranslation.of_inferImplicit
-    {env : VEnv} {Us : List Name} :
-    ∀ {Δ : VLCtx} {e : Expr} {n : Nat} {e' : VExpr} (numParams : Nat)
-      (considerRange : Bool),
-      Expr.ForallTelescopeTypeTranslation env Us Δ
-        (e.inferImplicit numParams considerRange) n e' →
-      Expr.ForallTelescopeTypeTranslation env Us Δ e n e'
-  | Δ, e, n, e', 0, cr, H => by simpa [Expr.inferImplicit] using H
-  | Δ, e, n, e', numParams + 1, cr, H => by
-    cases e with
-    | forallE name dom body bi =>
-      simp only [Expr.inferImplicit] at H
-      cases H with
-      | nil Htr Htype => exact .nil (TrExprS.of_inferImplicit (numParams := numParams + 1)
-          (considerRange := cr) (by simpa [Expr.inferImplicit] using Htr)) Htype
-      | cons Hdom HdomType Hbody =>
-        exact .cons Hdom HdomType
-          (Expr.ForallTelescopeTypeTranslation.of_inferImplicit numParams cr Hbody)
-    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
-      | proj => simpa [Expr.inferImplicit] using H
-
-/-- Instantiate an abstracted binder of a forall telescope translation with
-its free variable. -/
-theorem Expr.ForallTelescopeTypeTranslation.instantiateFVar
-    {env : VEnv} {Us : List Name}
-    {Δ₀ : VLCtx} {v₀ : FVarId} {d₀ : VLocalDecl} (hfresh : v₀ ∉ Δ₀.fvars) :
-    ∀ {dk k : Nat} {Δ₁ Δ : VLCtx} {e : Expr} {n : Nat} {e' : VExpr},
-      VLCtx.Abstract Δ₀ v₀ d₀ dk k Δ₁ Δ →
-      Expr.ForallTelescopeTypeTranslation env Us Δ e n e' →
-      Expr.ForallTelescopeTypeTranslation env Us Δ₁
-        (e.instantiate1' (.fvar v₀) dk) n e'
-  | _, _, _, _, _, _, _, W, .nil Htr Htype =>
-    .nil (TrExprS.instantiateFVar W hfresh Htr) (W.toCtx ▸ Htype)
-  | _, _, _, _, _, _, _, W, .cons Hdom HdomType Hbody => by
-    simp only [Expr.instantiate1']
-    exact .cons (TrExprS.instantiateFVar W hfresh Hdom) (W.toCtx ▸ HdomType)
-      (Expr.ForallTelescopeTypeTranslation.instantiateFVar hfresh W.succ Hbody)
-
-
-/-- Peel the outermost binder of a local-context forall. -/
-theorem LocalContext.mkForall_cons_cdecl {lctx : LocalContext}
-    {x : FVarId} {xs : List FVarId} {b : Expr}
-    {idx : Nat} {n : Name} {ty : Expr} {bi : BinderInfo} {kind : LocalDeclKind}
-    (hx : lctx.find? x = some (.cdecl idx x n ty bi kind))
-    (hxs : ∀ y ∈ xs, ∃ d, lctx.find? y = some d)
-    (nd : (x :: xs).Nodup) (hb : Closed b) (hclosed : LocalContext.LctxClosed lctx) :
-    lctx.mkForall ((x :: xs).map Expr.fvar).toArray b =
-      .forallE n ty ((lctx.mkForall (xs.map Expr.fvar).toArray b).abstract1 x) bi := by
-  have hex : ∀ y ∈ x :: xs, ∃ d, lctx.find? y = some d := by
-    intro y hy
-    rcases List.mem_cons.mp hy with rfl | hy
-    · exact ⟨_, hx⟩
-    · exact hxs y hy
-  rw [LocalContext.mkForall, LocalContext.mkBinding_eq' hex nd hb hclosed.declsClosed,
-    LocalContext.mkBindingList_cons hxs nd, LocalContext.mkForall,
-    LocalContext.mkBinding_eq' hxs (List.nodup_cons.mp nd).2 hb hclosed.declsClosed]
-  simp [LocalContext.mkBindingList1, hx]
-
-/-- Nested local-context foralls over disjoint lists combine. -/
-theorem LocalContext.mkForall_mkForall {lctx : LocalContext}
-    {xs ys : List FVarId} {b : Expr}
-    (hex : ∀ y ∈ xs ++ ys, ∃ d, lctx.find? y = some d)
-    (nd : (xs ++ ys).Nodup) (hb : Closed b) (hclosed : LocalContext.LctxClosed lctx) :
-    lctx.mkForall (xs.map Expr.fvar).toArray
-        (lctx.mkForall (ys.map Expr.fvar).toArray b) =
-      lctx.mkForall ((xs ++ ys).map Expr.fvar).toArray b := by
-  have hexY : ∀ y ∈ ys, ∃ d, lctx.find? y = some d :=
-    fun y hy => hex y (List.mem_append_right _ hy)
-  have hexX : ∀ y ∈ xs, ∃ d, lctx.find? y = some d :=
-    fun y hy => hex y (List.mem_append_left _ hy)
-  have ndY := (List.nodup_append.mp nd).2.1
-  have ndX := (List.nodup_append.mp nd).1
-  obtain ⟨hinner, hinnerClosed⟩ := LocalContext.mkBindingListN_eq_mkBindingList
-    (isLambda := false) hexY ndY hb hclosed.declsClosed
-  have hinner' : lctx.mkForall (ys.map Expr.fvar).toArray b =
-      LocalContext.mkBindingList false lctx ys b := by
-    rw [LocalContext.mkForall, LocalContext.mkBinding_eqN]
-    exact hinner
-  rw [hinner', LocalContext.mkForall,
-    LocalContext.mkBinding_eq' hexX ndX hinnerClosed hclosed.declsClosed,
-    LocalContext.mkForall, LocalContext.mkBinding_eq' hex nd hb hclosed.declsClosed,
-    LocalContext.mkBindingList_append hex nd]
 
 /-- A dependency-selected prefix of an all-lambda context, built from a
 closed translation of the forall over that prefix.  Each retained domain is
@@ -694,116 +577,6 @@ theorem
   rw [H.bindings.flatMinors.length_fvars]
   exact Nat.le_of_lt A.rule.minor_valid
 
-/-- Two lambda contexts with the same binder keys and definitionally equal
-domains are aligned. -/
-theorem VLCtx.IsDefEq.ofKeysCtx {env : VEnv} {U : Nat} :
-    ∀ {Δ₁ Δ₂ : VLCtx}, Δ₁.map Prod.fst = Δ₂.map Prod.fst →
-      (∀ e ∈ Δ₁, ∃ k d, e = (k, .vlam d)) →
-      (∀ e ∈ Δ₂, ∃ k d, e = (k, .vlam d)) →
-      VLCtx.WF env U Δ₁ →
-      VEnv.IsDefEqCtx env U [] Δ₁.toCtx Δ₂.toCtx →
-      VLCtx.IsDefEq env U Δ₁ Δ₂
-  | [], [], _, _, _, _, _ => .nil
-  | [], _ :: _, h, _, _, _, _ => by simp at h
-  | _ :: _, [], h, _, _, _, _ => by simp at h
-  | e₁ :: t₁, e₂ :: t₂, hk, h1, h2, hwf, hctx => by
-    obtain ⟨k₁, a, rfl⟩ := h1 e₁ (by simp)
-    obtain ⟨k₂, b, rfl⟩ := h2 e₂ (by simp)
-    simp only [List.map_cons, List.cons.injEq] at hk
-    obtain ⟨rfl, hk'⟩ := hk
-    have hctx' : VEnv.IsDefEqCtx env U [] (a :: VLCtx.toCtx t₁) (b :: VLCtx.toCtx t₂) := by
-      simpa [VLCtx.toCtx] using hctx
-    cases hctx' with
-    | succ htail hab =>
-      exact .cons (VLCtx.IsDefEq.ofKeysCtx hk'
-        (fun e he => h1 e (by simp [he])) (fun e he => h2 e (by simp [he]))
-        hwf.1 htail) hwf.2.1 (.vlam hab)
-
-theorem VLCtx.IsDefEq.keys_eq {env : VEnv} {U : Nat} :
-    ∀ {Δ₁ Δ₂ : VLCtx}, VLCtx.IsDefEq env U Δ₁ Δ₂ → Δ₁.map Prod.fst = Δ₂.map Prod.fst
-  | _, _, .nil => rfl
-  | _, _, .cons h _ _ => by simp [VLCtx.IsDefEq.keys_eq h]
-
-theorem VLCtx.FVLift'.keys_sublist {Δ Δ' : VLCtx} {dk k : Nat} {n : Lift}
-    (W : VLCtx.FVLift' Δ Δ' dk n k) : Δ.map Prod.fst <+ Δ'.map Prod.fst := by
-  induction W with
-  | refl => exact .refl _
-  | skip_fvar _ _ _ ih => exact .cons _ ih
-  | cons_fvar _ _ _ _ ih => exact .cons_cons _ ih
-  | cons_bvar _ _ ih => exact .cons_cons _ ih
-
-theorem VLCtx.mem_fvars_of_key : ∀ {L : VLCtx} {fv : FVarId} {d : List FVarId},
-    some (fv, d) ∈ L.map Prod.fst → fv ∈ L.fvars
-  | [], _, _, h => by simp at h
-  | (none, _) :: L, _, _, h => by
-    simp only [List.map_cons, List.mem_cons, reduceCtorEq, false_or] at h
-    exact VLCtx.mem_fvars_of_key (L := L) h
-  | (some (fv', d'), _) :: L, fv, d, h => by
-    simp only [List.map_cons, List.mem_cons, Option.some.injEq, Prod.mk.injEq] at h
-    simp only [VLCtx.fvars_cons_some, List.mem_cons]
-    rcases h with ⟨rfl, _⟩ | h
-    · exact Or.inl rfl
-    · exact Or.inr (VLCtx.mem_fvars_of_key h)
-
-/-- In a context with distinct free variables, a free variable determines
-its declaration key. -/
-theorem VLCtx.key_unique : ∀ {L : VLCtx}, L.fvars.Nodup →
-    ∀ {fv : FVarId} {d₁ d₂ : List FVarId},
-      some (fv, d₁) ∈ L.map Prod.fst → some (fv, d₂) ∈ L.map Prod.fst → d₁ = d₂
-  | [], _, _, _, _, h, _ => by simp at h
-  | (none, _) :: L, hnd, _, _, _, h1, h2 => by
-    simp only [List.map_cons, List.mem_cons, reduceCtorEq, false_or] at h1 h2
-    exact VLCtx.key_unique (L := L) hnd h1 h2
-  | (some (fv', d'), _) :: L, hnd, fv, d₁, d₂, h1, h2 => by
-    simp only [VLCtx.fvars_cons_some, List.nodup_cons] at hnd
-    simp only [List.map_cons, List.mem_cons, Option.some.injEq, Prod.mk.injEq] at h1 h2
-    rcases h1 with ⟨rfl, rfl⟩ | h1 <;> rcases h2 with ⟨h2a, rfl⟩ | h2
-    · rfl
-    · exact absurd (VLCtx.mem_fvars_of_key h2) hnd.1
-    · exact absurd (h2a ▸ VLCtx.mem_fvars_of_key h1) hnd.1
-    · exact VLCtx.key_unique hnd.2 h1 h2
-
-/-- Two selections of free-variable keys from one context agree when they
-select the same free variables. -/
-theorem VLCtx.keys_eq_of_fvars {L : VLCtx} (hnd : L.fvars.Nodup) :
-    ∀ {A B : List (Option (FVarId × List FVarId))},
-      (∀ x ∈ A, x ∈ L.map Prod.fst) → (∀ x ∈ B, x ∈ L.map Prod.fst) →
-      (∀ x ∈ A, x.isSome) → (∀ x ∈ B, x.isSome) →
-      A.map (Option.map Prod.fst) = B.map (Option.map Prod.fst) → A = B
-  | [], [], _, _, _, _, _ => rfl
-  | [], _ :: _, _, _, _, _, h => by simp at h
-  | _ :: _, [], _, _, _, _, h => by simp at h
-  | a :: A, b :: B, hA, hB, sA, sB, h => by
-    simp only [List.map_cons, List.cons.injEq] at h
-    obtain ⟨hab, hrest⟩ := h
-    have ha := sA a (by simp)
-    have hb := sB b (by simp)
-    obtain ⟨⟨fa, da⟩, rfl⟩ := Option.isSome_iff_exists.mp ha
-    obtain ⟨⟨fb, db⟩, rfl⟩ := Option.isSome_iff_exists.mp hb
-    simp only [Option.map_some, Option.some.injEq] at hab
-    subst hab
-    have hd : da = db :=
-      VLCtx.key_unique hnd (hA (some (fa, da)) (by simp)) (hB (some (fa, db)) (by simp))
-    subst hd
-    congr 1
-    exact VLCtx.keys_eq_of_fvars hnd (fun x hx => hA x (by simp [hx]))
-      (fun x hx => hB x (by simp [hx])) (fun x hx => sA x (by simp [hx]))
-      (fun x hx => sB x (by simp [hx])) hrest
-
-theorem VLCtx.lams_of_declarations {fvs : List FVarId} {L : VLCtx}
-    (H : List.Forall₂ (fun fv entry => ∃ deps type,
-      entry = (some (fv, deps), VLocalDecl.vlam type)) fvs L) :
-    ∀ e ∈ L, ∃ k d, e = (some k, VLocalDecl.vlam d) := by
-  induction H with
-  | nil => simp
-  | cons h _ ih =>
-    intro e he
-    simp only [List.mem_cons] at he
-    rcases he with rfl | he
-    · obtain ⟨deps, type, rfl⟩ := h
-      exact ⟨_, _, rfl⟩
-    · exact ih e he
-
 theorem VLCtx.lams_of_cached {ps : List Expr} {L : VLCtx}
     (H : List.Forall₂ checkInductiveTypes.loopType.CachedParameterDecl ps L) :
     ∀ e ∈ L, ∃ k d, e = (some k, VLocalDecl.vlam d) := by
@@ -816,41 +589,6 @@ theorem VLCtx.lams_of_cached {ps : List Expr} {L : VLCtx}
     · obtain ⟨fv, deps, type, _, rfl⟩ := h
       exact ⟨_, _, rfl⟩
     · exact ih e he
-
-theorem VLCtx.fvars_drop_of_lams : ∀ {L : VLCtx} (m : Nat),
-    (∀ e ∈ L, ∃ k d, e = (some k, VLocalDecl.vlam d)) →
-      VLCtx.fvars (L.drop m) = L.fvars.drop m
-  | [], m, _ => by simp
-  | _ :: _, 0, _ => rfl
-  | e :: L, m + 1, h => by
-    obtain ⟨k, d, rfl⟩ := h e (by simp)
-    simp only [List.drop_succ_cons, VLCtx.fvars_cons_some]
-    exact VLCtx.fvars_drop_of_lams m (fun x hx => h x (by simp [hx]))
-
-theorem VLCtx.toCtx_length_of_lams : ∀ {L : VLCtx},
-    (∀ e ∈ L, ∃ k d, e = (some k, VLocalDecl.vlam d)) →
-      L.toCtx.length = L.length
-  | [], _ => rfl
-  | e :: L, h => by
-    obtain ⟨k, d, rfl⟩ := h e (by simp)
-    simp [VLCtx.toCtx, VLCtx.toCtx_length_of_lams (L := L)
-      (fun x hx => h x (by simp [hx]))]
-
-theorem VLCtx.fvars_length_of_lams : ∀ {L : VLCtx},
-    (∀ e ∈ L, ∃ k d, e = (some k, VLocalDecl.vlam d)) →
-      L.fvars.length = L.length
-  | [], _ => rfl
-  | e :: L, h => by
-    obtain ⟨k, d, rfl⟩ := h e (by simp)
-    simp [VLCtx.fvars_length_of_lams (L := L) (fun x hx => h x (by simp [hx]))]
-
-theorem VLCtx.keys_fvars_of_lams : ∀ {L : VLCtx},
-    (∀ e ∈ L, ∃ k d, e = (some k, VLocalDecl.vlam d)) →
-      (L.map Prod.fst).map (Option.map Prod.fst) = L.fvars.map some
-  | [], _ => rfl
-  | e :: L, h => by
-    obtain ⟨k, d, rfl⟩ := h e (by simp)
-    simp [VLCtx.keys_fvars_of_lams (L := L) (fun x hx => h x (by simp [hx]))]
 
 theorem namedLambdaDeclarations_fvars
     {xs : List FVarId} {ys : VLCtx}
@@ -925,13 +663,6 @@ theorem checkInductiveTypes.loopType.ScopeEmbedding.instantiateAll
     H.declarations hnodup (by simpa using Htr)
   simpa [abstractForallContext] using H'
 
-
-theorem Expr.closed_mkAppList_fvars {f : Expr} (hf : Closed f) :
-    ∀ (fvs : List FVarId), Closed (Expr.mkAppList f (fvs.map Expr.fvar))
-  | [] => hf
-  | fv :: fvs => by
-    simp only [List.map_cons, Expr.mkAppList]
-    exact Expr.closed_mkAppList_fvars (f := .app f (.fvar fv)) ⟨hf, trivial⟩ fvs
 
 /-- The complete parameter/motive/minor scope of the recursor context, built
 from the closed translation of the generated recursor type rather than by

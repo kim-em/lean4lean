@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.Expr.Abstraction
 import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldOpening
 import Lean4Lean.Verify.Inductive.Context.TypeAnnotations
 
@@ -12,13 +13,6 @@ stripping commutes with closing free variables. -/
 namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
-
-/-- Strip the type annotations from every domain of a forall telescope. This is the closed
-syntax obtained by reopening its binders with unannotated local declaration types. -/
-def Expr.consumeForallTypes (ok : Name → Bool) : Expr → Expr
-  | .forallE name domain body bi =>
-    .forallE name (domain.consumeTypeAnnotationsVerified ok) (Expr.consumeForallTypes ok body) bi
-  | source => source
 
 /-- In a checking environment in which every wrapper accepted by `annOk` has its
 identity-like definition (`TypeAnnotationWrappers`), the unannotated telescope of a translated type translates to a type that is definitionally

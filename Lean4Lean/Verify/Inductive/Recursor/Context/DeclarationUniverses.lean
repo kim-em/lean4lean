@@ -1,3 +1,5 @@
+import Lean4Lean.Verify.Typing.Translation
+import Lean4Lean.Verify.Typing.VLCtxLemmas
 import Lean4Lean.Verify.Typing.Lemmas
 import Lean4Lean.Verify.ExprUniverses
 
@@ -11,49 +13,6 @@ translation over the recursor's universe parameters back to the declaration's. -
 
 namespace Lean4Lean
 open Lean hiding Environment Exception
-
-/-- Translations are preserved by the executable's non-reducing level substitution
-(`instantiateLevelParamsCore' false`), provided it agrees with the abstract instantiation
-`ls` on every level of the source. Because the substitution does not simplify, the other
-universe expressions of the term are kept as they are. -/
-theorem TrExprS.substLevelParamsCore
-    (hΔ : VLCtx.WF env ps.length Δ)
-    (hls : ∀ level ∈ ls, level.WF Us.length)
-    (hlevels : ∀ u u', VLevel.ofLevel ps u = some u' →
-      VLevel.ofLevel Us (u.substParams' F false) = some (u'.inst ls))
-    (H : TrExprS env ps Δ e e') :
-    TrExprS env Us (Δ.instL ls) (Expr.instantiateLevelParamsCore' false F e)
-      (e'.instL ls) := by
-  induction H with
-  | bvar hfind => exact .bvar (VLCtx.find?_instL hfind)
-  | fvar hfind => exact .fvar (VLCtx.find?_instL hfind)
-  | sort hlevel => exact .sort (hlevels _ _ hlevel)
-  | @const _ _ sourceLevels targetLevels info hlookup hlevel harity =>
-    apply TrExprS.const hlookup ?_ (by simpa using harity)
-    have Hmap := List.mapM_eq_some.mp hlevel
-    apply List.mapM_eq_some.mpr
-    apply List.forall₂_map_left_iff.mpr
-    apply List.forall₂_map_right_iff.mpr
-    exact Lean4Lean.List.Forall₂.imp (fun u u' hu => hlevels u u' hu) Hmap
-  | app hfn harg _ _ ihFn ihArg =>
-    exact .app (VLCtx.instL_toCtx _ ▸ hfn.instL hls)
-      (VLCtx.instL_toCtx _ ▸ harg.instL hls) (ihFn hΔ) (ihArg hΔ)
-  | lam hdom _ _ ihDom ihBody =>
-    exact .lam (VLCtx.instL_toCtx _ ▸ hdom.instL hls)
-      (ihDom hΔ) (ihBody ⟨hΔ, nofun, hdom⟩)
-  | forallE hdom hbody _ _ ihDom ihBody =>
-    exact .forallE (VLCtx.instL_toCtx _ ▸ hdom.instL hls)
-      (VLCtx.instL_toCtx _ ▸ hbody.instL hls)
-      (ihDom hΔ) (ihBody ⟨hΔ, nofun, hdom⟩)
-  | letE hval _ _ _ ihTy ihVal ihBody =>
-    exact .letE (VLCtx.instL_toCtx _ ▸ hval.instL hls)
-      (ihTy hΔ) (ihVal hΔ) (ihBody ⟨hΔ, nofun, hval⟩)
-  | lit hlit _ ih =>
-    exact .lit hlit (Expr.instantiateLevelParamsCore_eq_self
-      Literal.toConstructor_hasLevelParam ▸ ih hΔ)
-  | mdata _ ih => exact .mdata (ih hΔ)
-  | proj _ hproj ih =>
-    exact .proj (ih hΔ) (VLCtx.instL_toCtx _ ▸ hproj.instL hls)
 
 /-- Replace the extra elimination universe `fresh` by zero and leave every other universe
 parameter unchanged. -/
@@ -114,23 +73,6 @@ theorem TrExprS.dropFreshLevelParam
   H.substLevelParamsCore hΔ recursorDropLevels_wf
     (fun _ _ hu => ofLevel_dropFresh hu)
 
-theorem VLCtx.WF.instL_id (H : VLCtx.WF env U Δ) :
-    Δ.instL (VLevel.params U) = Δ := by
-  induction Δ with
-  | nil => rfl
-  | cons entry Δ ih =>
-    obtain ⟨ofv, d⟩ := entry
-    have hctx := OnCtx.levelWF_of_isType H.1.toCtx
-    have htail := ih H.1
-    cases d with
-    | vlam ty =>
-      obtain ⟨level, htype⟩ := H.2.2
-      have hlevels := (htype.levelWF hctx).1
-      simp [VLCtx.instL, VLocalDecl.instL, htail, hlevels.instL_id]
-    | vlet ty value =>
-      have hlevels := H.2.2.levelWF hctx
-      simp [VLCtx.instL, VLocalDecl.instL, htail, hlevels.1.instL_id, hlevels.2.2.instL_id]
-
 theorem recursorDropLevels_prependShift :
     (VLevel.prependShift n).map (VLevel.inst (recursorDropLevels n)) = VLevel.params n := by
   simp only [VLevel.prependShift, VLevel.params, List.map_map]
@@ -139,14 +81,6 @@ theorem recursorDropLevels_prependShift :
   have hi' : i < n := List.mem_range.mp hi
   simp [VLevel.inst, recursorDropLevels, VLevel.params,
     List.getD_eq_getElem?_getD, hi']
-
-theorem VLCtx.instL_instL {Δ : VLCtx} :
-    (Δ.instL ls).instL ls' = Δ.instL (ls.map (VLevel.inst ls')) := by
-  induction Δ with
-  | nil => rfl
-  | cons entry Δ ih =>
-    obtain ⟨ofv, d⟩ := entry
-    cases d <;> simp [VLCtx.instL, VLocalDecl.instL, ih, VExpr.instL_instL]
 
 theorem VLCtx.WF.prepend_drop_levels (H : VLCtx.WF env U Δ) :
     (Δ.instL (VLevel.prependShift U)).instL (recursorDropLevels U) = Δ := by

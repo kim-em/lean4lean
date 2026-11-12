@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.Expr.Abstraction
 import Lean4Lean.Verify.Inductive.Recursor.Entries.AddConstants
 
 /-! # The binder-by-binder decomposition of a generated recursor type
@@ -13,43 +14,6 @@ open Kernel
 open scoped _root_.List
 
 namespace VerifyInductive
-theorem Expr.ForallTelescope.inferImplicit
-    (H : Expr.ForallTelescope e arity residual)
-    (max : Nat) (inferBinderTypes : Bool) :
-    ∃ residual',
-      Expr.ForallTelescope (e.inferImplicit max inferBinderTypes) arity
-        residual' := by
-  induction max generalizing e arity residual with
-  | zero => exact ⟨residual, by simpa [Expr.inferImplicit] using H⟩
-  | succ max ih =>
-    cases H with
-    | nil => exact ⟨_, .nil _⟩
-    | cons Htail =>
-      rcases ih Htail with ⟨residual', Htail'⟩
-      exact ⟨residual', by
-        simp only [Expr.inferImplicit]
-        exact Expr.ForallTelescope.cons Htail'⟩
-
-/-- `inferImplicit` changes binder annotations only, so the terminal
-expression of a forall telescope is preserved literally. -/
-theorem Expr.ForallTelescope.inferImplicit_sameResidual
-    (H : Expr.ForallTelescope e arity residual)
-    (Hresidual : residual.isForall = false)
-    (max : Nat) (inferBinderTypes : Bool) :
-    Expr.ForallTelescope (e.inferImplicit max inferBinderTypes) arity
-      residual := by
-  induction max generalizing e arity residual with
-  | zero => simpa [Expr.inferImplicit] using H
-  | succ max ih =>
-    cases H with
-    | nil =>
-      have heq : e.inferImplicit (max + 1) inferBinderTypes = e := by
-        cases e <;> simp_all [Expr.inferImplicit, Expr.isForall]
-      rw [heq]
-      exact .nil _
-    | cons Htail =>
-      simp only [Expr.inferImplicit]
-      exact Expr.ForallTelescope.cons (ih Htail Hresidual)
 
 
 

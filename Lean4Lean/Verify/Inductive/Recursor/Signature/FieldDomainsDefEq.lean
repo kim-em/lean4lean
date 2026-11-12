@@ -1,26 +1,9 @@
+import Lean4Lean.Verify.Expr.Abstraction
 import Lean4Lean.Verify.Inductive.Recursor.Signature.Constructors
 import Lean4Lean.Verify.Inductive.Recursor.Signature.FieldDomains
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
-
-/-- The first `n` binders of `consumed` are those of `raw` with each domain unannotated
-(`consumeTypeAnnotationsVerified`); the bodies after the `n`-th binder are unrelated. -/
-inductive Expr.UnannotatedForallPrefix (ok : Name → Bool) : Nat → Lean.Expr → Lean.Expr → Prop
-  | zero (raw consumed : Lean.Expr) : UnannotatedForallPrefix ok 0 raw consumed
-  | succ : UnannotatedForallPrefix ok n body body' →
-      UnannotatedForallPrefix ok (n + 1) (.forallE name dom body bi)
-        (.forallE name' (dom.consumeTypeAnnotationsVerified ok) body' bi')
-
-/-- Removing the type annotations of a telescope's domains (`consumeForallTypes`) and keeping
-only its first `n` domains gives an unannotated prefix of the telescope. -/
-theorem Expr.ForallTelescope.unannotatedForallPrefix
-    (H : Expr.ForallTelescope raw n residual) :
-    Expr.UnannotatedForallPrefix ok n raw
-      (Expr.forallDomainsOnly n (Lean4Lean.Expr.consumeForallTypes ok raw)) := by
-  induction H with
-  | nil => exact .zero _ _
-  | cons _ ih => exact .succ ih
 
 /-- Binder by binder, a translation of a telescope and a translation of its unannotated prefix
 (in definitionally equal contexts) have definitionally equal domains, in either prefix

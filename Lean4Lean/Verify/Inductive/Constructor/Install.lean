@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.Typing.VExprLemmas
 import Lean4Lean.Verify.Inductive.Constructor.Environment
 import Lean4Lean.Verify.Inductive.Constructor.LiteralNames
 
@@ -30,10 +31,6 @@ theorem VEnv.exists_addConstVals {env : VEnv} : ∀ {cis : List VConstVal},
     · rw [VEnv.addConst_constants_eq h₁]
       have : ci.name ≠ c.name := fun h => hnd.1 (List.mem_map.2 ⟨c, hc, h.symm⟩)
       simp [this, hfresh c (.tail _ hc)]
-
-theorem VExpr.piArity_eq_forallArity : ∀ e : VExpr, e.piArity = e.forallArity
-  | .forallE _ b => by simp [VExpr.piArity, VExpr.forallArity, VExpr.piArity_eq_forallArity b]
-  | .bvar _ | .sort _ | .const _ _ | .app _ _ | .lam _ _ | .proj _ _ _ => rfl
 
 theorem inductiveTypeInfos_size {stats : AddInductive.InductiveStats}
     {indTypes : Array InductiveType} (h : stats.nindices.size = indTypes.size)

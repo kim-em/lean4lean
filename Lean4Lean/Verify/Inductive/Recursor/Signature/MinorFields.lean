@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.Expr.Abstraction
 import Lean4Lean.Verify.Inductive.Recursor.Signature.FieldDomains
 
 /-! Field domains of a generated minor premise, in the abstract contexts used by the generator.
@@ -16,11 +17,6 @@ theorem FVarsIn.abstract1_eq_liftLooseBVars {e : Lean.Expr} {v : Lean.FVarId} {k
     simp only [FVarsIn] at h
     simp [Lean.Expr.abstract1, Lean.Expr.liftLooseBVars', Ne.symm h]
   | _ => simp_all [FVarsIn, Lean.Expr.abstract1, Lean.Expr.liftLooseBVars']
-
-theorem _root_.Lean.Expr.liftLooseBVars'_liftLooseBVars' (e : Lean.Expr) (k d₁ d₂ : Nat) :
-    (e.liftLooseBVars' k d₁).liftLooseBVars' k d₂ = e.liftLooseBVars' k (d₁ + d₂) := by
-  induction e generalizing k <;> simp_all [Lean.Expr.liftLooseBVars']
-  split <;> (try split) <;> omega
 
 /-- Abstracting variables that do not occur only shifts the loose bound
 variables at and above the abstraction depth. -/

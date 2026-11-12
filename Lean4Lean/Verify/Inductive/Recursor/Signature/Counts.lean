@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.List.Lemmas
 import Lean4Lean.Verify.Inductive.Constructor.Positivity
 import Lean4Lean.Verify.Inductive.Recursor.Context.RecInfoTraversal
 
@@ -43,76 +44,6 @@ theorem ownedConstructors_length_eq_flattened_size
 iteration of `declareRecursors.loop`. -/
 def recursorMinorOffset (indTypes : Array InductiveType) (dIdx : Nat) : Nat :=
   ((indTypes.toList.take dIdx).flatMap (fun type => type.ctors)).length
-
-/-- The element of a flattening at offset (length of the first `owner` rows) `+ i` is element
-`i` of row `owner`. This is the list arithmetic shared by the executable and abstract
-owned-constructor enumerations. -/
-theorem List.flatMap_getElem_prefix
-    (rows : List α) (entries : α → List β)
-    (owner i : Nat) (howner : owner < rows.length)
-    (hi : i < (entries rows[owner]).length)
-    (hindex : ((rows.take owner).flatMap entries).length + i <
-      (rows.flatMap entries).length) :
-    (rows.flatMap entries)[((rows.take owner).flatMap entries).length + i]'hindex =
-      (entries rows[owner])[i]'hi := by
-  have hsplit : rows = rows.take owner ++ rows[owner] ::
-      rows.drop (owner + 1) := by
-    calc
-      rows = rows.take (owner + 1) ++ rows.drop (owner + 1) :=
-        (List.take_append_drop (owner + 1) rows).symm
-      _ = (rows.take owner ++ [rows[owner]]) ++
-          rows.drop (owner + 1) := by
-        rw [List.take_append_getElem howner]
-      _ = rows.take owner ++ rows[owner] :: rows.drop (owner + 1) := by
-        simp
-  have hrow : entries rows[owner] =
-      (entries rows[owner]).take i ++
-        (entries rows[owner])[i] ::
-          (entries rows[owner]).drop (i + 1) := by
-    calc
-      entries rows[owner] =
-          (entries rows[owner]).take (i + 1) ++
-            (entries rows[owner]).drop (i + 1) :=
-        (List.take_append_drop (i + 1) (entries rows[owner])).symm
-      _ = ((entries rows[owner]).take i ++
-            [(entries rows[owner])[i]]) ++
-          (entries rows[owner]).drop (i + 1) := by
-        rw [List.take_append_getElem hi]
-      _ = (entries rows[owner]).take i ++
-          (entries rows[owner])[i] ::
-            (entries rows[owner]).drop (i + 1) := by
-        simp
-  have houter : rows.flatMap entries =
-      (rows.take owner).flatMap entries ++ entries rows[owner] ++
-        (rows.drop (owner + 1)).flatMap entries := by
-    simpa only [List.flatMap_append, List.flatMap_cons,
-      List.append_assoc] using congrArg (List.flatMap entries) hsplit
-  have hflat : rows.flatMap entries =
-      ((rows.take owner).flatMap entries ++
-        (entries rows[owner]).take i) ++
-      (entries rows[owner])[i] ::
-        ((entries rows[owner]).drop (i + 1) ++
-          (rows.drop (owner + 1)).flatMap entries) := by
-    calc
-      rows.flatMap entries =
-          (rows.take owner).flatMap entries ++ entries rows[owner] ++
-            (rows.drop (owner + 1)).flatMap entries := houter
-      _ = (rows.take owner).flatMap entries ++
-          ((entries rows[owner]).take i ++
-            (entries rows[owner])[i] ::
-              (entries rows[owner]).drop (i + 1)) ++
-          (rows.drop (owner + 1)).flatMap entries :=
-        congrArg
-          (fun xs => (rows.take owner).flatMap entries ++ xs ++
-            (rows.drop (owner + 1)).flatMap entries) hrow
-      _ = ((rows.take owner).flatMap entries ++
-            (entries rows[owner]).take i) ++
-          (entries rows[owner])[i] ::
-            ((entries rows[owner]).drop (i + 1) ++
-              (rows.drop (owner + 1)).flatMap entries) := by
-        simp only [List.append_assoc, List.cons_append]
-  exact List.getElem_of_append hflat (by
-    simp [Nat.min_eq_left (Nat.le_of_lt hi)])
 
 /-- The abstract owned-constructor enumeration uses the same owner-major,
 constructor-minor order as its defining nested flattening. -/

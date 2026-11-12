@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.Typing.VExprLemmas
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 import Lean4Lean.Verify.Environment.Blocks
 import Lean4Lean.Theory.Inductive.SignatureLemmas
@@ -103,20 +104,6 @@ theorem VInductDecl.RawCtorShape.toShape {decl : VInductDecl} {type : VInductive
     InductiveSignature.vars_eq_bvarRange, Nat.add_comm]
 
 namespace VerifyInductive
-
-theorem VExpr.piArity_mkApps_const (n : Name) (ls : List VLevel) :
-    ∀ (args : List VExpr) (f : VExpr), (f = .const n ls ∨ ∃ a b, f = .app a b) →
-      (VExpr.mkApps f args).piArity = 0
-  | [], f, h => by
-    rcases h with rfl | ⟨a, b, rfl⟩ <;> rfl
-  | a :: as, f, _ => VExpr.piArity_mkApps_const n ls as (.app f a) (.inr ⟨_, _, rfl⟩)
-
-theorem VExpr.piArity_wrapForalls_mkApps_const (doms args : List VExpr) (n : Name)
-    (ls : List VLevel) :
-    (VExpr.wrapForalls doms (VExpr.mkApps (.const n ls) args)).piArity = doms.length := by
-  induction doms with
-  | nil => exact VExpr.piArity_mkApps_const n ls args _ (.inl rfl)
-  | cons d ds ih => simp [VExpr.wrapForalls, VExpr.piArity] at ih ⊢; exact ih
 
 /-- The recursor shapes of the generated recursors, from the facts a recursor check records:
 the generator (`g`, modelling the declaration), the recursor constants in the recursor-stage

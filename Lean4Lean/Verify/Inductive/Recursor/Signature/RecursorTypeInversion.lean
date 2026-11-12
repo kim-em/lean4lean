@@ -1,3 +1,6 @@
+import Lean4Lean.Verify.Expr.Abstraction
+import Lean4Lean.Verify.Typing.Translation
+import Lean4Lean.Verify.Typing.VExprLemmas
 import Lean4Lean.Verify.Inductive.Recursor.Signature.MinorFields
 import Lean4Lean.Verify.Inductive.Recursor.Signature.RecursorTypeTelescope
 import Lean4Lean.Verify.Inductive.Recursor.Signature.Constructors
@@ -472,49 +475,6 @@ theorem RecursorConstruction.minorMotiveAppForm
   subst this
   rfl
 
-/-- Closing a list of distinct free variables over itself yields the descending de Bruijn spine
-above the abstraction depth. -/
-theorem Expr.abstractList_fvar_spine (fvs : List FVarId) (hnd : fvs.Nodup) (k : Nat) :
-    (fvs.map Expr.fvar).map (fun e => e.abstractList fvs k) =
-      List.ofFn fun j : Fin fvs.length => Expr.bvar (k + (fvs.length - 1 - j)) := by
-  apply List.ext_getElem
-  · simp
-  · intro i hleft hright
-    have hi : i < fvs.length := by simpa using hright
-    simp only [List.getElem_map, List.getElem_ofFn]
-    exact Expr.abstractList_fvar_getElem hnd i hi
-
-/-- Closing a prefix of distinct free variables over a longer distinct list
-places each at its descending position above the trailing variables. -/
-theorem Expr.abstractList_fvar_prefix_spine (fvs rest : List FVarId)
-    (hnd : (fvs ++ rest).Nodup) (k : Nat) :
-    (fvs.map Expr.fvar).map (fun e => e.abstractList (fvs ++ rest) k) =
-      List.ofFn fun j : Fin fvs.length => Expr.bvar ((k + rest.length) + (fvs.length - 1 - j)) := by
-  apply List.ext_getElem
-  · simp
-  · intro i hleft hright
-    have hi : i < fvs.length := by simpa using hright
-    simp only [List.getElem_map, List.getElem_ofFn]
-    have h := Expr.abstractList_fvar_getElem hnd (fvs := fvs ++ rest) i (by simp; omega) (k := k)
-    rw [List.getElem_append_left hi] at h
-    rw [h]
-    congr 1
-    simp only [List.length_append]
-    omega
-
-/-- Bound variables below the abstraction depth are untouched. -/
-theorem Expr.abstractList_bvar_spine (n below : Nat) (fvs : List FVarId) (k : Nat)
-    (h : below + n ≤ k) :
-    (List.ofFn fun j : Fin n => Expr.bvar (below + (n - 1 - j))).map
-        (fun e => e.abstractList fvs k) =
-      List.ofFn fun j : Fin n => Expr.bvar (below + (n - 1 - j)) := by
-  apply List.ext_getElem
-  · simp
-  · intro i hleft hright
-    have hi : i < n := by simpa using hright
-    simp only [List.getElem_map, List.getElem_ofFn]
-    exact Expr.abstractList_bvar_lt fvs (by omega)
-
 /-- The motive application of a minor after closing hypotheses, fields, and
 the outer parameter, motive and earlier-minor binders: the motive is the bound variable of the
 family's motive, the constructor is applied to the bvar spine of parameters and fields, and the
@@ -782,42 +742,6 @@ theorem RecursorConstruction.recursorTelescope_minorResidual
       refine ⟨hyps, idx, hhyps, ?_, Hidx⟩
       rw [heq, hresEq, hf', ha', hm', hP, hF, hus, VExpr.mkApps_append]
 
-theorem Expr.abstractList_mkAppList_depth (head : Expr) (args : List Expr)
-    (fvars : List FVarId) (depth : Nat) :
-    (Expr.mkAppList head args).abstractList fvars depth =
-      Expr.mkAppList (head.abstractList fvars depth)
-        (args.map fun arg => arg.abstractList fvars depth) := by
-  induction args generalizing head with
-  | nil => rfl
-  | cons arg args ih =>
-    simpa only [Expr.mkAppList, List.map_cons, Expr.abstractList_app] using ih (.app head arg)
-
-theorem Expr.liftLooseBVars'_mkAppList (head : Expr) (args : List Expr) (start amount : Nat) :
-    (Expr.mkAppList head args).liftLooseBVars' start amount =
-      Expr.mkAppList (head.liftLooseBVars' start amount)
-        (args.map fun arg => arg.liftLooseBVars' start amount) := by
-  induction args generalizing head with
-  | nil => rfl
-  | cons arg args ih =>
-    simpa only [Expr.mkAppList, List.map_cons, Expr.liftLooseBVars'] using ih (.app head arg)
-
-/-- Application spines of equal length are injective in head and arguments. -/
-theorem VExpr.mkApps_inj {f g : VExpr} {l₁ l₂ : List VExpr} (hlen : l₁.length = l₂.length)
-    (h : VExpr.mkApps f l₁ = VExpr.mkApps g l₂) : f = g ∧ l₁ = l₂ := by
-  induction l₁ generalizing f g l₂ with
-  | nil =>
-    cases l₂ with
-    | nil => exact ⟨h, rfl⟩
-    | cons _ _ => simp at hlen
-  | cons a l₁ ih =>
-    cases l₂ with
-    | nil => simp at hlen
-    | cons b l₂ =>
-      have h' : VExpr.mkApps (.app f a) l₁ = VExpr.mkApps (.app g b) l₂ := h
-      obtain ⟨hfg, hl⟩ := ih (by simpa using hlen) h'
-      cases hfg
-      exact ⟨rfl, by rw [hl]⟩
-
 theorem getIIndices_snd_toList (stats : AddInductive.InductiveStats) (e : Expr) :
     (AddInductive.getIIndices stats e).2.toList = e.getAppArgsList.drop stats.params.size := by
   rw [← Expr.getAppArgs_toList]
@@ -836,17 +760,6 @@ theorem getIIndices_snd_toList (stats : AddInductive.InductiveStats) (e : Expr) 
         Array.length_toList]
       apply List.take_of_length_le
       simp
-
-/-- Pointwise syntactic uniqueness of translation lists. -/
-theorem TrExprS.forall₂_uniqueS {env : VEnv} {Us : List Name} {Δ : VLCtx}
-    {srcs : List Expr} {l₁ l₂ : List VExpr}
-    (H₁ : List.Forall₂ (TrExprS env Us Δ) srcs l₁)
-    (H₂ : List.Forall₂ (TrExprS env Us Δ) srcs l₂) : l₁ = l₂ := by
-  induction H₁ generalizing l₂ with
-  | nil => cases H₂; rfl
-  | cons h₁ _ ih =>
-    cases H₂ with
-    | cons h₂ H₂ => rw [h₁.unique h₂, ih H₂]
 
 /-- Abstraction removes the abstracted variable from the free-variable scope. -/
 theorem _root_.Lean4Lean.FVarsIn.abstract1_not {P : FVarId → Prop} {e : Expr} {v : FVarId} {k : Nat}
@@ -1722,71 +1635,6 @@ theorem RecursorConstruction.recursorTarget_eq_of_minors
     ← List.append_assoc]
   congr 3
   omega
-
-/-- The first `n` binder domains of a forall telescope, exactly as they sit in
-the expression: the `i`-th domain still carries loose bound variables
-`0, …, i - 1` for the `i` binders before it. -/
-def Expr.forallDomainList : Nat → Expr → List Expr
-  | 0, _ => []
-  | n + 1, .forallE _ domain body _ => domain :: forallDomainList n body
-  | _, _ => []
-
-theorem Expr.ForallTelescope.forallDomainList_length
-    (H : Expr.ForallTelescope source n residual) :
-    (Expr.forallDomainList n source).length = n := by
-  induction H with
-  | nil => simp [Expr.forallDomainList]
-  | cons _ ih => simp [Expr.forallDomainList, ih]
-
-/-- Abstracting free variables of a forall telescope abstracts its `i`-th
-literal domain at cutoff advanced by the `i` binders before it. -/
-theorem Expr.ForallTelescope.forallDomainList_abstractList
-    (H : Expr.ForallTelescope source n residual) (fvs : List FVarId) (k : Nat)
-    {i : Nat} (hi : i < n) :
-    (Expr.forallDomainList n (source.abstractList fvs k))[i]! =
-      (Expr.forallDomainList n source)[i]!.abstractList fvs (k + i) := by
-  induction H generalizing k i with
-  | nil => omega
-  | cons _ ih =>
-    rw [Expr.abstractList_forallE]
-    cases i with
-    | zero => simp [Expr.forallDomainList]
-    | succ i =>
-      simp only [Expr.forallDomainList, List.getElem!_cons_succ]
-      rw [ih (k + 1) (by omega)]
-      congr 1
-      omega
-
-/-- Telescope inversion recording each translated domain: the `i`-th
-abstract domain is the translation of the `i`-th literal source domain in the
-context extended by the earlier abstract domains. -/
-theorem TrExprS.forallTelescope_domains
-    (Htel : Expr.ForallTelescope source n residual)
-    (Htr : TrExprS env Us Δ source (VExpr.wrapForalls domains result))
-    (hlen : domains.length = n) :
-    ∀ (i : Nat) (hi : i < domains.length),
-      TrExprS env Us (abstractForallContext (domains.take i) Δ)
-        (Expr.forallDomainList n source)[i]! (domains[i]'hi) := by
-  induction Htel generalizing Δ domains with
-  | nil =>
-    intro i hi
-    simp only [List.length_eq_zero_iff] at hlen
-    subst hlen
-    simp at hi
-  | cons Htel ih =>
-    cases domains with
-    | nil => simp at hlen
-    | cons d ds =>
-      simp only [VExpr.wrapForalls, List.foldr_cons] at Htr
-      cases Htr with
-      | forallE _ _ Hdom Hbody =>
-        intro i hi
-        cases i with
-        | zero => simpa [Expr.forallDomainList, abstractForallContext] using Hdom
-        | succ i =>
-          have Hi := ih (domains := ds) Hbody (by simpa using hlen) i (by simpa using hi)
-          simpa [Expr.forallDomainList, abstractForallContext, List.map_append,
-            List.append_assoc] using Hi
 
 /-- The binder domains of a minor hypothesis's higher-order argument
 telescope, in order, exactly as they sit in the hypothesis type

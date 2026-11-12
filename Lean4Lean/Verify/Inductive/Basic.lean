@@ -1,3 +1,5 @@
+import Lean4Lean.Verify.Expr.Abstraction
+import Lean4Lean.Verify.Typing.VExprLemmas
 import Init.Data.Array.Lemmas
 import Init.Data.List.Sublist
 import Lean4Lean.Theory.Typing.Telescope
@@ -118,13 +120,6 @@ theorem VInductDeclSkeleton.withMetadataExpandedPrefix
     simp [VInductDeclSkeleton.withMetadata, hmetadata, source]
   exact ⟨source, Hmaterialize, ⟨skeleton, Hmaterialize⟩⟩
 
-/-- Rebuilding an expression from its application head and left-to-right
-argument list is exact. -/
-theorem VExpr.mkApps_getAppFnArgs (e : VExpr) :
-    let (fn, args) := e.getAppFnArgs
-    VExpr.mkApps fn args = e := by
-  exact _root_.Lean4Lean.VExpr.mkApps_getAppFnArgs e
-
 /-- A dependency-ordered list of well-formed constants may be viewed as a
 sequence of abstract axioms extending a well-formed environment.  Stating
 the input typing in the base environment is sufficient because each
@@ -135,14 +130,6 @@ theorem VEnv.WF.addConstVals
     (Hwf : ∀ ci ∈ cis, ci.toVConstant.WF env)
     (Hadd : env.addConstVals cis = some env') : env'.WF :=
   _root_.Lean4Lean.VEnv.WF.addConstVals Henv Hwf Hadd
-
-/-- Source-side residual substitution matching complete application of a
-forall telescope.  At each step the outer binder lies beneath all still-inner
-binders in the already-open body, hence the decreasing `args.length` cutoff. -/
-def Expr.instantiateForallBody : Expr → List Expr → Expr
-  | body, [] => body
-  | body, arg :: args =>
-      instantiateForallBody (body.instantiate1' arg args.length) args
 
 
 end VerifyInductive

@@ -1,3 +1,5 @@
+import Lean4Lean.Verify.Expr.Abstraction
+import Lean4Lean.Verify.Typing.Translation
 import Lean4Lean.Verify.Inductive.Constructor.CheckedTail
 import Lean4Lean.Verify.Expr.Telescope
 
@@ -17,72 +19,6 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- Syntactic forall spine of a constructor type exactly as walked by the
-executable constructor check: `k` leading `forallE` binders followed by a
-constant-headed codomain.  No `mdata` or `letE` sits on the spine. -/
-inductive Expr.ForallSpine : Expr → Nat → Prop
-  | codomain {e : Expr} {name : Name} {levels : List Level}
-      (hhead : e.getAppFn = .const name levels) : ForallSpine e 0
-  | step {name : Name} {dom body : Expr} {bi : BinderInfo} {k : Nat}
-      (H : ForallSpine body k) : ForallSpine (.forallE name dom body bi) (k + 1)
-
-/-- Substituting a free variable cannot create a constant application head. -/
-theorem Expr.getAppFn_instantiate1'_const
-    {e : Expr} {fv : FVarId} {d : Nat} {name : Name} {levels : List Level}
-    (H : (e.instantiate1' (.fvar fv) d).getAppFn = .const name levels) :
-    e.getAppFn = .const name levels := by
-  induction e generalizing d with
-  | app f a ihf _ =>
-    simp only [Expr.instantiate1', Expr.getAppFn] at H ⊢
-    exact ihf H
-  | bvar i =>
-    simp only [Expr.instantiate1'] at H
-    split at H
-    · simp [Expr.getAppFn] at H
-    · split at H
-      · simp [Expr.liftLooseBVars', Expr.getAppFn] at H
-      · simp [Expr.getAppFn] at H
-  | const _ _ => simpa [Expr.instantiate1'] using H
-  | fvar _ | mvar _ | sort _ | lit _ | mdata _ _ _ | proj _ _ _ _
-  | lam _ _ _ _ _ _ | forallE _ _ _ _ _ _ | letE _ _ _ _ _ _ _ _ =>
-    simp [Expr.instantiate1', Expr.getAppFn] at H
-
-/-- Substituting a free variable cannot create a forall binder. -/
-theorem Expr.instantiate1'_fvar_forallE_inv
-    {e : Expr} {fv : FVarId} {d : Nat} {name : Name} {dom body : Expr}
-    {bi : BinderInfo}
-    (H : e.instantiate1' (.fvar fv) d = .forallE name dom body bi) :
-    ∃ dom' body', e = .forallE name dom' body' bi ∧
-      dom = dom'.instantiate1' (.fvar fv) d ∧
-      body = body'.instantiate1' (.fvar fv) (d + 1) := by
-  cases e with
-  | forallE name' dom' body' bi' =>
-    simp only [Expr.instantiate1', Expr.forallE.injEq] at H
-    rcases H with ⟨rfl, rfl, rfl, rfl⟩
-    exact ⟨dom', body', rfl, rfl, rfl⟩
-  | bvar i =>
-    simp only [Expr.instantiate1'] at H
-    split at H
-    · cases H
-    · split at H
-      · simp [Expr.liftLooseBVars'] at H
-      · cases H
-  | const _ _ | fvar _ | mvar _ | sort _ | lit _ | mdata _ _ | proj _ _ _
-  | lam _ _ _ _ | app _ _ | letE _ _ _ _ _ =>
-    simp [Expr.instantiate1'] at H
-
-theorem Expr.ForallSpine.of_instantiate1'_fvar
-    {e : Expr} {fv : FVarId} {d k : Nat}
-    (H : ForallSpine (e.instantiate1' (.fvar fv) d) k) : ForallSpine e k := by
-  generalize he : e.instantiate1' (.fvar fv) d = e' at H
-  induction H generalizing e d with
-  | codomain hhead =>
-    subst he
-    exact .codomain (Expr.getAppFn_instantiate1'_const hhead)
-  | step _ ih =>
-    rcases Expr.instantiate1'_fvar_forallE_inv he with ⟨dom', body', rfl, _, hb⟩
-    exact .step (ih hb.symm)
-
 theorem AddInductive.constructorArity_eq_zero_of_not_forallE
     {e : Expr} (h : ∀ name dom body bi, e ≠ .forallE name dom body bi) :
     AddInductive.constructorArity e = 0 := by
@@ -100,26 +36,6 @@ theorem Expr.ForallSpine.constructorArity {e : Expr} {k : Nat}
     subst he
     simp [Expr.getAppFn] at hhead
   | step _ ih => simp [AddInductive.constructorArity, ih]
-
-/-- The translation of a constant-headed application is not a binder. -/
-theorem TrExprS.forallArity_eq_zero_of_const_head {env : VEnv} {Us : List Name} {Δ : VLCtx}
-    {e : Expr} {e' : VExpr} {name : Name} {levels : List Level}
-    (H : TrExprS env Us Δ e e') (hhead : e.getAppFn = .const name levels) :
-    e'.forallArity = 0 := by
-  cases e with
-  | const => cases H; rfl
-  | app => cases H; rfl
-  | _ => simp [Expr.getAppFn] at hhead
-
-/-- Translation preserves the binder count of a pure forall spine. -/
-theorem TrExprS.forallArity_of_spine {env : VEnv} {Us : List Name} {Δ : VLCtx}
-    {e : Expr} {e' : VExpr} {k : Nat}
-    (Hspine : Expr.ForallSpine e k) (H : TrExprS env Us Δ e e') : e'.forallArity = k := by
-  induction Hspine generalizing Δ e' with
-  | codomain hhead => exact TrExprS.forallArity_eq_zero_of_const_head H hhead
-  | step _ ih =>
-    cases H with
-    | forallE _ _ _ hbody => simp [VExpr.forallArity, ih hbody]
 
 /-- Exact concrete common-parameter prefix used by recursor generation. -/
 inductive ParameterPrefix (stats : AddInductive.InductiveStats) :

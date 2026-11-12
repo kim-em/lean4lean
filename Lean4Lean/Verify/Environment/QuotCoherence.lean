@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.Typing.VExprLemmas
 import Lean4Lean.Verify.Environment.RecursorCoherence
 import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Quot
@@ -92,13 +93,6 @@ def QuotCoherent.liftRuleShape (H : QuotCoherent venv) :
     obtain ⟨rfl, -⟩ := VExpr.wrapForalls_inj_of_length (by rw [hlen]; rfl) htype
     match i, hi with
     | 0, _ => exact VEnv.IsDefEqU.refl ⟨_, .bvar (.succ (.succ (.succ (.succ .zero))))⟩
-
-/-- A lift over more binders than the instantiation depth is cancelled one step. -/
-@[simp] theorem _root_.Lean4Lean.VExpr.inst_liftN_lt (e a : VExpr) {k m : Nat} (h : k < m) :
-    (VExpr.liftN m e).inst a k = VExpr.liftN (m - 1) e := by
-  obtain ⟨n, rfl⟩ : ∃ n, m = n + 1 + k := ⟨m - 1 - k, by omega⟩
-  rw [← VExpr.liftN'_liftN_lo e (n + 1) k, VExpr.inst_liftN', VExpr.liftN'_liftN_lo]
-  congr 1; omega
 
 /-- `Quot.ind` reduces by proof irrelevance: applied to a term convertible to `Quot.mk α r a`, it
 is definitionally equal to its minor premise applied to `a`. -/

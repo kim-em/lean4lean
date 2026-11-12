@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.Expr.Abstraction
 import Lean4Lean.Verify.Inductive.Constructor.Positivity
 import Lean4Lean.Verify.Inductive.Header.Check
 
@@ -160,34 +161,6 @@ theorem _root_.Lean4Lean.FVarsIn.instantiateRevRange
   rw [← heq, Array.getElem_extract]
   exact Array.getElem_mem hi'
 
-/-- Replacing universe parameters by universe expressions without metavariables
-does not introduce a universe metavariable. -/
-theorem _root_.Lean.Level.substParams'_hasMVar_false
-    (Hu : u.hasMVar' = false)
-    (Hs : ∀ name, (s name).hasMVar' = false) :
-    (Lean.Level.substParams' s red u).hasMVar' = false := by
-  induction u generalizing red with
-  | zero | param | mvar => simp_all [Lean.Level.substParams', Lean.Level.hasMVar']
-  | succ u ih =>
-      simp only [Lean.Level.substParams', Lean.Level.hasMVar'] at Hu ⊢
-      exact ih Hu
-  | max u v ihu ihv =>
-      simp only [Lean.Level.hasMVar'] at Hu
-      have Hu' := Bool.or_eq_false_iff.mp Hu
-      simp only [Lean.Level.substParams']
-      split
-      · exact Lean.Level.mkLevelMax'_hasMVar_false _ _
-          (ihu Hu'.1) (ihv Hu'.2)
-      · simp [Lean.Level.hasMVar', ihu Hu'.1, ihv Hu'.2]
-  | imax u v ihu ihv =>
-      simp only [Lean.Level.hasMVar'] at Hu
-      have Hu' := Bool.or_eq_false_iff.mp Hu
-      simp only [Lean.Level.substParams']
-      split
-      · exact Lean.Level.mkLevelIMax'_hasMVar_false _ _
-          (ihu Hu'.1) (ihv Hu'.2)
-      · simp [Lean.Level.hasMVar', ihu Hu'.1, ihv Hu'.2]
-
 /-- Universe-parameter instantiation preserves the expression free-variable
 predicate when every supplied universe is metavariable-free. -/
 theorem _root_.Lean4Lean.FVarsIn.instantiateLevelParams
@@ -235,12 +208,5 @@ theorem _root_.Lean4Lean.FVarsIn.mkAppRange_zero
   · rfl
   · simp [List.length_take, Nat.min_eq_left (by simpa using hn)]
 
-theorem _root_.Lean4Lean.Expr.eqv_fvar_eq
-    (H : (((.fvar fv : Expr) == e)) = true) : e = .fvar fv := by
-  cases e <;> simp [(· == ·), Expr.eqv'] at H
-  rename_i fv'
-  have : fv = fv' := beq_iff_eq.mp H
-  cases this
-  rfl
 end VerifyInductive
 end Lean4Lean

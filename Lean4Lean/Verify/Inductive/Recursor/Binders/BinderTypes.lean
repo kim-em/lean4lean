@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.List.Lemmas
 import Lean4Lean.Verify.Inductive.Recursor.Context.FVarArrays
 
 /-! The types the executable passes to `withLocalDecl` for the recursor binders and
@@ -751,26 +752,6 @@ the fields before it. -/
 def loopUArgsCheckLCtx (c : AddInductive.Context) (prior : Array Expr) :
     LocalContext :=
   c.lctx.restrictTo (prior.toList.map (·.fvarId!))
-
-theorem List.takeWhile_fvarId_prefix (fv : FVarId) :
-    ∀ (l : List Expr), (∃ x ∈ l, x.fvarId! = fv) →
-      (l.takeWhile (·.fvarId! != fv)).map (·.fvarId!) =
-        (l.map (·.fvarId!)).take (l.takeWhile (·.fvarId! != fv)).length ∧
-      (l.map (·.fvarId!))[(l.takeWhile (·.fvarId! != fv)).length]? = some fv
-  | [], ⟨_, h, _⟩ => by simp at h
-  | x :: xs, hmem => by
-    by_cases hx : x.fvarId! = fv
-    · simp [hx]
-    · obtain ⟨y, hy, hyfv⟩ := hmem
-      have hy' : ∃ y ∈ xs, y.fvarId! = fv := by
-        rcases List.mem_cons.mp hy with rfl | hy
-        · exact absurd hyfv hx
-        · exact ⟨y, hy, hyfv⟩
-      obtain ⟨h1, h2⟩ := List.takeWhile_fvarId_prefix fv xs hy'
-      have hp : (x.fvarId! != fv) = true := by simpa using hx
-      simp only [List.takeWhile_cons, hp, ↓reduceIte, List.map_cons,
-        List.length_cons, List.take_succ_cons, List.getElem?_cons_succ]
-      exact ⟨congrArg _ h1, h2⟩
 
 /-- The checker entries before a recursive field: the parameters and the
 fields before it, as a prefix of the parameters and all fields. -/

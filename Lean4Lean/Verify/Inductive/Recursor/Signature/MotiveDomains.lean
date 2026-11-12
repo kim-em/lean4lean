@@ -1,3 +1,5 @@
+import Lean4Lean.Verify.Expr.Abstraction
+import Lean4Lean.Verify.Typing.Translation
 import Lean4Lean.Verify.Inductive.Recursor.Inputs
 import Lean4Lean.Verify.Inductive.Recursor.Signature.Parameters
 
@@ -213,20 +215,6 @@ theorem ConstructorCheck.family_not_wrapper
       cases hvalue
     · simp at hw
 
-theorem Expr.consumeTypeAnnotationsVerified_eq_of_head {ok : Name → Bool} {e : Expr}
-    (hhead : e.getAppFn = .const name levels) (hok : ok name = false) :
-    (e.consumeTypeAnnotationsVerified ok) = e := by
-  fun_induction Expr.consumeTypeAnnotationsVerified ok e
-  case case1 n ls first second hannotation ih =>
-    have hname : n = name := by simpa [Expr.getAppFn, Expr.constName!] using congrArg Expr.constName! hhead
-    subst n
-    simp [hok] at hannotation
-  case case3 n ls arg hannotation ih =>
-    have hname : n = name := by simpa [Expr.getAppFn, Expr.constName!] using congrArg Expr.constName! hhead
-    subst n
-    simp [hok] at hannotation
-  all_goals rfl
-
 /-- The type of the major premise is the source family applied to the parameters and indices:
 removing type annotations leaves it unchanged, since no family of the block is a
 type-annotation wrapper. -/
@@ -254,38 +242,6 @@ theorem RecursorConstruction.majorSourceType
     (name := decl.types[owner].name) (levels := stats.levels)
   · simp [Expr.getAppFn_mkAppN, Expr.getAppFn]
   · exact R.family_not_wrapper _ (List.getElem_mem hfamily)
-
-/-- The domain of binder `i` of a telescope translating to `wrapForalls domains result`
-translates to `domains[i]` over the context extended by the first `i` domains. -/
-theorem Expr.ForallBinderAt.translation
-    (Hb : Expr.ForallBinderAt source i domain)
-    (Htr : TrExprS env Us Δ source (VExpr.wrapForalls domains result))
-    (hi : i < domains.length) :
-    TrExprS env Us (abstractForallContext (domains.take i) Δ) domain domains[i] := by
-  induction Hb generalizing Δ domains result with
-  | here =>
-    cases domains with
-    | nil => simp at hi
-    | cons dom domains =>
-      cases Htr with
-      | forallE _ _ Hdom _ => simpa [abstractForallContext] using Hdom
-  | @there body i domain name outerDomain bi Hb ih =>
-    cases domains with
-    | nil => simp at hi
-    | cons dom domains =>
-      cases Htr with
-      | forallE _ _ _ Hbody =>
-        have ht := ih Hbody (by simpa using hi)
-        simpa [abstractForallContext, List.map_append, List.append_assoc] using ht
-
-theorem Expr.abstractList_fullApp
-    (fvars : List FVarId) (hnd : fvars.Nodup) (name : Name) (levels : List Level) :
-    (mkAppN (.const name levels) (fvars.map Expr.fvar).toArray).abstractList fvars =
-      Expr.mkAppList (.const name levels)
-        (List.ofFn fun i : Fin fvars.length => Expr.bvar (fvars.length - 1 - i)) := by
-  rw [Expr.abstractList_mkAppN, Expr.abstractList_const,
-    Expr.abstractList_fvarArray fvars 0 hnd, Expr.mkAppN_eq_mkAppList]
-  simp
 
 theorem RecursorConstruction.majorBinderSource
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
@@ -353,37 +309,6 @@ theorem RecursorConstruction.majorBinderSource
     · intro i hi hj
       simp [hsizeP, hsizeI]
   rwa [hvars] at Hclosed
-
-theorem TrExprS.const_bvarSpine_eq
-    (Hlevels : levels.mapM (VLevel.ofLevel Us) = some vlevels)
-    (Htr : TrExprS env Us (abstractForallContext domains Δ)
-      (Expr.mkAppList (.const name levels)
-        (List.ofFn fun i : Fin n => Expr.bvar (n - 1 - i))) target)
-    (hn : n ≤ domains.length) :
-    target = VExpr.mkApps (.const name vlevels) (bvarSpine n) := by
-  let args := List.ofFn fun i : Fin n => n - 1 - i
-  have hargs : ∀ i ∈ args, i < domains.length := by
-    intro i hi
-    obtain ⟨j, rfl⟩ := List.mem_ofFn.mp hi
-    have := j.isLt
-    omega
-  have hsource : Expr.mkAppList (.const name levels)
-      (List.ofFn fun i : Fin n => Expr.bvar (n - 1 - i)) =
-      args.foldl (fun fn i => .app fn (.bvar i)) (.const name levels) := by
-    rw [show (List.ofFn fun i : Fin n => Expr.bvar (n - 1 - i)) =
-      args.map Expr.bvar by simp [args, List.map_ofFn, Function.comp_def]]
-    simp [Expr.mkAppList_eq_foldl, List.foldl_map]
-  rw [hsource] at Htr
-  have heq := TrExprS.foldl_bvars_eq domains Δ args hargs (.const name levels)
-    (.const name vlevels) (fun out Hconst => by
-      cases Hconst with
-      | const _ hlevels _ =>
-        rw [Hlevels] at hlevels
-        cases Option.some.inj hlevels
-        rfl) Htr
-  have htargets : bvarSpine n = args.map VExpr.bvar := by
-    simp [bvarSpine_eq_ofFn, args, List.map_ofFn, Function.comp_def]
-  simpa [VExpr.mkApps, htargets, List.foldl_map] using heq
 
 /-- In every translation of the executable motive telescope, the major's domain is the family
 applied to the bvar spine of parameters and indices; the index domains are determined only up

@@ -1,4 +1,9 @@
-import Lean4Lean.Verify.Inductive.Recursor.Context.TelescopeUniqueness
+import Lean4Lean.Verify.Expr.Abstraction
+import Lean4Lean.Verify.List.Lemmas
+import Lean4Lean.Verify.Typing.Translation
+import Lean4Lean.Verify.Inductive.Context
+import Lean4Lean.Verify.Inductive.Recursor.Signature.MinorFields
+import Lean4Lean.Verify.Inductive.Recursor.Context.DeclarationUniverses
 import Lean4Lean.Verify.Inductive.Recursor.Binders.MinorPremises
 import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldTypeScope
 import Lean4Lean.Verify.Inductive.Recursor.Signature.RecursorTypeInversion
@@ -31,73 +36,6 @@ gives translations in `parameters ++ fields.take pos`. Forward weakening
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
-
-/-- `abstract1` is injective: loose bound variables below the cutoff are
-fixed, those at or above it are shifted by one, and only the abstracted variable becomes the
-cutoff itself. -/
-theorem Expr.abstract1_injective {v : FVarId} :
-    ∀ {e e' : Expr} {k : Nat}, e.abstract1 v k = e'.abstract1 v k → e = e' := by
-  intro e
-  induction e with
-  | bvar i =>
-    intro e' k h
-    cases e' with
-    | bvar i' =>
-      simp only [Expr.abstract1, Expr.bvar.injEq] at h
-      congr 1; split at h <;> split at h <;> omega
-    | fvar w =>
-      simp only [Expr.abstract1] at h
-      by_cases hw : v = w
-      · subst hw; simp at h; split at h <;> omega
-      · simp [hw] at h
-    | _ => simp [Expr.abstract1] at h
-  | fvar u =>
-    intro e' k h
-    cases e' with
-    | bvar i' =>
-      simp only [Expr.abstract1] at h
-      by_cases hu : v = u
-      · subst hu; simp at h; split at h <;> omega
-      · simp [hu] at h
-    | fvar w =>
-      simp only [Expr.abstract1] at h
-      by_cases hu : v = u <;> by_cases hw : v = w <;> simp_all
-    | _ =>
-      simp only [Expr.abstract1] at h
-      by_cases hu : v = u <;> simp [hu] at h
-  | app f a ihf iha =>
-    intro e' k h
-    cases e' <;> simp [Expr.abstract1] at h <;> (try (split at h <;> simp at h))
-    rw [ihf h.1, iha h.2]
-  | lam n t b bi iht ihb =>
-    intro e' k h
-    cases e' <;> simp [Expr.abstract1] at h <;> (try (split at h <;> simp at h))
-    rw [h.1, iht h.2.1, ihb h.2.2.1, h.2.2.2]
-  | forallE n t b bi iht ihb =>
-    intro e' k h
-    cases e' <;> simp [Expr.abstract1] at h <;> (try (split at h <;> simp at h))
-    rw [h.1, iht h.2.1, ihb h.2.2.1, h.2.2.2]
-  | letE n t val b nd iht ihv ihb =>
-    intro e' k h
-    cases e' <;> simp [Expr.abstract1] at h <;> (try (split at h <;> simp at h))
-    rw [h.1, iht h.2.1, ihv h.2.2.1, ihb h.2.2.2.1, h.2.2.2.2]
-  | mdata m b ih =>
-    intro e' k h
-    cases e' <;> simp [Expr.abstract1] at h <;> (try (split at h <;> simp at h))
-    rw [h.1, ih h.2]
-  | proj s i b ih =>
-    intro e' k h
-    cases e' <;> simp [Expr.abstract1] at h <;> (try (split at h <;> simp at h))
-    rw [h.1, h.2.1, ih h.2.2]
-  | _ =>
-    intro e' k h
-    cases e' <;> simp [Expr.abstract1] at h <;> (try split at h) <;> simp_all
-
-theorem Expr.abstractList_injective :
-    ∀ {xs : List FVarId} {e e' : Expr} {k : Nat},
-      e.abstractList xs k = e'.abstractList xs k → e = e'
-  | [], _, _, _, h => by simpa using h
-  | _ :: _, _, _, _, h => Expr.abstract1_injective (Expr.abstractList_injective h)
 
 theorem insertBinders_append (Fs B : List VExpr) (m : Nat) :
     InductiveSignature.insertBinders (Fs ++ B) m =
@@ -207,13 +145,6 @@ theorem TrExprS.getAppArgsList_translations {env : VEnv} {Us : List Name}
   obtain ⟨_, args', _, hargs, _⟩ := checkPositivityStep.TrExprS.mkAppList_inv H
   exact ⟨args', hargs⟩
 
-theorem _root_.List.Forall₂.drop_both {α β : Type} {R : α → β → Prop} :
-    ∀ {l : List α} {l' : List β}, List.Forall₂ R l l' → ∀ n : Nat,
-      List.Forall₂ R (l.drop n) (l'.drop n)
-  | _, _, .nil, _ => by simp
-  | _, _, .cons h t, 0 => .cons h t
-  | _, _, .cons _ t, n + 1 => t.drop_both n
-
 /-- Closing a term that mentions only parameters and a field prefix over the
 generator's hypothesis prefix, all fields and the outer binders is closing it
 over the field prefix and the parameters, followed by two lifts: by the outer
@@ -263,27 +194,6 @@ theorem Expr.closeShapeSource (X : Expr) (hyps F1 F2 P M : List FVarId) (d : Nat
   rw [h1, Nat.add_comm hyps.length d, h2, h3, Lean.Expr.liftLooseBVars'_liftLooseBVars',
     show F1.length + F2.length + hyps.length + d = F1.length + d + (F2.length + hyps.length) by
       omega, h4, h5]
-
-theorem Expr.forallDomainList_forallDomainsOnly :
-    ∀ (n : Nat) (e : Expr), Expr.forallDomainList n (Expr.forallDomainsOnly n e) =
-      Expr.forallDomainList n e
-  | 0, _ => rfl
-  | n + 1, e => by
-    cases e <;> simp [Expr.forallDomainsOnly, Expr.forallDomainList,
-      Expr.forallDomainList_forallDomainsOnly n]
-
-theorem Expr.forallDomainList_fvarsIn {P : FVarId → Prop} :
-    ∀ (n : Nat) {e : Expr}, FVarsIn P e → ∀ d ∈ Expr.forallDomainList n e, FVarsIn P d
-  | 0, _, _ => by simp [Expr.forallDomainList]
-  | n + 1, e, h => by
-    cases e with
-    | forallE name dom body bi =>
-      intro d hd
-      simp only [Expr.forallDomainList, List.mem_cons] at hd
-      rcases hd with rfl | hd
-      · exact h.1
-      · exact Expr.forallDomainList_fvarsIn n h.2 d hd
-    | _ => simp [Expr.forallDomainList]
 
 theorem InductiveSignature.insertBinders_take (l : List VExpr) (n k : Nat) :
     (InductiveSignature.insertBinders l n).take k =
