@@ -401,7 +401,7 @@ theorem inst_liftN_bvar : ∀ (e : VExpr) (k : Nat), (liftN 1 e (k+1)).inst (.bv
   | .proj .., k => by simp only [liftN, inst, inst_liftN_bvar]
   | .lam .., k | .forallE .., k => by simp only [liftN, inst, inst_liftN_bvar]
 
-/-- Master's name for `inst_liftN_bvar`. -/
+/-- Another name for `inst_liftN_bvar`. -/
 theorem instN_bvar0 (e : VExpr) (k : Nat) :
     inst (e.liftN 1 (k+1)) (.bvar 0) k = e := inst_liftN_bvar e k
 

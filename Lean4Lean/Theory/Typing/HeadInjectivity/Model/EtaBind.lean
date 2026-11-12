@@ -9,7 +9,7 @@ Constructor spines of projection-registered families have only field observation
 `projCtor`), so the rule clauses identify the rule of such a major from the head type
 (`EtaHead`) and bind its fields from the field observations of the major key (the eta
 alternative of `RuleBind`). This file collects the facts used by the soundness of pattern rules
-(`RuleSound.lean`, `CaseRuleSound.lean`) in that case:
+(`RuleSound.lean`) in that case:
 
 * `MajorFam`: the static facts about the family of a rule's major that select the binding modes;
 * `projctor_spine_inv`: field observations of a constructor spine come from the `projCtor`

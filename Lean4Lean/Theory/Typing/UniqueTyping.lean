@@ -84,9 +84,9 @@ theorem IsDefEqU.trans (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
 
 /-! ## Strengthening
 
-Master's statement of context strengthening for definitional equality: the one strengthening
-principle the checker verification uses (through `VEnv.WF.strengthening`). Open proof
-(`OPEN_PROOFS.md`); PR #53 argued it false for well-formed environments without `Eq`. -/
+Context strengthening for definitional equality: the one strengthening principle the checker
+verification uses (through `VEnv.WF.strengthening`). Open proof; `OPEN_PROOFS.md` records its
+status, including a paper argument that it fails in well-formed environments without `Eq`. -/
 
 variable! (henv : VEnv.WF env) (hΓ : OnCtx Γ' (env.IsType U)) in
 theorem IsDefEqU.weakN_iff (W : Ctx.LiftN n k Γ Γ') :
