@@ -2381,20 +2381,14 @@ structure TypedRecursiveCall
   constructor-field context.  In the template-producing minor pass this removes
   the irrelevant hypotheses installed for earlier recursive fields. -/
   commonDomains : List VExpr
-  commonDomains_length : commonDomains.length = generated.localArgs.size
   common_exposed_translation : TrExprS R.venv recLparams R.mlctx.vlctx
     (generated.current.lctx.mkForall generated.localArgs
       generated.exposedType)
-    (VExpr.wrapForalls commonDomains exposedTarget)
-  common_exposed_type : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
     (VExpr.wrapForalls commonDomains exposedTarget)
   common_applied_translation : TrExprS R.venv recLparams R.mlctx.vlctx
     (generated.current.lctx.mkLambda generated.localArgs
       (mkAppN field generated.localArgs))
     (VExpr.wrapLams commonDomains appliedFieldTarget)
-  common_applied_typing : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
-    (VExpr.wrapLams commonDomains appliedFieldTarget)
-    (VExpr.wrapForalls commonDomains exposedTarget)
   /-- Recursive-domain judgment from positivity.  These facts
   are produced by the successful field check and discharge source closedness
   obligations without rerunning the checker. -/

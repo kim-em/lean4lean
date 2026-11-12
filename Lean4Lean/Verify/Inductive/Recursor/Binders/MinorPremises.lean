@@ -1001,16 +1001,10 @@ theorem inductionHypothesisTypeOriginOfInferredScope
       applied_field_translation := Happlied
       validated := Hvalidated
       commonDomains := commonDomains
-      commonDomains_length :=
-        Rcurrent.onlyLams.forallDomains_length args.size Hargs.size_le
       common_exposed_translation := by
         simpa [commonDomains] using HexposedClosed.1
-      common_exposed_type := by
-        simpa [commonDomains] using HexposedClosed.2
       common_applied_translation := by
         simpa [commonDomains] using HappliedClosed.1
-      common_applied_typing := by
-        simpa [commonDomains] using HappliedClosed.2
       fieldTarget := fieldTarget
       domain := domain
       field_translation := hfield
