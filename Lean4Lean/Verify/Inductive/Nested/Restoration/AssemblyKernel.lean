@@ -4,6 +4,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.TableAgreement
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ConstructorCoherence
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.ParameterScopes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledFamilyLookups
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! # The kernel half of the nested assembly
 
@@ -181,8 +182,8 @@ theorem NestedRun.recMajor
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∀ rval ∈ E.restoration.rvals,
       ∃ info, outEnv.find? rval.getMajorInduct = some (.inductInfo info) := by
@@ -242,7 +243,7 @@ theorem NestedRun.recMajor
       | cons main rest => exact ⟨main, rest, rfl⟩
     clear hgen hnodup Haux Hexpansion D hparamsSize
     subst hsplit
-    have h := Hlower.auxRecNameGeneratedAtFresh E.loweredContextWF Hprod hempty hn
+    have h := Hlower.auxRecNameGeneratedAtFresh Hprod hempty hn
     rwa [hentries] at h
 
 /-- **The constructor parameter alignment of the output**, at any extension of the restored

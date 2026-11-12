@@ -39,13 +39,12 @@ theorem RecursorInstallation.findSourceHeader
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (Hc : ContextWF c) (H : RecursorInstallation R outEnv)
+    (H : RecursorInstallation R outEnv)
     {owner : InductiveType} (howner : owner ∈ indTypes.toList) :
     ∃ info : InductiveVal,
       outEnv.find? owner.name = some (.inductInfo info) ∧
       info.ctors = owner.ctors.map (fun ctor => ctor.name) ∧
       info.all = indTypes.toList.map (fun type => type.name) := by
-  have := Hc
   obtain ⟨iv, -, hinfo, hname, hctors, hall, -⟩ := R.family_of_mem howner
   exact ⟨iv.1, hname ▸ H.findHeaderOfMem hinfo, hctors, hall⟩
 
@@ -251,11 +250,11 @@ theorem RestoredInductiveStep.oldConstructors_eq_ofInstalled
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (Hstep : RestoredInductiveStep result outEnv auxRec allIndNames indType
       sourceProdEnv targetProdEnv)
-    (Hc : ContextWF c) (H : RecursorInstallation R outEnv)
+    (H : RecursorInstallation R outEnv)
     (howner : owner ∈ indTypes.toList)
     (hname : indType.name = owner.name) :
     Hstep.oldInfo.ctors = owner.ctors.map (fun ctor => ctor.name) := by
-  rcases H.findSourceHeader Hc howner with
+  rcases H.findSourceHeader howner with
     ⟨info, hlookup, hctors, _hall⟩
   have hstepLookup :
       outEnv.find? owner.name = some (.inductInfo Hstep.oldInfo) := by
@@ -331,7 +330,7 @@ theorem RecursorInstallation.restorationSources
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (Hc : ContextWF c) (H : RecursorInstallation R outEnv)
+    (H : RecursorInstallation R outEnv)
     (HctorTelescope : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       RestoreTelescope ctor.type nparams) :
     ∀ owner, owner ∈ indTypes.toList →
@@ -347,7 +346,7 @@ theorem RecursorInstallation.restorationSources
           ∀ rule ∈ recInfo.rules,
             RestoreTelescope rule.rhs nparams := by
   intro owner howner
-  rcases H.findSourceHeader Hc howner with
+  rcases H.findSourceHeader howner with
     ⟨oldInfo, hheader, hctors, _hall⟩
   rcases List.mem_iff_getElem.mp howner with ⟨ownerIdx, hownerIdx, rfl⟩
   rcases H.findSourceRecursor ownerIdx (by simpa using hownerIdx) with

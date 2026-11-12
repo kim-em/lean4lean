@@ -7,6 +7,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.ParameterPrefix
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Passes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Checks
 import Lean4Lean.Verify.Inductive.Nested.Lowering.OccurrenceTyping
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! # The nested run of a successful restoration
 
@@ -59,16 +60,14 @@ theorem NestedRun.ofRestoration {env : Environment} {ves : VEnvs} (wf : ves.WF e
     {fuel : FuelConfig} {res : ElimNestedInductive.Result} {loweredEnv outEnv : Environment}
     (Hsources : SourceSyntaxChecks env sourceTypes)
     (Hout : NestedLoweringOutput env fuel.inductiveFuel nparams sourceTypes lparams res)
-    (hnested : res.aux2nested.size ≠ 0)
-    (L : LoweredRun (ContextWF.initial wf (if isUnsafe then .unsafe else .safe) lparams false
+    (L : LoweredRun (ContextWF.initial wf (safetyOf isUnsafe) lparams false
       fuel) nparams res.types.toArray loweredEnv)
     (V : RestorationRun res loweredEnv env lparams sourceTypes
-      (if isUnsafe then .unsafe else .safe) false fuel outEnv) :
+      (safetyOf isUnsafe) false fuel outEnv) :
     ∃ decl, Nonempty <| NestedRun res env sourceTypes
-        (ContextWF.initial wf (if isUnsafe then .unsafe else .safe) lparams false fuel).venv
-        decl lparams nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L := by
-  have := hnested
-  let Hc0 := ContextWF.initial wf (if isUnsafe then .unsafe else .safe) lparams false fuel
+        (ContextWF.initial wf (safetyOf isUnsafe) lparams false fuel).venv
+        decl lparams nparams isUnsafe (safetyOf isUnsafe) outEnv L := by
+  let Hc0 := ContextWF.initial wf (safetyOf isUnsafe) lparams false fuel
   have hsourceWF : env.constants.WF := Hc0.map_wf
   -- the lowering certificate
   have Hlow := Hout.closed
@@ -76,8 +75,8 @@ theorem NestedRun.ofRestoration {env : Environment} {ves : VEnvs} (wf : ves.WF e
       { ({ lvls := lparams.map .param, newTypes := #[] } : ElimNestedInductive.State) with
         newTypes := sourceTypes.toArray } res := Hlow.toResult
   -- the restoration folds
-  have Htypes := L.recursors.restorationSourcesOfLowering L.Hc' HlowRun
-  have Haux := L.recursors.auxRestorationSourcesOfLowering L.Hc' HlowRun
+  have Htypes := L.recursors.restorationSourcesOfLowering HlowRun
+  have Haux := L.recursors.auxRestorationSourcesOfLowering HlowRun
   rw [← Hout.nparams_eq] at Htypes Haux
   have Hrefines := restoreNestedDeclarations_refines_primitiveSafe res loweredEnv env
     (auxRecNameMap loweredEnv sourceTypes) (sourceTypes.map (·.name)) false sourceTypes
@@ -115,12 +114,12 @@ theorem NestedRun.ofRestoration {env : Environment} {ves : VEnvs} (wf : ves.WF e
   rw [L.venv_eq, L.lparams_eq, L.safety_eq] at hN
   change Nonempty (NestedSourceDeclaration _ lparams nparams sourceTypes
     ((if isUnsafe then DefinitionSafety.unsafe else .safe) != .safe) _
-    (if isUnsafe then .unsafe else .safe) validationEnv auxiliaryHeaderEnv) at hN
+    (safetyOf isUnsafe) validationEnv auxiliaryHeaderEnv) at hN
   rw [inductiveSafety_ne_safe] at hN
   obtain ⟨N⟩ := hN
   -- the auxiliary occurrences, typed in the header side environment
   have Caux := ValidationHeaderEnvironment.checkerEnvOfLowering (c := initialContext env lparams
-    (if isUnsafe then .unsafe else .safe) false fuel) Hc0.checkerEnv HH N.sourceAdded
+    (safetyOf isUnsafe) false fuel) Hc0.checkerEnv HH N.sourceAdded
     N.headerValidationValid
   have Hfirst : ∀ first rest, sourceTypes = first :: rest →
       ∃ target, TrExprS N.envTypes lparams [] first.type target := by

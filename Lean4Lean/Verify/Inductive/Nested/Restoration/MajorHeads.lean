@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Recursors
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! The restored major heads of a nested run's recursors (`NestedRun.restoredMajorHead`,
 `NestedRun.auxNestedHead`). -/
@@ -180,8 +181,8 @@ theorem NestedRun.restoredMajorHead {ves : VEnvs}
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {r : Restoration} {auxRec : NameMap Name} {targetEnv : VEnv} {Us : List Name}
     {auxLevels : List Level}

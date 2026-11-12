@@ -2,6 +2,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.LoweredRuleAvoidance
 import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 import Lean4Lean.Verify.Inductive.Nested.Restoration.HeaderRenaming
 import Lean4Lean.Verify.Inductive.Nested.Restoration.FreshRecursorSteps
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! Recursor alignment of a validated nested run: every recursor of the output is
 aligned with its abstract translation (`NewRecursorsAligned`).
@@ -69,19 +70,19 @@ theorem NestedRun.restoredMajorFound
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (Haux : List.Forall₂ (SpecializationGenerates
-      (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
+      (ves.venv (safetyOf isUnsafe)) envTypes
       E.lowered.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
-        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+        (ves.venv (safetyOf isUnsafe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+          (ves.venv (safetyOf isUnsafe)) sourceDecl generated))
       generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.lowered.loweredDecl.types ++
       E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)

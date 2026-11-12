@@ -9,6 +9,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.CompilationData
 import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Base
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.ProjectionRenaming
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! Transport of the projection rules along the restoration substitution of the
 restored equations, in well-formed contexts, with no hypothesis.
@@ -429,32 +430,34 @@ theorem TrExprS.targetProjsRegistered {env : VEnv} {Us : List Name} {Δ : VLCtx}
 
 namespace VerifyInductive
 
-/-- **Field `constructorProjNames`**: the lowered constructor types are
-translated in the lowered header environment, which registers only the
-structures of the base environment. -/
-theorem NestedRun.constructorProjNames_of
+variable
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
+
+/-- **Field `constructorProjNames`**: the lowered constructor types are
+translated in the lowered header environment, which registers only the
+structures of the base environment. -/
+theorem NestedRun.constructorProjNames_of
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
-    (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+    (hadded : (ves.venv (safetyOf isUnsafe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
     (Haux : List.Forall₂ (SpecializationGenerates
-      (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
+      (ves.venv (safetyOf isUnsafe)) envTypes
       E.lowered.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
-        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+        (ves.venv (safetyOf isUnsafe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+          (ves.venv (safetyOf isUnsafe)) sourceDecl generated))
       generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.lowered.loweredDecl.types ++
       E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup) :
@@ -595,24 +598,18 @@ a source structure transports to the recursor environment, which registers
 the source structure's projection: the transported lowered constructor type
 beta reduces to the source constructor type. -/
 theorem NestedRun.projectionSourceOnCtx_of
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∀ auxiliaries : List ContainerSpecialization,
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
       ∀ B : RestoredBlockBase E.restoration
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-          nparams isUnsafe (if isUnsafe then .unsafe else .safe),
+          (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+          nparams isUnsafe (safetyOf isUnsafe),
         B.loweredDecl = E.lowered.loweredDecl →
-        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
+        CheckingEnv.Valid (safetyOf isUnsafe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
@@ -755,24 +752,18 @@ installed container: the transported field types of `A` are, up to beta
 reduction and level equivalence, those of `J` at the instantiated
 specialization arguments. -/
 theorem NestedRun.projectionAuxiliaryOnCtx_of
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∀ auxiliaries : List ContainerSpecialization,
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
       ∀ C : RestoredBlockBase E.restoration
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-          nparams isUnsafe (if isUnsafe then .unsafe else .safe),
+          (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+          nparams isUnsafe (safetyOf isUnsafe),
         C.loweredDecl = E.lowered.loweredDecl →
-        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
+        CheckingEnv.Valid (safetyOf isUnsafe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
@@ -805,7 +796,7 @@ theorem NestedRun.projectionAuxiliaryOnCtx_of
   have hfreshAll := E.restorableNames_fresh hadded Haux Hexpansion hnodup
   have hordered := henvTypes.ordered
   have hPN := E.constructorProjNames_of wf hadded Haux Hexpansion hnodup
-  have hbase : (ves.venv (if isUnsafe then .unsafe else .safe)).WF := TrEnv'.wf wf.tr
+  have hbase : (ves.venv (safetyOf isUnsafe)).WF := TrEnv'.wf wf.tr
   -- the recursor environment contains the source header environment
   have hvenvTypes : C.install.venvTypes = envTypes := by
     have h1 := C.install.abstract_types
@@ -817,7 +808,7 @@ theorem NestedRun.projectionAuxiliaryOnCtx_of
     VEnv.addProjections_le.trans C.install.recursorsAdded.le
   have hle : envTypes ≤ C.recursorVEnv :=
     (VEnv.addConstVals_le hctorsAdded).trans hleCtors
-  have hbaseLe : ves.venv (if isUnsafe then .unsafe else .safe) ≤ C.recursorVEnv :=
+  have hbaseLe : ves.venv (safetyOf isUnsafe) ≤ C.recursorVEnv :=
     (VEnv.addConstVals_le hadded).trans hle
   have hloweredUvars : E.lowered.loweredDecl.uvars = sourceDecl.uvars := by
     have h := C.formationAssembly.uvars
@@ -932,10 +923,10 @@ theorem NestedRun.projectionAuxiliaryOnCtx_of
     rw [h2] at h1
     exact h1.symm
   -- index count and result level
-  have hinit : E.lowered.Hc'.venv = ves.venv (if isUnsafe then .unsafe else .safe) :=
+  have hinit : E.lowered.Hc'.venv = ves.venv (safetyOf isUnsafe) :=
     E.lowered_initialEnv
   have hshape : E.lowered.loweredDecl.TypeShape
-      (ves.venv (if isUnsafe then .unsafe else .safe)) E.lowered.headers.headers.params t := by
+      (ves.venv (safetyOf isUnsafe)) E.lowered.headers.headers.params t := by
     have h := E.lowered.headers.headers.typeShapes t (List.mem_of_mem_drop htDrop)
     generalize E.lowered.headers.headers.params = hp at h ⊢
     rwa [hinit] at h

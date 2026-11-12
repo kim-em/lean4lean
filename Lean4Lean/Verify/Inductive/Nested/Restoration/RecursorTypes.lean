@@ -67,9 +67,7 @@ theorem RestoreTelescope.forallTelescope_of_recursorType
     cases h
 
 
-/-- The lowered recursor type of a restoration step at a generated owner's
-recursor name translates to the owner's generated recursor type. -/
-theorem NestedRun.loweredRecursorTypeTranslation
+variable
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
@@ -77,6 +75,10 @@ theorem NestedRun.loweredRecursorTypeTranslation
     {outEnv : Environment}
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
+
+/-- The lowered recursor type of a restoration step at a generated owner's
+recursor name translates to the owner's generated recursor type. -/
+theorem NestedRun.loweredRecursorTypeTranslation
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv L)
     (owner : Fin E.lowered.recursors.generationSignature.families.size)
@@ -114,13 +116,6 @@ theorem NestedRun.loweredRecursorTypeTranslation
 /-- The parameter telescope of the lowered recursor type of a restoration
 step at a generated owner's recursor name. -/
 theorem NestedRun.loweredRecursorParameterTelescope
-    {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
-    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv L)
     (owner : Fin E.lowered.recursors.generationSignature.families.size)
@@ -137,13 +132,6 @@ theorem NestedRun.loweredRecursorParameterTelescope
 `AuxiliaryRecursorGeneratedAlignment.oldRecName_eq`, is the generated
 recursor name of the generated owner at the same position. -/
 theorem NestedRun.recursorOwnerOfEntry
-    {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
-    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv L)
     {ownerIdx : Nat} (hentry : ownerIdx < E.lowered.recursors.entries.length) :

@@ -2,6 +2,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Whnf
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ContainerSpecializations
 import Lean4Lean.Verify.Inductive.Nested.Restoration.TableAgreement
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceConstructorTypes
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! # Discharging the non-`whnf` parameter-uniformity inputs of a nested run
 
@@ -81,29 +82,31 @@ theorem namePrefix_of_isPrefixOf {P : Name} :
 
 /-! ### Run-level facts about the auxiliary heads -/
 
-/-- **The auxiliary heads of a validated nested run** are fresh in the
-source environment (and in the environment extended by the source family
-headers), lie in the reserved `_nested` namespace, and contain every key of
-the `aux2nested` map of the lowering result. The lowered family and recursor names are
-moreover pairwise distinct. -/
-theorem NestedRun.auxHeadsFacts
+variable
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
+
+/-- **The auxiliary heads of a validated nested run** are fresh in the
+source environment (and in the environment extended by the source family
+headers), lie in the reserved `_nested` namespace, and contain every key of
+the `aux2nested` map of the lowering result. The lowered family and recursor names are
+moreover pairwise distinct. -/
+theorem NestedRun.auxHeadsFacts
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∃ envTypes : VEnv,
-      (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+      (ves.venv (safetyOf isUnsafe)).addConstVals
         sourceDecl.typeConstants = some envTypes ∧
       envTypes.WF ∧
       (∀ name ∈ E.auxHeads, envTypes.constants name = none) ∧
       (∀ name ∈ E.auxHeads,
-        (ves.venv (if isUnsafe then .unsafe else .safe)).constants name = none) ∧
+        (ves.venv (safetyOf isUnsafe)).constants name = none) ∧
       (∀ name ∈ E.auxHeads, (`_nested).isPrefixOf name = true) ∧
       (∀ c nested, result.aux2nested.find? c = some nested → c ∈ E.auxHeads) ∧
       (familyNames E.lowered.loweredDecl.types ++
@@ -176,15 +179,9 @@ the pre-lowering data of the run (`AuxiliaryFamilySources`),
 whose constructor types are translated in the environment of the source
 headers, where the auxiliary names are fresh. -/
 theorem NestedRun.loweredFamilyMappings
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∀ i (hi : i < result.types.length), ∃ source stepState loweredState,
       (∀ ctor ∈ source.ctors, ctor.type.AvoidsConsts E.auxHeads) ∧
@@ -240,7 +237,7 @@ theorem NestedRun.loweredFamilyMappings
     simpa only [hlparams] using E.auxiliaryTranslations
   have hempty : initialState.nestedAux = #[] := rfl
   rcases Hrun.auxiliaryFamilySources (R := R) Hcache Hparams wfP
-      hinitial HcP Hsources HsourceHeaders HsourceAdded HsourceTypesWF
+      hinitial Hsources HsourceHeaders HsourceAdded HsourceTypesWF
       hempty E.auxiliarySelection Htranslations Htarget with ⟨N, -⟩
   have HsourceCore := E.sourceCore.core
   rw [E.sourceCoreDecl_eq] at HsourceCore
@@ -310,15 +307,9 @@ theorem NestedRun.loweredFamilyMappings
 parameter telescopes** for the auxiliary heads, at the lowered run's
 parameter count and levels. -/
 theorem NestedRun.constructorTypesParamUniform
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∀ i, i < result.types.toArray.size → ∀ ctor ∈ result.types.toArray[i]!.ctors,
       Expr.ParamUniformTele E.auxHeads E.lowered.stats.params.size
@@ -346,15 +337,9 @@ specialisation list whose head names are the run's auxiliary family and
 constructor names. This gives the `normalizedTotal` field of
 `LoweredConstructorsRestore` (used by `NestedRun.compilationData_of_tables`). -/
 theorem NestedRun.normalizedTotal_of
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheadNames : auxiliaries.flatMap (·.headNames) =

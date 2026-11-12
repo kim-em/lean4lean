@@ -1,6 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceParameters
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Lookups
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.AuxiliarySources
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! # Source parameter formation of a nested run
 
@@ -21,15 +22,15 @@ theorem NestedRun.sourceParameterWF {ves : VEnvs} {result : ElimNestedInductive.
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
-    sourceDecl.SourceParameterWF (ves.venv (if isUnsafe then .unsafe else .safe)) := by
+    sourceDecl.SourceParameterWF (ves.venv (safetyOf isUnsafe)) := by
   let P := E.lowered
   have henv : P.c.env = sourceProdEnv := E.lowered_env
   have hlparams : P.c.lparams = lparams := E.lowered_lparams
   have hnparams : nparams = nparams := rfl
-  have hinitial : P.Hc'.venv = ves.venv (if isUnsafe then .unsafe else .safe) :=
+  have hinitial : P.Hc'.venv = ves.venv (safetyOf isUnsafe) :=
     E.lowered_initialEnv
   have hisUnsafe : P.isUnsafe = isUnsafe := E.lowered_isUnsafe_source
   have HcP : ContextWF P.c := E.loweredContextWF
@@ -65,7 +66,7 @@ theorem NestedRun.sourceParameterWF {ves : VEnvs} {result : ElimNestedInductive.
     rw [← E.auxiliaryVEnv_eq_sourceCore, hlparams]
     exact E.auxiliaryTranslations
   have hempty : E.initialState.nestedAux = #[] := rfl
-  obtain ⟨N, -⟩ := Hrun.auxiliaryFamilySources (R := R) Hcache Hparams wfP hinitial HcP Hsources
+  obtain ⟨N, -⟩ := Hrun.auxiliaryFamilySources (R := R) Hcache Hparams wfP hinitial Hsources
     HsourceHeaders HsourceAdded HsourceTypesWF hempty E.auxiliarySelection Htranslations Htarget
   have Htypes := Hrun.allExpansionsOfSources Hcache Hparams Hsource Htarget Hmetadata Hsources
     (VEnvs.WF.environmentTypesClosed wfP) wfP.inductivesClosed

@@ -28,7 +28,7 @@ theorem ConstructorCheck.nestedExpansionData
     (R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv res.types.toArray
       ctorEnv)
     {ves : VEnvs} {safety : DefinitionSafety} (wf : ves.WF c.env)
-    (hsourceVEnv : sourceVEnv = ves.venv safety) (Hc : ContextWF c)
+    (hsourceVEnv : sourceVEnv = ves.venv safety)
     (Hlow : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       (loweringInitialState c.lparams sourceTypes) res)
     (hsources : checkInductiveSources c.env sourceTypes = .ok ())
@@ -53,7 +53,7 @@ theorem ConstructorCheck.nestedExpansionData
   have hlen := Hlow.types_length
   obtain ⟨finalState, Hrun, Hcache, Hparams⟩ := Hlow
   obtain ⟨N, -⟩ := Hrun.auxiliaryFamilySources (R := R)
-    (initialState := loweringInitialState c.lparams sourceTypes) Hcache Hparams wf hsourceVEnv Hc
+    (initialState := loweringInitialState c.lparams sourceTypes) Hcache Hparams wf hsourceVEnv
     Hchecked HsourceHeaders HsourceAdded HsourceTypesWF (by rfl) selection Htranslations R.core
   have henv : sourceVEnv.WF := by subst hsourceVEnv; exact wf.tr.wf
   have Htypes := Hrun.allExpansionsOfSources

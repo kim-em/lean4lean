@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceConstructors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.TableAgreement
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! Restoration of the lowered constructor types of the source families of a
 validated nested run (the `loweredConstructors` field of
@@ -44,28 +45,28 @@ theorem NestedRun.restorableNames_fresh
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
-    (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+    (hadded : (ves.venv (safetyOf isUnsafe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
     (Haux : List.Forall₂ (SpecializationGenerates
-      (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
+      (ves.venv (safetyOf isUnsafe)) envTypes
       E.lowered.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
-        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+        (ves.venv (safetyOf isUnsafe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+          (ves.venv (safetyOf isUnsafe)) sourceDecl generated))
       generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.lowered.loweredDecl.types ++
       E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup) :
     ∀ name ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
       envTypes.constants name = none := by
   have hinit : E.lowered.Hc'.venv =
-      ves.venv (if isUnsafe then .unsafe else .safe) := E.lowered_initialEnv
-  have hloweredTypes : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+      ves.venv (safetyOf isUnsafe) := E.lowered_initialEnv
+  have hloweredTypes : (ves.venv (safetyOf isUnsafe)).addConstVals
       E.lowered.loweredDecl.typeConstants =
         some E.lowered.constructors.headerVEnv :=
     Eq.mp (congrArg (fun env : VEnv => env.addConstVals
@@ -89,7 +90,7 @@ theorem NestedRun.restorableNames_fresh
     simp only [VInductDecl.typeConstants] at this
     rw [this, List.map_take]
   have Hmodels : E.lowered.signature.Models
-      (ves.venv (if isUnsafe then .unsafe else .safe)) E.lowered.loweredDecl := by
+      (ves.venv (safetyOf isUnsafe)) E.lowered.loweredDecl := by
     have h := E.lowered.recursorConstruction.generator.models
     change E.lowered.signature.Models E.lowered.Hc'.venv
       E.lowered.loweredDecl at h
@@ -106,11 +107,11 @@ theorem NestedRun.restorableNames_fresh
     rw [VInductDecl.typeConstants, hsourceTypesEq] at hentry
     obtain ⟨t, ht, rfl⟩ := List.mem_map.mp hentry
     exact ⟨t, ht, rfl⟩
-  have hbaseLE : (ves.venv (if isUnsafe then .unsafe else .safe)) ≤
+  have hbaseLE : (ves.venv (safetyOf isUnsafe)) ≤
       E.lowered.constructors.headerVEnv := VEnv.addConstVals_le hloweredTypes
   have hbaseFresh : ∀ name ∈ familyNames
       (E.lowered.loweredDecl.types.drop sourceDecl.types.length),
-      (ves.venv (if isUnsafe then .unsafe else .safe)).constants name = none := by
+      (ves.venv (safetyOf isUnsafe)).constants name = none := by
     intro name hname
     obtain ⟨t, ht, rfl | ⟨c, hc, rfl⟩⟩ := mem_familyNames.mp hname
     · exact (VEnv.addConstVals_names_fresh hloweredTypes).2 t.toVConstVal
@@ -149,11 +150,11 @@ theorem NestedRun.restorableNames_fresh
   have hctorFresh : ∀ recursor ∈ E.lowered.generatedInstance.recursors,
       E.lowered.constructors.ctorVEnv.constants recursor.name = none :=
     hrecursorsFresh.2
-  have hbaseCtorLE : (ves.venv (if isUnsafe then .unsafe else .safe)) ≤
+  have hbaseCtorLE : (ves.venv (safetyOf isUnsafe)) ≤
       E.lowered.constructors.ctorVEnv :=
     hbaseLE.trans (VEnv.addConstVals_le hloweredCtors)
   have hrecBase : ∀ t ∈ E.lowered.loweredDecl.types,
-      (ves.venv (if isUnsafe then .unsafe else .safe)).constants (t.name.str "rec") = none := by
+      (ves.venv (safetyOf isUnsafe)).constants (t.name.str "rec") = none := by
     intro t ht
     obtain ⟨d, hd, hdname, -⟩ :=
       Lean4Lean.List.Forall₂.forall_exists_r Hmodels.families t ht

@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Install.Installed
 import Lean4Lean.Verify.Inductive.Install.Result
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! # From the restored block certificate to the inductive extension
 
@@ -48,13 +49,13 @@ def ofRestoredBlock {c : AddInductive.Context} {Hc : ContextWF c} {nparams : Nat
 of the exact submitted syntax. -/
 theorem extendExact {env outEnv : Environment} {ves : VEnvs} {lparams : List Name}
     {nparams : Nat} {sourceTypes : List InductiveType} {isUnsafe : Bool}
-    (N : NestedCertificate (if isUnsafe then .unsafe else .safe) env
-      (ves.venv (if isUnsafe then .unsafe else .safe)) lparams nparams sourceTypes isUnsafe outEnv)
+    (N : NestedCertificate (safetyOf isUnsafe) env
+      (ves.venv (safetyOf isUnsafe)) lparams nparams sourceTypes isUnsafe outEnv)
     (wf : ves.WF env) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-      Nonempty (SourceAddInduct (ves.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
-        sourceTypes isUnsafe (ves'.venv (if isUnsafe then .unsafe else .safe))) := by
+      Nonempty (SourceAddInduct (ves.venv (safetyOf isUnsafe)) lparams nparams
+        sourceTypes isUnsafe (ves'.venv (safetyOf isUnsafe))) := by
   have hu : N.decl.isUnsafe = isUnsafe := N.source.isUnsafe
   cases isUnsafe with
   | false =>
@@ -79,8 +80,8 @@ theorem extendExact {env outEnv : Environment} {ves : VEnvs} {lparams : List Nam
 /-- The public result of the nested branch. -/
 theorem inductiveExtension {env outEnv : Environment} {ves : VEnvs} {lparams : List Name}
     {nparams : Nat} {sourceTypes : List InductiveType} {isUnsafe : Bool}
-    (N : NestedCertificate (if isUnsafe then .unsafe else .safe) env
-      (ves.venv (if isUnsafe then .unsafe else .safe)) lparams nparams sourceTypes isUnsafe outEnv)
+    (N : NestedCertificate (safetyOf isUnsafe) env
+      (ves.venv (safetyOf isUnsafe)) lparams nparams sourceTypes isUnsafe outEnv)
     (wf : ves.WF env) :
     Nonempty (InductiveExtension env outEnv ves lparams nparams sourceTypes isUnsafe) :=
   let ⟨ves', wf', hle, ⟨S⟩⟩ := N.extendExact wf

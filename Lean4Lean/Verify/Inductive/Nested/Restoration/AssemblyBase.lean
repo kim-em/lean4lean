@@ -40,7 +40,7 @@ theorem validateRestoredRecursorTypes.translation_of_run
       (Lean.mkRecName indType.name) newRecName oldInfo
     ∃ target, TrExprS venv restored.levelParams [] restored.type target ∧
       venv.IsType restored.levelParams.length [] target := by
-  have hcheck := validateRestoredRecursorTypes.run.WF C loweredEnv fuel result recNameMap
+  have hcheck := validateRestoredRecursorTypes.run.WF loweredEnv fuel result recNameMap
     allIndNames types auxRecNames hrun (Lean.mkRecName indType.name)
     (List.mem_append_left _ (List.mem_map.mpr ⟨indType, htype, rfl⟩))
   obtain ⟨recInfo, hfind, T, hT, hty⟩ := validateRestoredRecursorTypes.check.WF C loweredEnv
@@ -64,7 +64,7 @@ theorem validateRestoredRecursorTypes.auxiliaryTranslation_of_run
       recName newRecName oldInfo
     ∃ target, TrExprS venv restored.levelParams [] restored.type target ∧
       venv.IsType restored.levelParams.length [] target := by
-  have hcheck := validateRestoredRecursorTypes.run.WF C loweredEnv fuel result recNameMap
+  have hcheck := validateRestoredRecursorTypes.run.WF loweredEnv fuel result recNameMap
     allIndNames types auxRecNames hrun recName (List.mem_append_right _ hrec)
   obtain ⟨recInfo, hfind, T, hT, hty⟩ := validateRestoredRecursorTypes.check.WF C loweredEnv
     fuel result recNameMap allIndNames _ hcheck
@@ -360,7 +360,7 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
   have Caux := ValidationHeaderEnvironment.checkerEnvOfLowering HcChecker
     headerValidationEnvironment sourceCore.sourceAdded sourceCore.headerValidationValid
   -- formation
-  obtain ⟨D, hD⟩ := R.nestedExpansionData wf hsourceVEnv Hc Hlower Hsources Hcore Hmetadata
+  obtain ⟨D, hD⟩ := R.nestedExpansionData wf hsourceVEnv Hlower Hsources Hcore Hmetadata
     sourceCore.sourceHeaders sourceCore.sourceAdded Caux.wf auxiliarySelection
     auxiliaryTranslations Hparameters
   have Harity : sourceCore.sourceDecl.ConstructorArityPrefix loweredDecl := by
@@ -403,7 +403,7 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
   have Hconstructors := Hlower.restoreAuxConstructorsFreshAtTypes Hc Hprod Hcore
     Hc.checking.constructorOwners hempty
   obtain ⟨primaryRecursors, Hsource⟩ :=
-    Hlower.sourceTraceAtFreshOfTelescopeTranslations Hc Hprod Hchecked Hcore Hmetadata
+    Hlower.sourceTraceAtFreshOfTelescopeTranslations Hprod Hchecked Hcore Hmetadata
       Hfamilies Hconstructors hempty restoration (by
         intro familyIdx hfamily _hdecl hentry stepSource stepTarget Hstep
         exact Hlower.restoredSourceTelescopeAtFreshOfValidation Hprod HtypeChecker
@@ -417,7 +417,7 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
     cases sourceTypes with
     | nil => exact (hsourceNonempty rfl).elim
     | cons main rest => exact ⟨main, rest, rfl⟩
-  have Halignment := restoration.generatedAlignmentTraceOfKernel Hlower Hc Hprod hempty
+  have Halignment := restoration.generatedAlignmentTraceOfKernel Hlower Hprod hempty
   obtain ⟨auxiliaryRecursors, Hauxiliary⟩ := Halignment.recursorTraceOfValidation HtypeChecker
     recursorTypeValidation (fun _ h => h) []
   -- the dependency-order replay and its abstract stages

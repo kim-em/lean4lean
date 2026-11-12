@@ -6,6 +6,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyKernel
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyRecursors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledRun
 import Lean4Lean.Verify.Inductive.Nested.Install.DependencyOrder
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! # The rule-free stage of a restored nested block
 
@@ -593,41 +594,41 @@ theorem NestedRun.strippedValid {ves : VEnvs} {res : ElimNestedInductive.Result}
     {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {outEnv : Environment}
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
-    (E : NestedRun res sourceProdEnv sourceTypes (ves.venv (if isUnsafe then .unsafe else .safe))
-      decl lparams nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
-    (B : RestoredBlockBase E.restoration (ves.venv (if isUnsafe then .unsafe else .safe)) decl
-      lparams nparams isUnsafe (if isUnsafe then .unsafe else .safe))
+    (E : NestedRun res sourceProdEnv sourceTypes (ves.venv (safetyOf isUnsafe))
+      decl lparams nparams isUnsafe (safetyOf isUnsafe) outEnv L)
+    (B : RestoredBlockBase E.restoration (ves.venv (safetyOf isUnsafe)) decl
+      lparams nparams isUnsafe (safetyOf isUnsafe))
     (hB : B.loweredDecl = E.lowered.loweredDecl) (wf : ves.WF sourceProdEnv)
     (Hsources : SourceSyntaxChecked sourceTypes)
-    (Hparameters : decl.SourceParameterWF (ves.venv (if isUnsafe then .unsafe else .safe)))
+    (Hparameters : decl.SourceParameterWF (ves.venv (safetyOf isUnsafe)))
     (hk : ∀ r ∈ E.restoration.rvals, r.k = false)
     (hshapes : ∀ r ∈ E.restoration.rvals,
       (if isUnsafe then DefinitionSafety.unsafe else .safe) ≤ (ConstantInfo.recInfo r).safety →
       ∃ cnparams indLevels ctorParams, Nonempty (VRecursorShape B.recursorVEnv r.name
         r.levelParams.length r.numParams cnparams r.numMotives r.numMinors r.numIndices
         r.getMajorInduct indLevels ctorParams)) :
-    CheckingEnv.Valid (if isUnsafe then .unsafe else .safe) (stripRecursorRules outEnv
+    CheckingEnv.Valid (safetyOf isUnsafe) (stripRecursorRules outEnv
         (restoredRecursorNames (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.recursorVEnv ∧
-      (CheckerEnv (if isUnsafe then .unsafe else .safe) sourceProdEnv
-          (ves.venv (if isUnsafe then .unsafe else .safe)) →
-        CheckerEnv (if isUnsafe then .unsafe else .safe) (stripRecursorRules outEnv
+      (CheckerEnv (safetyOf isUnsafe) sourceProdEnv
+          (ves.venv (safetyOf isUnsafe)) →
+        CheckerEnv (safetyOf isUnsafe) (stripRecursorRules outEnv
           (restoredRecursorNames (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
             sourceTypes (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1))
           B.recursorVEnv) := by
-  have hin : CheckingEnv.Valid (if isUnsafe then .unsafe else .safe) sourceProdEnv
-      (ves.venv (if isUnsafe then .unsafe else .safe)) := wf.toCheckingValid _
+  have hin : CheckingEnv.Valid (safetyOf isUnsafe) sourceProdEnv
+      (ves.venv (safetyOf isUnsafe)) := wf.toCheckingValid _
   have hwf : sourceProdEnv.constants.WF := hin.tr.map_wf
   have hlisted : ListedConstructorsPresent sourceProdEnv := by
     have h := E.lowered.constructors.headers.sourcePresent
     rw [E.lowered_c, E.context_env] at h
     exact h
-  have hcoreE : TrInductDeclCore (ves.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
+  have hcoreE : TrInductDeclCore (ves.venv (safetyOf isUnsafe)) lparams nparams
       sourceTypes isUnsafe decl E.sourceCore.envTypes E.sourceCore.envCtors := by
     have h := E.sourceCore.core
     rw [E.sourceCoreDecl_eq] at h
     exact h
-  have hcore : TrInductDeclCore (ves.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
+  have hcore : TrInductDeclCore (ves.venv (safetyOf isUnsafe)) lparams nparams
       sourceTypes isUnsafe decl B.install.venvTypes B.install.venvCtors :=
     B.sourceTranslations.core B.typesSource B.uvars B.numParams B.unsafeEq B.typesAdded
       B.constructorsAdded

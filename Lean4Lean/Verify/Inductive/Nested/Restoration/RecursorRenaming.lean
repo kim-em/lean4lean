@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RecursorTranslations
 import Lean4Lean.Std.Basic
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! # Renamed auxiliary recursor names and the restorable names
 
@@ -287,6 +288,14 @@ theorem _root_.Lean4Lean.InductiveSignature.Restoration.recursorName_mem_snd
   rw [hrn]
   exact List.mem_map_of_mem (List.mem_of_find?_eq_some hq)
 
+variable
+    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
+
 /-- **Freshness of the non-renamed restorable names in a restored block.**
 For any `RestoredBlockBase` of a validated nested run and any
 restoration table of the run, every restorable name (auxiliary family and
@@ -298,19 +307,13 @@ keep their lowered names `T.rec` (distinct from the auxiliary names by the
 lowered declaration's name uniqueness), and the remaining installed names are
 renamed recursor names. No hypothesis on names is needed. -/
 theorem NestedRun.recursorVEnv_restorableNames_fresh_of_not_renamed
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     (C : RestoredBlockBase E.restoration
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe))
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe))
     (hC : C.loweredDecl = E.lowered.loweredDecl)
     (hkernel : List.Perm
       ((C.typeEntries ++ C.constructorEntries ++ C.recursorEntries).map Prod.fst)
@@ -756,15 +759,9 @@ the recursor environment of every restored block without hypotheses
 (`recursorVEnv_restorableNames_fresh_of_not_renamed`); for
 `X = restorableNames` no freshness is needed. -/
 theorem NestedRun.restoredRuleRhs_of_trail
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheads : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
@@ -942,15 +939,9 @@ auxiliary recursor name is `A.rec` for an auxiliary family `A`, which is
 distinct from `M` (lowered family names are distinct, and `A` lies in the
 reserved `_nested` namespace). -/
 theorem NestedRun.auxRecName_not_renamed
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv

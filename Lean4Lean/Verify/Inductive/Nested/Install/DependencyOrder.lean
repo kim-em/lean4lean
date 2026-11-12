@@ -704,7 +704,7 @@ theorem NestedLoweringOutputClosed.auxRecNameGeneratedAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams (main :: rest)
       { initialState with newTypes := (main :: rest).toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorInstallation R loweredEnv)
+    (Hprod : RecursorInstallation R loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (hrecName : recName ∈
       (Lean4Lean.mkAuxRecNameMap loweredEnv (main :: rest)).1) :
@@ -714,7 +714,7 @@ theorem NestedLoweringOutputClosed.auxRecNameGeneratedAtFresh
       _mainNodup, _mainSize, Hmain, hmainTarget⟩
   have hmainMem : mainTarget ∈ result.types.toArray.toList := by
     simpa using List.mem_of_getElem? hmainTarget
-  rcases Hprod.findSourceHeader Hc hmainMem with
+  rcases Hprod.findSourceHeader hmainMem with
     ⟨mainInfo, hmainFind, _hmainCtors, hall⟩
   have hmainFind' : loweredEnv.find? main.name =
       some (.inductInfo mainInfo) := by
@@ -756,7 +756,7 @@ theorem NestedRestorationFolds.generatedAlignmentTraceOfKernel
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams (main :: rest)
       { initialState with newTypes := (main :: rest).toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorInstallation R loweredEnv)
+    (Hprod : RecursorInstallation R loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (H : NestedRestorationFolds result loweredEnv sourceProdEnv
       (Lean4Lean.mkAuxRecNameMap loweredEnv (main :: rest)).2
@@ -766,7 +766,7 @@ theorem NestedRestorationFolds.generatedAlignmentTraceOfKernel
     AuxiliaryRecursorGeneratedAlignments Hprod H.auxiliaries := by
   apply H.auxiliaries.generatedAlignmentTrace Hprod
   intro name hname
-  exact Hlower.auxRecNameGeneratedAtFresh Hc Hprod hempty hname
+  exact Hlower.auxRecNameGeneratedAtFresh Hprod hempty hname
 
 /-- Pre-rule auxiliary recursor translations, synchronized directly with
 the executable restoration fold. This relation has no dependency on an

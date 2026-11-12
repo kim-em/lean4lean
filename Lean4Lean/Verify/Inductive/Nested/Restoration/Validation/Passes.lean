@@ -76,7 +76,7 @@ theorem validateRestoredRecursorTypes.check.WF (C : CheckerEnv safety env venv)
   · cases h
 
 /-- `validateRestoredRecursorTypes.run`, over the source and auxiliary recursors. -/
-theorem validateRestoredRecursorTypes.run.WF (C : CheckerEnv safety env venv)
+theorem validateRestoredRecursorTypes.run.WF
     (loweredEnv : Environment) (fuel : FuelConfig) (res : ElimNestedInductive.Result)
     (recNameMap : NameMap Name) (allIndNames : List Name) (types : List InductiveType)
     (auxRecNames : List Name)
@@ -85,7 +85,6 @@ theorem validateRestoredRecursorTypes.run.WF (C : CheckerEnv safety env venv)
     ∀ recName ∈ types.map (mkRecName ·.name) ++ auxRecNames,
       validateRestoredRecursorTypes.check env loweredEnv safety fuel res recNameMap allIndNames
         recName = .ok () := by
-  have := C
   exact forM_append_names_eq_ok _ h
 
 /-- `validateRestoredRecursorRules.check`: the lowered recursor exists and the reduct of every
@@ -113,7 +112,7 @@ theorem validateRestoredRecursorRules.check.WF (C : CheckerEnv safety env venv)
   · cases h
 
 /-- `validateRestoredRecursorRules.run`, over the source and auxiliary recursors. -/
-theorem validateRestoredRecursorRules.run.WF (C : CheckerEnv safety env venv)
+theorem validateRestoredRecursorRules.run.WF
     (loweredEnv : Environment) (fuel : FuelConfig) (res : ElimNestedInductive.Result)
     (recNameMap : NameMap Name) (allIndNames : List Name) (types : List InductiveType)
     (auxRecNames : List Name)
@@ -122,7 +121,6 @@ theorem validateRestoredRecursorRules.run.WF (C : CheckerEnv safety env venv)
     ∀ recName ∈ types.map (mkRecName ·.name) ++ auxRecNames,
       validateRestoredRecursorRules.check env loweredEnv safety fuel res recNameMap allIndNames
         recName = .ok () := by
-  have := C
   exact forM_append_names_eq_ok _ h
 
 /-- `validateNestedAuxiliaries`, with the inferred types: in a well-formed checker context `mlctx`

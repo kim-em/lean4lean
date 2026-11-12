@@ -11,6 +11,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.CompilationDataConstructors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Levels
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ContainerSpecializations
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceConstructorTypes
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! The restored-equation well-formedness hypothesis `HrestoredWF` of
 `NestedRun.hruleShape_of_base` (`Nested/Restoration/Equations/RestoredRulesBase.lean`).
@@ -92,35 +93,37 @@ theorem NestedRun.loweredEquationWF
       true_and]
     exact ⟨k, rfl⟩)
 
-/-- **The constructor stage**: the restoration interpretation is sound, in well-formed
-contexts, from the lowered constructor environment with its eliminator and projections into the
-recursor environment of the restored block base, modulo the typing of the restoration lambdas of
-the auxiliary constructors (`HauxCtor`), the transport of the lowered projections (`Hproj`), the
-restored eliminators (`Hes`), and projection-name avoidance (`HprojNamesCtor`, `Helim`). -/
-theorem NestedRun.constructorInterpretationSound
+variable
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
+
+/-- **The constructor stage**: the restoration interpretation is sound, in well-formed
+contexts, from the lowered constructor environment with its eliminator and projections into the
+recursor environment of the restored block base, modulo the typing of the restoration lambdas of
+the auxiliary constructors (`HauxCtor`), the transport of the lowered projections (`Hproj`), the
+restored eliminators (`Hes`), and projection-name avoidance (`HprojNamesCtor`, `Helim`). -/
+theorem NestedRun.constructorInterpretationSound
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
-    (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+    (hadded : (ves.venv (safetyOf isUnsafe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
     (henvTypes : envTypes.WF)
     (Haux : List.Forall₂ (SpecializationGenerates
-      (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
+      (ves.venv (safetyOf isUnsafe)) envTypes
       E.lowered.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
-        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+        (ves.venv (safetyOf isUnsafe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+          (ves.venv (safetyOf isUnsafe)) sourceDecl generated))
       generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.lowered.loweredDecl.types ++
       E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
@@ -307,11 +310,11 @@ structure RestorationSubstitutionPremises
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (B : RestoredBlockBase E.restoration
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe))
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe))
     (auxiliaries : List ContainerSpecialization) : Prop where
   /-- Projection names of the lowered constructor types avoid the restorable
   names. -/
@@ -337,7 +340,7 @@ structure RestorationSubstitutionPremises
   constructor head has the restored type of the lowered auxiliary
   constructor. -/
   auxiliaryConstructors : ∀ envTypes : VEnv,
-    (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+    (ves.venv (safetyOf isUnsafe)).addConstVals
       sourceDecl.typeConstants = some envTypes →
     ∀ t ∈ E.lowered.loweredDecl.types.drop sourceDecl.types.length,
       ∀ lc ∈ t.ctors, ∀ h ∈ (compilationRestoration sourceDecl auxiliaries).heads,
@@ -359,29 +362,23 @@ lowered recursor environment into the recursor environment of a restored
 block base, for the restoration table of
 `restorationTablesRestoringAll`, modulo `RestorationSubstitutionPremises`. -/
 theorem NestedRun.restoredEquationSubstitution
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
-    (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+    (hadded : (ves.venv (safetyOf isUnsafe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
     (henvTypes : envTypes.WF)
     (Haux : List.Forall₂ (SpecializationGenerates
-      (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
+      (ves.venv (safetyOf isUnsafe)) envTypes
       E.lowered.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
-        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+        (ves.venv (safetyOf isUnsafe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+          (ves.venv (safetyOf isUnsafe)) sourceDecl generated))
       generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
     (hparamsSize : result.params.size = result.nparams)
     (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
@@ -393,10 +390,10 @@ theorem NestedRun.restoredEquationSubstitution
           source.ctors lowered.ctors)
         sourceDecl.types (E.lowered.loweredDecl.types.take sourceDecl.types.length))
     (B : RestoredBlockBase E.restoration
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe))
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe))
     (hB : B.loweredDecl = E.lowered.loweredDecl)
-    (hV : CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
+    (hV : CheckingEnv.Valid (safetyOf isUnsafe)
       (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
@@ -496,24 +493,18 @@ of the run
 table by `RestorationTablesAgree.expr_eq`) transports it to the recursor
 environment of the base, where beta subject reduction holds by well-formedness. -/
 theorem NestedRun.restoredEquationsWF_of_substitutionPremises
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
-    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     (G : ∀ auxiliaries : List ContainerSpecialization,
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
       ∀ B : RestoredBlockBase E.restoration
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-          nparams isUnsafe (if isUnsafe then .unsafe else .safe),
+          (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+          nparams isUnsafe (safetyOf isUnsafe),
         B.loweredDecl = E.lowered.loweredDecl →
-        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
+        CheckingEnv.Valid (safetyOf isUnsafe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
@@ -523,10 +514,10 @@ theorem NestedRun.restoredEquationsWF_of_substitutionPremises
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
       ∀ B : RestoredBlockBase E.restoration
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-          nparams isUnsafe (if isUnsafe then .unsafe else .safe),
+          (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+          nparams isUnsafe (safetyOf isUnsafe),
         B.loweredDecl = E.lowered.loweredDecl →
-        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
+        CheckingEnv.Valid (safetyOf isUnsafe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes

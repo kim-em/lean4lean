@@ -3,6 +3,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Run
 import Lean4Lean.Verify.Inductive.Recursor.Signature.Generator
 import Lean4Lean.Verify.Inductive.Recursor.Check
 import Lean4Lean.Std.List
+import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! `CompilationData` for the lowered declaration of a validated nested run.
 
@@ -160,9 +161,9 @@ theorem NestedRun.compilationData_of_specializations
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
-    (D : NestedExpansionData (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl)
+      (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
+      nparams isUnsafe (safetyOf isUnsafe) outEnv L)
+    (D : NestedExpansionData (ves.venv (safetyOf isUnsafe)) sourceDecl)
     (hD : D.expanded = E.lowered.loweredDecl)
     {block : VInductBlock}
     (hblockTypes : block.types = sourceDecl.typeConstants)
@@ -170,7 +171,7 @@ theorem NestedRun.compilationData_of_specializations
     (hblockProjections : block.projections = sourceDecl.projectionEntries)
     (hblockNames : ((block.types ++ block.ctors ++ block.recursors).map (·.name)).Nodup)
     {envTypes : VEnv} {auxiliaries : List ContainerSpecialization}
-    (htypes : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+    (htypes : (ves.venv (safetyOf isUnsafe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
     (hnames : auxiliaries.map (·.auxiliary) =
       (E.lowered.loweredDecl.types.drop sourceDecl.types.length).map (·.name))
@@ -181,18 +182,18 @@ theorem NestedRun.compilationData_of_specializations
       auxiliaries.mapM (fun a => a.specializedFamily U params) = some direct ∧
       List.Forall₂ (DirectFamilyShape U) auxiliaries direct)
     (Hpending : NestedCompilationRestorationFacts
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+      (ves.venv (safetyOf isUnsafe)) sourceDecl
       E.lowered.signature E.lowered.generatedInstance auxiliaries block) :
-    CompilationData (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+    CompilationData (ves.venv (safetyOf isUnsafe)) sourceDecl
       E.lowered.loweredDecl E.lowered.signature
       E.lowered.generatedInstance auxiliaries block := by
   have hinit : E.lowered.Hc'.venv =
-      ves.venv (if isUnsafe then .unsafe else .safe) := E.lowered_initialEnv
+      ves.venv (safetyOf isUnsafe) := E.lowered_initialEnv
   have HexpandedSource : E.lowered.loweredDecl.SourceWF
-      (ves.venv (if isUnsafe then .unsafe else .safe)) :=
+      (ves.venv (safetyOf isUnsafe)) :=
     hD ▸ D.expandedSource
   have Hmodels : E.lowered.signature.Models
-      (ves.venv (if isUnsafe then .unsafe else .safe)) E.lowered.loweredDecl := by
+      (ves.venv (safetyOf isUnsafe)) E.lowered.loweredDecl := by
     have h := E.lowered.recursorConstruction.generator.models
     change E.lowered.signature.Models E.lowered.Hc'.venv
       E.lowered.loweredDecl at h
@@ -209,7 +210,7 @@ theorem NestedRun.compilationData_of_specializations
     have hsrc := TrInductDeclCore.types_length Hsource
     rw [h] at hsrc
     exact hne (List.eq_nil_of_length_eq_zero (by simpa using hsrc))
-  have hloweredTypes : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+  have hloweredTypes : (ves.venv (safetyOf isUnsafe)).addConstVals
       E.lowered.loweredDecl.typeConstants =
         some E.lowered.constructors.headerVEnv :=
     Eq.mp (congrArg (fun env : VEnv => env.addConstVals
@@ -324,7 +325,7 @@ theorem NestedRun.compilationData_of_specializations
       cases hsome
     recursorsFresh := by
       intro recursor hrecursor
-      cases hbase : (ves.venv (if isUnsafe then .unsafe else .safe)).constants
+      cases hbase : (ves.venv (safetyOf isUnsafe)).constants
           recursor.name with
       | none => rfl
       | some c =>
