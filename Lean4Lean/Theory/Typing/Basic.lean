@@ -99,14 +99,6 @@ inductive IsDefEq : List VExpr → VExpr → VExpr → VExpr → Prop where
     Γ ⊢ VExpr.mkApps (.const info.ctorName levels)
         (params ++ (List.range info.numFields).map fun index => .proj typeName index e) ≡ e :
       VExpr.mkApps (.const typeName levels) params
-  | unitLike :
-    env.projections typeName info →
-    params.length = info.nparams →
-    info.nindices = 0 →
-    info.numFields = 0 →
-    Γ ⊢ e : VExpr.mkApps (.const typeName levels) params →
-    Γ ⊢ e' : VExpr.mkApps (.const typeName levels) params →
-    Γ ⊢ e ≡ e' : VExpr.mkApps (.const typeName levels) params
 
 end
 

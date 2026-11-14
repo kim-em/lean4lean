@@ -129,13 +129,6 @@ theorem ProjectionClause.of_ctorType_betaRed {envS : VEnv} {I : Interpretation}
       expr_const_none hctorName, expr_const_none htn, hrctor, hrtn, hptn] at ih1 ih2 ⊢
     rw [← hnf] at ih2 ⊢
     exact .structEta hS (by simpa using h2) h3 ih1 ih2
-  unitLike := by
-    intro U Γ levels params e e' _ h2 h3 h4 ih1 ih2
-    have hnf : ({ info with ctorType := ctorType' } : VProjectionInfo).numFields =
-        info.numFields := by
-      simp only [VProjectionInfo.numFields, harity]
-    simp only [expr_mkApps, expr_const_none htn, hrtn] at ih1 ih2 ⊢
-    exact .unitLike hS (by simpa using h2) h3 (hnf.trans h4) ih1 ih2
 
 end VEnv.Interpretation
 

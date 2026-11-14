@@ -1,6 +1,7 @@
 import Lean4Lean.Verify.TypeChecker.Reduce
 import Lean4Lean.Verify.EquivManager
 import Lean4Lean.Verify.Typing.ProjectionFamilyArity
+import Lean4Lean.Theory.Typing.UnitLikeConstructor
 
 open Lean4Lean
 
@@ -720,7 +721,7 @@ theorem isDefEqUnitLike.WF {c : VContext} {s : State}
     (hty'.defeqU_r c.Ewf c.Δwf hdefeq.symm).defeqU_r c.Ewf c.Δwf heq
   have hs : c.HasType e₂' (VExpr.mkApps (.const I _) args') :=
     (hsty'.defeqU_r c.Ewf c.Δwf hb.symm).defeqU_r c.Ewf c.Δwf heq
-  exact ⟨_, .unitLike hinfo hlenP hni.symm hfields ht hs⟩
+  exact ⟨_, .unitLike c.Ewf c.Δwf.toCtx hinfo hlenP hni.symm hfields ht hs⟩
 
 theorem lazyDeltaProjReduction.finish.WF {c : VContext} {s : State}
     (he₁ : c.TrExprS (.proj structName i e₁) e₁')

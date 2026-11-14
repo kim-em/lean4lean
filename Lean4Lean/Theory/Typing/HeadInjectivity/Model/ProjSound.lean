@@ -2,7 +2,7 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Model.CtorFieldObs
 
 /-! # Soundness of the projection rules
 
-The cases `projDF`, `projIota`, `structEta` and `unitLike` of `Model.sound`, for a projection
+The cases `projDF`, `projIota` and `structEta` of `Model.sound`, for a projection
 entry that is valid in the model (`ProjValid`). Each lemma takes the premises of the rule (in the
 model's environment) with their soundness and semantic typing derivations, and gives `SoundAt` of
 the conclusion and `HTS` of both sides.
@@ -15,8 +15,7 @@ the conclusion and `HTS` of both sides.
   `ctor_spine_fam`), and otherwise by proof irrelevance (the field type is a proposition).
 * `sound_structEta`: the typed observations of both sides are field observations
   (`typed_fam_fieldOb`); left to right by inversion of the spine, right to left by
-  `ctor_field_obs` on the spine of projections.
-* `sound_unitLike`: a structure without fields has no typed observations. -/
+  `ctor_field_obs` on the spine of projections. -/
 
 namespace Lean4Lean
 namespace VEnv
@@ -174,31 +173,6 @@ theorem sound_structEta {S : Name} {info : VProjectionInfo} (hp : env.projection
     obtain ⟨L₂, hL₂⟩ := ctor_field_obs henv hΔ hp hPV hls hlen hnz W.left tv ihm.2 hpl
       (by simp) (j := j) (by simpa using hj) (k := k₁) (by rw [hfs j hj]; exact .proj ho₁)
     exact ⟨_, hL₂, .fieldOb lk⟩
-
-omit hΔ in
-theorem sound_unitLike {S : Name} {info : VProjectionInfo} (hp : env.projections S info)
-    (hPV : ProjValid env S info) (hnf : info.numFields = 0) {ls : List VLevel}
-    {params : List VExpr} {e e' : VExpr}
-    (ihe : SoundAt env U Δ Γ e e (.mkApps (.const S ls) params) ∧
-      HTS env U Δ Γ e (.mkApps (.const S ls) params))
-    (ihe' : SoundAt env U Δ Γ e' e' (.mkApps (.const S ls) params) ∧
-      HTS env U Δ Γ e' (.mkApps (.const S ls) params)) :
-    SoundAt env U Δ Γ e e' (.mkApps (.const S ls) params) ∧
-      HTS env U Δ Γ e (.mkApps (.const S ls) params) ∧
-      HTS env U Δ Γ e' (.mkApps (.const S ls) params) := by
-  refine ⟨?_, ihe.2, ihe'.2⟩
-  have hst := hPV.1
-  intro σ σ' S0 W tv tv'
-  have n1 : ∀ o, ¬ Obs' σ S0 e o := fun o h => by
-    obtain ⟨τs, hτs, hto⟩ := (ihe.1 σ σ' S0 W tv tv').2.2.1 o h
-    obtain ⟨_, _, _, -, hj, -⟩ := typed_fam_fieldOb henv hp hst.famRigid hst.famNotProjCtor hto hτs
-    omega
-  have n2 : ∀ o, ¬ Obs' σ' S0 e' o := fun o h => by
-    obtain ⟨τs, hτs, hto⟩ := (ihe'.1 σ σ' S0 W tv tv').2.2.2 o h
-    obtain ⟨_, _, _, -, hj, -⟩ := typed_fam_fieldOb henv hp hst.famRigid hst.famNotProjCtor hto hτs
-    omega
-  exact ⟨fun o h => (n1 o h).elim, fun o h => (n2 o h).elim, fun o h => (n1 o h).elim,
-    fun o h => (n2 o h).elim⟩
 
 end
 

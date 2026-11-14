@@ -170,16 +170,6 @@ theorem IsDefEqStrong.church_rosserJ_of [FullEquationCoverage] {E : VEnv} (hE : 
     have D := ((IsDefEqStrong.structEta hl hp hi hs ht).mono hE).defeq
     exact ⟨mk D .rfl (.tail .rfl (.structEta (hE.projections hl) hp hi (hs.mono hE).defeq (ht.mono hE).defeq)) (.refl (ht.mono hE).defeq),
       (ih5 hΓ).2.1, (ih4 hΓ).2.1⟩
-  | unitLike hl hp hi hf hs ht ih5 ih6 =>
-    have D := ((IsDefEqStrong.unitLike hl hp hi hf hs ht).mono hE).defeq
-    have hc := HasType.unitLike_constructor henv hΓ (hE.projections hl) hp hi hf (hs.mono hE).defeq
-    have stepLeft := FullStep.structEta (hE.projections hl) hp hi (hs.mono hE).defeq (by simpa only [hf, List.range_zero,
-      List.map_nil, List.append_nil] using hc)
-    have stepRight := FullStep.structEta (hE.projections hl) hp hi (ht.mono hE).defeq (by simpa only [hf, List.range_zero,
-      List.map_nil, List.append_nil] using hc)
-    simp only [hf, List.range_zero, List.map_nil, List.append_nil] at stepLeft stepRight
-    exact ⟨mk D (.tail .rfl stepLeft) (.tail .rfl stepRight) (.refl hc),
-      (ih5 hΓ).2.1, (ih6 hΓ).2.1⟩
 
 
 /-- **Church-Rosser with joinable typings.** Both sides of a strong definitional equality join

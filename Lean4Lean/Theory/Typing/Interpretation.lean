@@ -431,14 +431,6 @@ structure ProjectionClause (typeName : Name) (info : VProjectionInfo) : Prop whe
       (I.expr (VExpr.mkApps (.const info.ctorName levels)
         (params ++ (List.range info.numFields).map fun index => .proj typeName index e)))
       (I.expr e) (I.expr (VExpr.mkApps (.const typeName levels) params))
-  unitLike : ∀ {U : Nat} {Γ : List VExpr} {levels : List VLevel} {params : List VExpr}
-      {e e' : VExpr},
-    P U Γ →
-    params.length = info.nparams → info.nindices = 0 → info.numFields = 0 →
-    envS.HasType U Γ (I.expr e) (I.expr (VExpr.mkApps (.const typeName levels) params)) →
-    envS.HasType U Γ (I.expr e') (I.expr (VExpr.mkApps (.const typeName levels) params)) →
-    envS.IsDefEq U Γ (I.expr e) (I.expr e')
-      (I.expr (VExpr.mkApps (.const typeName levels) params))
 
 end Clauses
 
@@ -526,9 +518,6 @@ theorem Sound.isDefEq {envL : VEnv} (S : I.Sound envS envL P) (hP : envS.CtxInva
   | structEta h1 h2 h3 _ _ ih1 ih2 =>
     intro hΓ
     exact (S.projections _ _ h1).structEta hΓ h2 h3 (ih1 hΓ) (ih2 hΓ)
-  | unitLike h1 h2 h3 h4 _ _ ih1 ih2 =>
-    intro hΓ
-    exact (S.projections _ _ h1).unitLike hΓ h2 h3 h4 (ih1 hΓ) (ih2 hΓ)
 
 theorem Sound.hasType {envL : VEnv} (S : I.Sound envS envL P) (hP : envS.CtxInvariant P)
     {U : Nat} {Γ : List VExpr} {e A : VExpr} (H : envL.HasType U Γ e A)
@@ -562,7 +551,6 @@ theorem ProjectionClause.weaken {Q : Nat → List VExpr → Prop} {typeName : Na
   projDF hΓ := H.projDF (h hΓ)
   projIota hΓ := H.projIota (h hΓ)
   structEta hΓ := H.structEta (h hΓ)
-  unitLike hΓ := H.unitLike (h hΓ)
 
 /-- A sound interpretation for an invariant is sound for every stronger invariant. -/
 theorem Sound.weaken {Q : Nat → List VExpr → Prop} {envL : VEnv} (S : I.Sound envS envL P)
@@ -625,10 +613,6 @@ theorem ProjectionClause.of_fixed {typeName : Name} {info : VProjectionInfo}
     simp only [expr, expr_mkApps, List.map_append, List.map_map, Function.comp_def, hctorName,
       htn, hrctor, hrtn, hptn] at ih1 ih2 ⊢
     exact .structEta hS (by simpa using h2) h3 ih1 ih2
-  unitLike := by
-    intro U Γ levels params e e' _ h2 h3 h4 ih1 ih2
-    simp only [expr_mkApps, expr_const_none htn, hrtn] at ih1 ih2 ⊢
-    exact .unitLike hS (by simpa using h2) h3 h4 ih1 ih2
 
 /-! ### Building a sound interpretation along an installation -/
 

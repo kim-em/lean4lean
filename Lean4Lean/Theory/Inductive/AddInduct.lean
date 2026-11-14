@@ -49,7 +49,7 @@ def VInductDecl.addCtors (decl : VInductDecl) (env : VEnv) : Option VEnv :=
 /-- Stage 2: register the projection entries of the declaration's structures
 (`VInductDecl.projectionEntries`). Total: projection registration cannot fail. The recursors
 are checked in the resulting environment, where the block's structures already have their
-projections (the checker may apply `structEta`, `unitLike` or project out of them while
+projections (the checker may apply `structEta` or project out of them while
 checking the generated recursor types). -/
 def VInductDecl.addProjs (decl : VInductDecl) (env : VEnv) : VEnv :=
   env.addProjections decl.projectionEntries

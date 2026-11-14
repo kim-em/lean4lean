@@ -110,14 +110,6 @@ theorem IsDefEq.church_rosser [FullEquationCoverage] [FullPatCoverage]
   | structEta hl hp hi hs ht _ _ =>
     have heq := IsDefEq.structEta hl hp hi hs ht
     exact mk heq .rfl (.tail .rfl (.structEta hl hp hi hs ht)) (.refl ht)
-  | unitLike hl hp hi hf hs ht _ _ =>
-    have hc := HasType.unitLike_constructor henv hΓ hl hp hi hf hs
-    have stepLeft := FullStep.structEta hl hp hi hs (by simpa only [hf, List.range_zero,
-      List.map_nil, List.append_nil] using hc)
-    have stepRight := FullStep.structEta hl hp hi ht (by simpa only [hf, List.range_zero,
-      List.map_nil, List.append_nil] using hc)
-    simp only [hf, List.range_zero, List.map_nil, List.append_nil] at stepLeft stepRight
-    exact mk (.unitLike hl hp hi hf hs ht) (.tail .rfl stepLeft) (.tail .rfl stepRight) (.refl hc)
 
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem IsDefEq.full_church_rosser [FullEquationCoverage] [FullPatCoverage]

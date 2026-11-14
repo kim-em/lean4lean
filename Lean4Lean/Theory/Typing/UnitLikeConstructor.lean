@@ -122,4 +122,23 @@ theorem HasType.unitLike_constructor (henv : env.WF) (hΓ : OnCtx Γ (env.IsType
   rw [hresEq, hidxEmpty, List.append_nil, List.take_of_length_le (by omega), hname] at hvalue
   exact hvalue
 
+/-- Two terms of a registered structure without fields and without indices are definitionally
+equal: each is equal by `structEta` to the constructor at its parameters, which is typed
+(`HasType.unitLike_constructor`). -/
+theorem IsDefEq.unitLike (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    (hinfo : env.projections name info) (hp : params.length = info.nparams)
+    (hi : info.nindices = 0) (hf : info.numFields = 0)
+    (he : env.HasType U Γ e (mkApps (.const name levels) params))
+    (he' : env.HasType U Γ e' (mkApps (.const name levels) params)) :
+    env.IsDefEq U Γ e e' (mkApps (.const name levels) params) := by
+  have hc : env.IsDefEq U Γ (mkApps (.const info.ctorName levels) params)
+      (mkApps (.const info.ctorName levels) params) (mkApps (.const name levels) params) :=
+    HasType.unitLike_constructor henv hΓ hinfo hp hi hf he
+  have h := IsDefEq.structEta (e := e) hinfo hp hi he
+    (by simpa only [hf, List.range_zero, List.map_nil, List.append_nil] using hc)
+  have h' := IsDefEq.structEta (e := e') hinfo hp hi he'
+    (by simpa only [hf, List.range_zero, List.map_nil, List.append_nil] using hc)
+  simp only [hf, List.range_zero, List.map_nil, List.append_nil] at h h'
+  exact h.symm.trans h'
+
 end Lean4Lean.VEnv

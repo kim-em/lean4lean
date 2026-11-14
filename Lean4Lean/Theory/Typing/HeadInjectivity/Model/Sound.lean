@@ -32,7 +32,7 @@ inclusions given by the type equality; `sortDF`/`constDF` see levels only throug
 definitions, using `DeltaRules`, and `RuleValid.quot` for the quotient rule); `pat` is the
 validity of the registered ι pattern (`PatValid`, proved for the rules of every well-formed
 block in `Model/PatSound.lean` and `Model/EnvValid.lean`). The projection rules (`projDF`,
-`projIota`, `structEta`, `unitLike`) are sound for entries valid in the model (`ProjValid`,
+`projIota`, `structEta`) are sound for entries valid in the model (`ProjValid`,
 `Model/ProjSound.lean`). Validity of every environment of the declaration history is proved
 in `Model/EnvValid.lean`. -/
 
@@ -726,9 +726,6 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
   | structEta hp hpl _ _ _ ihe ihm =>
     exact sound_structEta henv hΔ (hle.projections hp) (hPV _ _ hp) hpl ⟨ihe.1, ihe.2.1⟩
       ⟨ihm.1, ihm.2.1⟩
-  | unitLike hp _ _ hnf _ _ ihe ihe' =>
-    exact sound_unitLike henv (hle.projections hp) (hPV _ _ hp) hnf ⟨ihe.1, ihe.2.1⟩
-      ⟨ihe'.1, ihe'.2.1⟩
 
 end
 

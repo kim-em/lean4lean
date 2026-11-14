@@ -3,7 +3,7 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Model.HTS
 
 /-! # Validity of a projection entry
 
-The soundness cases of the projection rules (`projDF`, `projIota`, `structEta`, `unitLike`) need
+The soundness cases of the projection rules (`projDF`, `projIota`, `structEta`) need
 semantic facts about the registered constructor and family that come from derivations in the
 header environment in which the entry's family and constructor were checked
 (`VEnv.ProjDeclAt`): the constructor type is a sound telescope, and the family's declared type

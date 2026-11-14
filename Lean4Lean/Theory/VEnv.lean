@@ -11,7 +11,7 @@ namespace Lean4Lean
   reduct/side-condition pair; the registry for ι-reduction rules. -/
   pats : (p : Pattern) → p.RHS × p.Check → Prop
   /-- Projection metadata of the registered structures, read by the projection rules
-  `projDF`/`projIota`/`structEta`/`unitLike`. -/
+  `projDF`/`projIota`/`structEta`. -/
   projections : Name → VProjectionInfo → Prop := fun _ _ => False
 
 /-- The head constant of a pattern: the constant at the root of its application spine. -/

@@ -122,14 +122,6 @@ inductive IsDefEq1 : List VExpr → VExpr → VExpr → VExpr → Prop where
     Γ ⊢ VExpr.mkApps (.const info.ctorName levels)
         (params ++ (List.range info.numFields).map fun index => .proj typeName index e) ≡ e :
       VExpr.mkApps (.const typeName levels) params
-  | unitLike :
-    env.projections typeName info →
-    params.length = info.nparams →
-    info.nindices = 0 →
-    info.numFields = 0 →
-    Γ ⊢ e : VExpr.mkApps (.const typeName levels) params →
-    Γ ⊢ e' : VExpr.mkApps (.const typeName levels) params →
-    Γ ⊢ e ≡ e' : VExpr.mkApps (.const typeName levels) params
 
 end
 
@@ -186,8 +178,6 @@ theorem IsDefEq.induction1
     exact ⟨ihp.1, ihf.1, .projIota h1 (hty ihp.1) h2 (hty ihf.1)⟩
   | structEta h1 h2 h3 _ _ ihe ihc =>
     exact ⟨ihc.1, ihe.1, .structEta h1 h2 h3 (hty ihe.1) (hty ihc.1)⟩
-  | unitLike h1 h2 h3 h4 _ _ ihe ihe' =>
-    exact ⟨ihe.1, ihe'.1, .unitLike h1 h2 h3 h4 (hty ihe.1) (hty ihe'.1)⟩
 
 variable! {env : VEnv}
   {defEq : List VExpr → VExpr → VExpr → VExpr → Prop}
@@ -230,7 +220,6 @@ theorem IsDefEq1.induction
     exact .projDF h1 h2 h3 h4 h5 h6 (hty h7) ih1 ih2 h8 h9
   | projIota h1 h2 h3 h4 => exact .projIota h1 (hty h2) h3 (hty h4)
   | structEta h1 h2 h3 h4 h5 => exact .structEta h1 h2 h3 (hty h4) (hty h5)
-  | unitLike h1 h2 h3 h4 h5 h6 => exact .unitLike h1 h2 h3 h4 (hty h5) (hty h6)
 
 /-
 variable!

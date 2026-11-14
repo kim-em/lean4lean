@@ -351,17 +351,6 @@ theorem Interpretation.ProjectionClause.of_specialization {envS : VEnv} (henv : 
     have hη := VEnv.IsDefEq.structEta hS (by simp [hargsLen]) (hnindices ▸ hnidx) he' hC'
     rw [← hnumFields] at hη
     exact hsim.trans (.defeqDF hTT.symm hη)
-  unitLike := by
-    intro U Γ lv params e e' hΓ hparams hnidx hnf ih1 ih2
-    simp only [VEnv.Interpretation.expr_mkApps, VEnv.Interpretation.expr_const_some htn] at ih1 ih2 ⊢
-    have hBT := VExpr.BetaRed.mkApps_specialization (P := P) (J := J) (ls := ls) (lv := lv)
-      (hargs := hargs) (params.map I.expr) [] (by simp [hparams, hP])
-    simp only [List.append_nil] at hBT
-    obtain ⟨u, hTu⟩ := ih1.isType henv.orderedStrong hΓ
-    have hTT := hBT.simAt henv.orderedStrong henv.betaSubjectReduction hΓ _ hTu
-    have hU := VEnv.IsDefEq.unitLike hS (by simp [hargsLen]) (hnindices ▸ hnidx)
-      (hnumFields ▸ hnf) (VEnv.IsDefEq.defeqDF hTT ih1) (VEnv.IsDefEq.defeqDF hTT ih2)
-    exact .defeqDF hTT.symm hU
 
 end VEnv
 

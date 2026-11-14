@@ -105,15 +105,6 @@ inductive IsDefEq.Avoids {env : VEnv} {uvars : Nat}
         (VExpr.mkApps (.const typeName levels) params)) :
       Avoids changed He → Avoids changed Hctor →
       Avoids changed (.structEta Hinfo Hparams Hindices He Hctor)
-  | unitLike
-      (Hinfo : env.projections typeName info)
-      (Hparams : params.length = info.nparams)
-      (Hindices : info.nindices = 0)
-      (HnumFields : info.numFields = 0)
-      (He : env.IsDefEq uvars Gamma e e (VExpr.mkApps (.const typeName levels) params))
-      (He' : env.IsDefEq uvars Gamma e' e' (VExpr.mkApps (.const typeName levels) params)) :
-      Avoids changed He → Avoids changed He' →
-      Avoids changed (.unitLike Hinfo Hparams Hindices HnumFields He He')
 
 /-- If every installed constant is outside `changed`, every derivation in
 the environment avoids `changed`. -/
@@ -154,8 +145,6 @@ theorem IsDefEq.avoids_of_constants
     exact .projIota Hinfo Hproj Hindex Hfield IHproj IHfield
   | structEta Hinfo Hparams Hindices He Hctor IHe IHctor =>
     exact .structEta Hinfo Hparams Hindices He Hctor IHe IHctor
-  | unitLike Hinfo Hparams Hindices HnumFields He He' IHe IHe' =>
-    exact .unitLike Hinfo Hparams Hindices HnumFields He He' IHe IHe'
 
 /-- Environment monotonicity preserves the exact constant-dependency
 certificate carried by a typing derivation.  This is stronger than
@@ -203,9 +192,6 @@ theorem IsDefEq.Avoids.mono
   | structEta Hinfo Hparams Hindices He Hctor _ _ IHe IHctor =>
     exact .structEta (henv.projections Hinfo) Hparams Hindices (He.mono henv) (Hctor.mono henv)
       IHe IHctor
-  | unitLike Hinfo Hparams Hindices HnumFields He He' _ _ IHe IHe' =>
-    exact .unitLike (henv.projections Hinfo) Hparams Hindices HnumFields (He.mono henv)
-      (He'.mono henv) IHe IHe'
 
 /-- A typehood derivation avoids `changed` when some typing derivation of the type at a sort
 does. -/

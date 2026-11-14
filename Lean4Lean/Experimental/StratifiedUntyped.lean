@@ -98,14 +98,6 @@ inductive IsDefEqU1 : List VExpr → VExpr → VExpr → Prop where
       VExpr.mkApps (.const typeName levels) params →
     Γ ⊢ VExpr.mkApps (.const info.ctorName levels)
         (params ++ (List.range info.numFields).map fun index => .proj typeName index e) ≡ e
-  | unitLike :
-    env.projections typeName info →
-    params.length = info.nparams →
-    info.nindices = 0 →
-    info.numFields = 0 →
-    Γ ⊢ e : VExpr.mkApps (.const typeName levels) params →
-    Γ ⊢ e' : VExpr.mkApps (.const typeName levels) params →
-    Γ ⊢ e ≡ e'
 
 end
 
@@ -166,8 +158,6 @@ theorem IsDefEq.inductionU1
     exact ⟨ihp.1, ihf.1, .projIota h1 (hty ihp.1) h2 (hty ihf.1)⟩
   | structEta h1 h2 h3 _ _ ihe ihc =>
     exact ⟨ihc.1, ihe.1, .structEta h1 h2 h3 (hty ihe.1) (hty ihc.1)⟩
-  | unitLike h1 h2 h3 h4 _ _ ihe ihe' =>
-    exact ⟨ihe.1, ihe'.1, .unitLike h1 h2 h3 h4 (hty ihe.1) (hty ihe'.1)⟩
 
 variable! (henv : Ordered env) (hΓ : OnCtx Γ (env.IsType U))
   {defEq : List VExpr → VExpr → VExpr → Prop}

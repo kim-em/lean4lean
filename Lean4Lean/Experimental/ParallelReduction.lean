@@ -878,7 +878,7 @@ theorem Typing.CRDefEq.trans : TY.CRDefEq Γ e₁ e₂ → TY.CRDefEq Γ e₂ e�
     exact ⟨l1, r2, _, _, .trans l3 a1, .trans r4 b1, a2.trans <| m3.trans b2.symm⟩
 
 /-- The environment registers no projections, so none of the projection rules (`projDF`,
-`projIota`, `structEta`, `unitLike`) of `VEnv.IsDefEq` can fire. The abstract `Typing` and
+`projIota`, `structEta`) of `VEnv.IsDefEq` can fire. The abstract `Typing` and
 `ParRed` of this file model the ι fragment (`pat`) and the original rules; structures are
 handled by the `Theory/Typing/Confluence/` development. -/
 def VEnv.NoInductiveRules (env : VEnv) : Prop :=
@@ -894,7 +894,6 @@ theorem VEnv.IsDefEq.toTyping (hplain : TY.env.NoInductiveRules)
   | projDF h => exact absurd h (hplain _ _)
   | projIota h => exact absurd h (hplain _ _)
   | structEta h => exact absurd h (hplain _ _)
-  | unitLike h => exact absurd h (hplain _ _)
   | pat hp hm _ _ hr _ ih _ ihall =>
     have hok := hr.toOK (defeq := TY.IsDefEqU _) fun t ht => (ihall t ht).1
     exact ⟨TY.pat_wf (TY.pat_env hp) hm ih.2 hok, ih.2⟩
@@ -916,7 +915,7 @@ theorem VEnv.IsDefEq.toTyping (hplain : TY.env.NoInductiveRules)
 
 /-- Restated with the hypothesis `TY.env.NoInductiveRules`: `ParRed` has no projection
 reduction and `NormalEq` has no structure or unit-like eta, so the statement is false once
-`projIota`, `structEta` or `unitLike` can fire. -/
+`projIota` or `structEta` can fire. -/
 theorem VEnv.IsDefEqU.church_rosser (hplain : TY.env.NoInductiveRules)
     (H : TY.env.IsDefEq TY.univs Γ e₁ e₂ A) : TY.CRDefEq Γ e₁ e₂ := by
   have mk {Γ e₁ e₂ A e₁' e₂'} (H : TY.env.IsDefEq TY.univs Γ e₁ e₂ A)
@@ -927,7 +926,6 @@ theorem VEnv.IsDefEqU.church_rosser (hplain : TY.env.NoInductiveRules)
   | projDF h => exact absurd h (hplain _ _)
   | projIota h => exact absurd h (hplain _ _)
   | structEta h => exact absurd h (hplain _ _)
-  | unitLike h => exact absurd h (hplain _ _)
   | pat hp hm he hred hr hall =>
     have hok := hr.toOK (defeq := TY.IsDefEqU _) fun t ht => ((hall t ht).toTyping hplain).1
     refine have h := VEnv.IsDefEq.pat hp hm he hred hr hall

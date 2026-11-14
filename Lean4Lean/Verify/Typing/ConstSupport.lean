@@ -170,10 +170,6 @@ theorem VEnv.IsDefEq.noConsts
       specialize ihE Hctx
       specialize ihCtor Hctx
       exact ⟨ihCtor.1, ihE.1, ihE.2.2⟩
-  | unitLike _ _ _ _ _ _ ihE ihE' =>
-      specialize ihE Hctx
-      specialize ihE' Hctx
-      exact ⟨ihE.1, ihE'.1, ihE.2.2⟩
 
 /-! ## Ordered environments -/
 

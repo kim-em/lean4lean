@@ -125,14 +125,6 @@ inductive IsDefEqStrong : List VExpr → VExpr → VExpr → VExpr → Prop wher
     Γ ⊢ VExpr.mkApps (.const info.ctorName levels)
         (params ++ (List.range info.numFields).map fun index => .proj typeName index e) ≡ e :
       VExpr.mkApps (.const typeName levels) params
-  | unitLike :
-    env.projections typeName info →
-    params.length = info.nparams →
-    info.nindices = 0 →
-    info.numFields = 0 →
-    Γ ⊢ e : VExpr.mkApps (.const typeName levels) params →
-    Γ ⊢ e' : VExpr.mkApps (.const typeName levels) params →
-    Γ ⊢ e ≡ e' : VExpr.mkApps (.const typeName levels) params
 
 end
 
@@ -279,11 +271,6 @@ theorem IsDefEqStrong.weakN (W : Ctx.LiftN n k Γ Γ') (H : env.IsDefEqStrong U 
     simp only [VExpr.liftN_mkApps, VExpr.liftN, List.map_append, List.map_map,
       Function.comp_def] at ih1 ih2 ⊢
     exact .structEta h1 (by simpa using h2) h3 ih1 ih2
-  | unitLike h1 h2 h3 h4 _ _ ih1 ih2 =>
-    have ih1 := ih1 W
-    have ih2 := ih2 W
-    simp only [VExpr.liftN_mkApps, VExpr.liftN] at ih1 ih2 ⊢
-    exact .unitLike h1 (by simpa using h2) h3 h4 ih1 ih2
 
 theorem IsDefEqStrong.defeq (H : IsDefEqStrong env U Γ e1 e2 A) : env.IsDefEq U Γ e1 e2 A := by
   induction H with
@@ -306,7 +293,6 @@ theorem IsDefEqStrong.defeq (H : IsDefEqStrong env U Γ e1 e2 A) : env.IsDefEq U
   | extra h1 h2 h3 => exact .extra h1 h2 h3
   | projIota h1 _ h3 _ ih1 ih2 => exact .projIota h1 ih1 h3 ih2
   | structEta h1 h2 h3 _ _ ih1 ih2 => exact .structEta h1 h2 h3 ih1 ih2
-  | unitLike h1 h2 h3 h4 _ _ ih1 ih2 => exact .unitLike h1 h2 h3 h4 ih1 ih2
 
 variable! {env env' : VEnv} (henv : env ≤ env') in
 theorem IsDefEqStrong.mono
@@ -334,7 +320,6 @@ theorem IsDefEqStrong.mono
     exact .extra (henv.2 h1) h2 h3 h4 ih1 ih2 ih3 ih4 ih5
   | projIota h1 _ h3 _ ih1 ih2 => exact .projIota (henv.projections h1) ih1 h3 ih2
   | structEta h1 h2 h3 _ _ ih1 ih2 => exact .structEta (henv.projections h1) h2 h3 ih1 ih2
-  | unitLike h1 h2 h3 h4 _ _ ih1 ih2 => exact .unitLike (henv.projections h1) h2 h3 h4 ih1 ih2
 
 variable! (henv : Ordered env) in
 theorem IsDefEqStrong.weak0 (H : env.IsDefEqStrong U [] e1 e2 A) :
@@ -400,7 +385,6 @@ theorem EqUpToLevels.instL (H : env.IsDefEqStrong U' Γ e1 e2 A) :
   | eta _ _ _ _ _ _ _ _ ih1 _ _ ih4 ih5 => exact ⟨.lam ih1.1 (.app ih5.1 .bvar), ih4.1⟩
   | projIota _ _ _ _ ih1 ih2 => exact ⟨ih1.1, ih2.1⟩
   | structEta _ _ _ _ _ ih1 ih2 => exact ⟨ih2.1, ih1.1⟩
-  | unitLike _ _ _ _ _ _ ih1 ih2 => exact ⟨ih1.1, ih2.1⟩
 
 
 variable! {env : VEnv} (W : OnCtx Γ fun _ A => A.LevelWF U) in
@@ -522,9 +506,6 @@ theorem IsDefEqStrong.instL (H : env.IsDefEqStrong U Γ e1 e2 A) :
     simp only [VExpr.instL_mkApps, VExpr.instL, List.map_append, List.map_map,
       Function.comp_def] at ih1 ih2 ⊢
     exact .structEta h1 (by simpa using h2) h3 ih1 ih2
-  | unitLike h1 h2 h3 h4 _ _ ih1 ih2 =>
-    simp only [VExpr.instL_mkApps, VExpr.instL] at ih1 ih2 ⊢
-    exact .unitLike h1 (by simpa using h2) h3 h4 ih1 ih2
 
 def CtxStrong (env : VEnv) (U Γ) :=
   OnCtx Γ fun Γ A => ∃ u, env.IsDefEqStrong U Γ A A (.sort u)
@@ -643,11 +624,6 @@ theorem IsDefEqStrong.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : env.
     simp only [VExpr.inst_mkApps, VExpr.inst, List.map_append, List.map_map,
       Function.comp_def] at ih1 ih2 ⊢
     exact .structEta h1 (by simpa using h2) h3 ih1 ih2
-  | unitLike h1 h2 h3 h4 _ _ ih1 ih2 =>
-    have ih1 := ih1 W hΓ
-    have ih2 := ih2 W hΓ
-    simp only [VExpr.inst_mkApps, VExpr.inst] at ih1 ih2 ⊢
-    exact .unitLike h1 (by simpa using h2) h3 h4 ih1 ih2
 
 theorem IsDefEqStrong.defeqDF_l (henv : Ordered env) (hΓ : CtxStrong env U Γ)
     (h1 : env.IsDefEqStrong U Γ A A' (.sort u))
@@ -717,10 +693,6 @@ theorem IsDefEqStrong.forallE_inv' (hΓ : CtxStrong env U Γ)
     obtain eq | eq := eq
     · exact (VExpr.mkApps_ne_forallE (fn := .const _ _) (fun _ _ h => nomatch h) _ eq).elim
     · exact ih1 hΓ (.inl eq)
-  | unitLike _ _ _ _ _ _ ih1 ih2 =>
-    obtain eq | eq := eq
-    · exact ih1 hΓ (.inl eq)
-    · exact ih2 hΓ (.inl eq)
   | _ => nomatch eq
 
 variable! (henv : Ordered env) (envIH : env.OnTypes (EnvStrong env)) in
@@ -752,7 +724,6 @@ theorem IsDefEqStrong.isType' (hΓ : CtxStrong env U Γ) (H : env.IsDefEqStrong 
     exact ⟨_, (h.instL h2).weak0 henv⟩
   | projIota _ _ _ _ ih1 => exact ih1 hΓ
   | structEta _ _ _ _ _ ih1 => exact ih1 hΓ
-  | unitLike _ _ _ _ _ _ ih1 => exact ih1 hΓ
 
 theorem IsDefEqStrong.instDF
     (henv : Ordered env) (hΓ : CtxStrong env U Γ) (hu : u.WF U) (hv : v.WF U)
@@ -875,9 +846,6 @@ theorem EqUpToLevels.defeq (H : env.IsDefEqStrong U Γ e1 e2 A)
   | structEta h1 h2 h3 h4 h5 ih1 ih2 =>
     exact (ih2 W H1 (EqUpToLevels.refl W.levelWF h5).1).trans <|
       (IsDefEqStrong.structEta h1 h2 h3 h4 h5).trans (ih1 W (EqUpToLevels.refl W.levelWF h4).1 H2)
-  | unitLike h1 h2 h3 h4 h5 h6 ih1 ih2 =>
-    exact (ih1 W H1 (EqUpToLevels.refl W.levelWF h5).1).trans <|
-      (IsDefEqStrong.unitLike h1 h2 h3 h4 h5 h6).trans (ih2 W (EqUpToLevels.refl W.levelWF h6).1 H2)
 
 /-- The environment hypotheses of the strong system: `Ordered` and strong typing of every
 constant and definitional axiom (`EnvStrong`). Every `IsDefEq` derivation over such an
@@ -955,7 +923,6 @@ theorem IsDefEq.strong' (hΓ : CtxStrong env U Γ)
       (hl.instL h2) (hr.instL h2) ((hl.instL h2).weak0 henv) ((hr.instL h2).weak0 henv)
   | projIota h1 _ h3 _ ih1 ih2 => exact .projIota h1 (ih1 hΓ) h3 (ih2 hΓ)
   | structEta h1 h2 h3 _ _ ih1 ih2 => exact .structEta h1 h2 h3 (ih1 hΓ) (ih2 hΓ)
-  | unitLike h1 h2 h3 h4 _ _ ih1 ih2 => exact .unitLike h1 h2 h3 h4 (ih1 hΓ) (ih2 hΓ)
 
 theorem CtxStrong.strong' (henv : Ordered env) (envIH : env.OnTypes (EnvStrong env))
     (hΓ : OnCtx Γ (env.IsType U)) : CtxStrong env U Γ := by
@@ -1093,7 +1060,6 @@ theorem IsDefEqStrong.hasType' {env : VEnv}
   | extra h1 h2 h3 h4 h5 h6 h7 _ _ _ _ _ ih4 ih5 => exact ⟨ih4.1, ih5.1⟩
   | projIota _ _ _ _ ih1 ih2 => exact ⟨ih1.1, ih2.1⟩
   | structEta _ _ _ _ _ ih1 ih2 => exact ⟨ih2.1, ih1.1⟩
-  | unitLike _ _ _ _ _ _ ih1 ih2 => exact ⟨ih1.1, ih2.1⟩
 
 theorem HasTypeStrong.refl {env : VEnv}
     (H : env.HasTypeStrong U Γ e A b) : env.IsDefEqStrong U Γ e e A := by
@@ -1470,11 +1436,6 @@ theorem IsDefEqStrong.substEq' (henv : OrderedStrong env)
     simp only [VExpr.subst_mkApps, VExpr.subst, List.map_append, List.map_map,
       Function.comp_def] at l1 l2 t1 t2 ⊢
     exact ⟨l2, l1, (IsDefEqStrong.structEta h1 (by simpa using h2) h3 t1 t2).trans l1⟩
-  | unitLike h1 h2 h3 h4 _ _ ih1 ih2 =>
-    have l1 := (ih1 hΓ hΓ₀ W).1
-    have l2 := (ih2 hΓ hΓ₀ W).1
-    simp only [VExpr.subst_mkApps, VExpr.subst] at l1 l2 ⊢
-    exact ⟨l1, l2, .unitLike h1 (by simpa using h2) h3 h4 l1.hasType.1 l2.hasType.2⟩
 
 /-- Simultaneous substitution of a related pair `σ ≡ σ'` into a strong defeq: the cross
 projection of `substEq'`. -/
