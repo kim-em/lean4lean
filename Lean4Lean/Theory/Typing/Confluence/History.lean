@@ -3,7 +3,8 @@ import Lean4Lean.Theory.Typing.EnvLemmas
 /-! # A well-formed history with its stages
 
 `VEnv.WFH ds hs env` is a well-formedness derivation `VEnv.WF' ds env` that records, in `hs`
-(latest first), the environment every declaration step starts from. A chosen such history of an
+(latest first), the environment every declaration step starts from (a constructor-and-projection
+prefix, `VEnv.WF'.inductProjections`, is not listed). A chosen such history of an
 environment (`VEnv.stages`) pins the recursor registry of the confluence engine to one
 installation order: its stages are well-formed prefixes of the environment, totally ordered by
 extension (`VEnv.WFH.chain`). The coverage of the registered ι rules is proved by induction along
@@ -16,9 +17,9 @@ inductive VEnv.WFH : List VDecl → List VEnv → VEnv → Prop where
   | empty : VEnv.WFH [] [] .empty
   | decl {env env' : VEnv} {d : VDecl} {ds : List VDecl} {hs : List VEnv} :
     VDecl.WF env d env' → env.WF' ds → VEnv.WFH ds hs env → VEnv.WFH (d :: ds) (env :: hs) env'
-  | projs {env : VEnv} {ds : List VDecl} {hs : List VEnv} {entries : List VProjectionEntry} :
-    VEnv.WFH ds hs env → (env.addProjections entries).WF' ds →
-    VEnv.WFH ds hs (env.addProjections entries)
+  | inductProjections {env env' : VEnv} {decl : VInductDecl} {ds : List VDecl} {hs : List VEnv} :
+    decl.ProjectionStage env env' → env.WF' ds → VEnv.WFH ds hs env →
+    VEnv.WFH (.induct decl :: ds) hs env'
 
 namespace VEnv
 
@@ -26,9 +27,8 @@ theorem WF'.wfh {ds : List VDecl} {env : VEnv} (H : env.WF' ds) : ∃ hs, env.WF
   induction H with
   | empty => exact ⟨[], .empty⟩
   | decl hd hds ih => obtain ⟨hs, h⟩ := ih; exact ⟨_, .decl hd hds h⟩
-  | inductProjections h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 ih1 ih2 =>
-    obtain ⟨hs, h⟩ := ih2
-    exact ⟨hs, .projs h (.inductProjections h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13)⟩
+  | inductProjections hstage hds ih =>
+    obtain ⟨hs, h⟩ := ih; exact ⟨hs, .inductProjections hstage hds h⟩
 
 /-- The stages of a well-formed history are well-formed prefixes of the environment. -/
 theorem WFH.stage {ds : List VDecl} {hs : List VEnv} {env : VEnv} (H : env.WFH ds hs)
@@ -39,8 +39,8 @@ theorem WFH.stage {ds : List VDecl} {hs : List VEnv} {env : VEnv} (H : env.WFH d
     rcases List.mem_cons.1 he with rfl | he
     · exact ⟨⟨_, hds⟩, .decl hd .rfl⟩
     · obtain ⟨h1, h2⟩ := ih he; exact ⟨h1, .decl hd h2⟩
-  | projs _ _ ih =>
-    obtain ⟨h1, h2⟩ := ih he; exact ⟨h1, .projs h2⟩
+  | inductProjections hstage _ _ ih =>
+    obtain ⟨h1, h2⟩ := ih he; exact ⟨h1, .inductProjections hstage h2⟩
 
 /-- The stages of a history are below the environment. -/
 theorem WFH.stage_le {ds : List VDecl} {hs : List VEnv} {env : VEnv} (H : env.WFH ds hs)
@@ -63,7 +63,7 @@ theorem WFH.chain {ds : List VDecl} {hs : List VEnv} {env : VEnv} (H : env.WFH d
       cases j with
       | zero => omega
       | succ j => exact ih (by simpa using hi) (by simpa using hj) (by omega)
-  | projs _ _ ih => exact ih
+  | inductProjections _ _ _ ih => exact ih
 
 open Classical in
 /-- A chosen history of an environment: its stages, latest first (empty if the environment is

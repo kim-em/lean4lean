@@ -843,21 +843,6 @@ def VInductDecl.ConstructorArityPrefix (source expanded : VInductDecl) : Prop :=
       (expanded.types[familyIdx].ctors[ctorIdx]).type.forallArity
 
 
-/-- Source-level obligations that cannot be erased by ordinary or nested
-compilation. In particular constructor types are checked in an environment
-containing all mutually declared headers, before any nested occurrence is
-lowered. -/
-def VInductDecl.SourceWF (env : VEnv) (decl : VInductDecl) : Prop :=
-  decl.types ≠ [] ∧
-  decl.sourceNames.Nodup ∧
-  (∀ type ∈ decl.types, type.uvars = decl.uvars) ∧
-  (∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars) ∧
-  ∃ envTypes envCtors,
-    env.addConstVals decl.typeConstants = some envTypes ∧
-    envTypes.addConstVals decl.constructorConstants = some envCtors ∧
-    (∀ type ∈ decl.types, type.toVConstant.WF env) ∧
-    ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes
-
 theorem VInductDecl.SourceWF.mono_of_addConstVals {decl : VInductDecl} {env env' envTypes envCtors : VEnv}
     (H : decl.SourceWF env) (hle : env ≤ env')
     (htypes : env'.addConstVals decl.typeConstants = some envTypes)
@@ -909,13 +894,6 @@ theorem VInductDecl.OrdinaryFormationWF.sourceParameterWF
     fun type htype ctor hctor =>
       (Hconstructors type htype ctor hctor).1, Hraw⟩
 
-theorem VInductDecl.SourceParameterWF.rawCtorShape
-    {env : VEnv} {decl : VInductDecl}
-    (H : VInductDecl.SourceParameterWF env decl) :
-    ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors, decl.RawCtorShape type ctor := by
-  rcases H with ⟨_, _, _, _, _, Hraw⟩
-  exact Hraw
-
 /-- Source parameter formation transports to a larger environment in which
 the family headers can still be installed. -/
 theorem VInductDecl.SourceParameterWF.mono_of_addConstVals
@@ -928,24 +906,6 @@ theorem VInductDecl.SourceParameterWF.mono_of_addConstVals
   exact ⟨params, envTypes', htypes',
     fun type htype => (Htypes type htype).mono henv,
     fun type htype ctor hctor => (Hctors type htype ctor hctor).mono hle, Hraw⟩
-
-theorem VInductDecl.SourceWF.sourceTypes
-    {env : VEnv} {decl : VInductDecl}
-    (H : decl.SourceWF env) :
-    ∀ type ∈ decl.types, type.toVConstant.WF env := by
-  rcases H with ⟨_, _, _, _, envTypes, envCtors, htypes, hctors, hwf, _⟩
-  exact hwf
-
-/-- In particular, source constructor types are checked before nested lowering.
-No fact about the lowered or auxiliary constructors discharges this obligation. -/
-theorem VInductDecl.SourceWF.sourceConstructors
-    {env : VEnv} {decl : VInductDecl}
-    (H : decl.SourceWF env) :
-    ∃ envTypes,
-      env.addConstVals decl.typeConstants = some envTypes ∧
-      ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes := by
-  rcases H with ⟨_, _, _, _, envTypes, envCtors, htypes, hctors, _, hwf⟩
-  exact ⟨envTypes, htypes, hwf⟩
 
 /-- A compiled block is semantically well formed when every declaration is
 well formed at the stage where it is installed, and installation succeeds. -/

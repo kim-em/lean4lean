@@ -731,21 +731,6 @@ theorem TrInductDeclCore.envCtorsWF
     exact Hctor.wf
   exact VEnv.WF.addConstVals henvTypes hctors H.ctorsAdded
 
-/-- Every translated constructor is well formed in the mutual header
-environment. -/
-theorem TrInductDeclCore.constructorsWF
-    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
-      envTypes envCtors) :
-    ∀ ci ∈ decl.constructorConstants, ci.toVConstant.WF envTypes := by
-  intro ci hci
-  simp only [VInductDecl.constructorConstants] at hci
-  rcases List.mem_flatMap.mp hci with ⟨target, htarget, hctor⟩
-  rcases Lean4Lean.List.Forall₂.forall_exists_r H.types target htarget with
-    ⟨source, _hsource, Htarget⟩
-  rcases Lean4Lean.List.Forall₂.forall_exists_r Htarget.ctors ci hctor with
-    ⟨sourceCtor, _hsourceCtor, Hctor⟩
-  exact Hctor.wf
-
 /-- Header constants are typed in the source environment, so their exact
 installation is well formed independently of constructor installation. -/
 theorem TrInductDeclCore.envTypesWF
@@ -835,6 +820,25 @@ theorem TrInductDeclCore.nonempty
     List.Forall₂.length_eq H.types
   rw [htarget] at hlength
   exact hsource (List.eq_nil_of_length_eq_zero hlength)
+
+/-- The constructor-and-projection prefix of a translated declaration that satisfies the
+formation judgment is well formed (`VEnv.WF.inductProjections`). A declaration with no type
+adds nothing. -/
+theorem TrInductDeclCore.projectionStageWF
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors)
+    (henv : env.WF) (hformation : decl.FormationWF env) :
+    (envCtors.addProjections decl.projectionEntries).WF := by
+  by_cases hne : decl.types = []
+  · have ht := H.typesAdded
+    have hc := H.ctorsAdded
+    simp only [VInductDecl.typeConstants, VInductDecl.constructorConstants, hne, List.map_nil,
+      List.flatMap_nil, VEnv.addConstVals, Option.some.injEq] at ht hc
+    subst ht hc
+    simpa [VInductDecl.projectionEntries, hne] using henv
+  · exact henv.inductProjections
+      (.of_stages (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceWF_ofNonempty H hne)
+        hformation H.typesAdded H.ctorsAdded)
 
 theorem TrInductDeclCore.types_length
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl

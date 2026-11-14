@@ -181,6 +181,60 @@ theorem _root_.Lean4Lean.VDecl.WF.projections_eq_or_induct {env d env'}
   | quot _ h2 => exact .inl (addQuot_projections h2)
   | induct h1 h2 => exact .inr ⟨_, h1, h2⟩
 
+/-- **Every registered projection entry belongs to a formed inductive declaration.** In a
+well-formed environment with history `ds`, a projection entry is one of the entries
+`D.projectionEntries` of a declaration `D` listed in `ds` as `.induct D`, which was
+added over a well-formed `base ≤ env` in which it satisfies the source and formation judgments:
+its constructors are typed with the type formers and each field is strictly positive
+(`VInductDecl.Positive`, through `VInductDecl.CtorTailWF.field`) unless `D.isUnsafe`, for an
+ordinary declaration directly and for a nested one through its expansion. In particular no
+projection entry is registered for a constant that entered the environment as an axiom, a
+definition or an opaque constant. -/
+theorem WF'.projection_formation {ds : List VDecl} {env : VEnv} (H : env.WF' ds)
+    {name : Name} {info : VProjectionInfo} (hp : env.projections name info) :
+    ∃ D base, VDecl.induct D ∈ ds ∧ base.WF ∧ base ≤ env ∧
+      D.SourceWF base ∧ D.FormationWF base ∧
+      ∃ entry ∈ D.projectionEntries, name = entry.typeName ∧ info = entry.info := by
+  induction H with
+  | empty => cases hp
+  | @decl d env' ds env hd H ih =>
+    have hle := hd.le
+    have old : env.projections name info → ∃ D base, VDecl.induct D ∈ d :: ds ∧
+        base.WF ∧ base ≤ env' ∧ D.SourceWF base ∧ D.FormationWF base ∧
+        ∃ entry ∈ D.projectionEntries, name = entry.typeName ∧ info = entry.info := fun h =>
+      let ⟨D, base, hm, hb, hle', hs, hf, he⟩ := ih h
+      ⟨D, base, .tail _ hm, hb, hle'.trans hle, hs, hf, he⟩
+    cases hd with
+    | induct hwf hadd =>
+      rcases (addInduct_projections_iff hadd).1 hp with he | hold
+      · exact ⟨_, env, .head _, ⟨ds, H⟩, hle, hwf.source, hwf.formation, he⟩
+      · exact old hold
+    | «axiom» _ h2 | «opaque» _ h2 => exact old (addConst_projections h2 ▸ hp)
+    | «def» _ h2 =>
+      exact old (by rwa [addDefEq_projections, addConst_projections h2] at hp)
+    | mutualDef _ h2 _ =>
+      exact old (by rwa [addDefEqs_projections, addConsts_projections h2] at hp)
+    | «example» _ => exact old hp
+    | quot _ h2 => exact old (addQuot_projections h2 ▸ hp)
+  | @inductProjections env' ds env D hstage H ih =>
+    obtain ⟨envTypes, envCtors, htypes, hctors, rfl⟩ := hstage.stages
+    rw [VEnv.addProjections_iff, VEnv.addConstVals_projections hctors,
+      VEnv.addConstVals_projections htypes] at hp
+    rcases hp with he | hold
+    · exact ⟨D, env, .head _, ⟨ds, H⟩, hstage.le, hstage.source, hstage.formation, he⟩
+    · obtain ⟨D', base, hm, hb, hle, hs, hf, he⟩ := ih hold
+      exact ⟨D', base, .tail _ hm, hb, hle.trans hstage.le, hs, hf, he⟩
+
+/-- `VEnv.WF'.projection_formation` without the history. -/
+theorem WF.projection_formation {env : VEnv} (H : env.WF)
+    {name : Name} {info : VProjectionInfo} (hp : env.projections name info) :
+    ∃ (D : VInductDecl) (base : VEnv), base.WF ∧ base ≤ env ∧ D.SourceWF base ∧
+      D.FormationWF base ∧
+      ∃ entry ∈ D.projectionEntries, name = entry.typeName ∧ info = entry.info :=
+  let ⟨_, H⟩ := H
+  let ⟨D, base, _, h⟩ := H.projection_formation hp
+  ⟨D, base, h⟩
+
 /-! ### Rigidity of registered structures -/
 
 private def ProjectionRigid (env : VEnv) : Prop :=
@@ -189,7 +243,7 @@ private def ProjectionRigid (env : VEnv) : Prop :=
 private theorem projectionRigid_aux : ∀ {ds : List VDecl} {env : VEnv}, VEnv.WF' ds env →
     ProjectionRigid env := by
   intro ds env H
-  induction H with
+  induction H using VEnv.WF'.stageInduction with
   | empty => intro _ _ h; cases h
   | @decl d env' ds env hd H ih =>
     have henv : env.WF := ⟨ds, H⟩
@@ -209,26 +263,23 @@ private theorem projectionRigid_aux : ∀ {ds : List VDecl} {env : VEnv}, VEnv.W
       · obtain ⟨h1, h2⟩ := ih name info hold
         obtain ⟨c1, hc1⟩ := henv.ordered.projectionConstant hold
         exact ⟨h1.step hc1 hd, h2.step (henv.ordered.projectionConstructor hold) hd⟩
-  | @inductProjections baseDecls ds base envTypes envCtors decl block
-      hbase _ _ _ _ _ _ _ htypesSource hctorsSource hprojections htypes hctors ihBase ihCtors =>
+  | @inductProjections base envTypes envCtors decl ds _ hbase _ _ htypes hctors ihBase ihCtors =>
     intro name info hinfo
     rw [VEnv.addProjections_iff] at hinfo
     rcases hinfo with ⟨entry, hentry, rfl, rfl⟩ | hold
-    · rw [hprojections] at hentry
-      obtain ⟨type, htype, ctor, hctor, rfl⟩ := VInductDecl.projectionEntries_origin hentry
-      have hbaseWF : base.WF := ⟨baseDecls, hbase⟩
+    · obtain ⟨type, htype, ctor, hctor, rfl⟩ := VInductDecl.projectionEntries_origin hentry
+      have hbaseWF : base.WF := ⟨ds, hbase⟩
       have hfreshT : base.constants type.name = none :=
-        VEnv.addConstVals_names_fresh htypes type.toVConstVal (by
-          rw [htypesSource]; exact List.mem_map.mpr ⟨type, htype, rfl⟩)
-      have hc : ctor ∈ block.ctors := by
-        rw [hctorsSource]
+        VEnv.addConstVals_names_fresh htypes type.toVConstVal
+          (List.mem_map.mpr ⟨type, htype, rfl⟩)
+      have hc : ctor ∈ decl.constructorConstants := by
         exact List.mem_flatMap.mpr ⟨type, htype, by rw [hctor]; exact List.mem_singleton_self _⟩
       have hfreshC : base.constants ctor.name = none :=
         (VEnv.addConstVals_le htypes).constants_eq_none_left
           (VEnv.addConstVals_names_fresh hctors ctor hc)
-      have hd : (envCtors.addProjections block.projections).defeqs = base.defeqs := by
+      have hd : (envCtors.addProjections decl.projectionEntries).defeqs = base.defeqs := by
         rw [addProjections_defeqs, VEnv.addConstVals_defeqs hctors, VEnv.addConstVals_defeqs htypes]
-      have hp : (envCtors.addProjections block.projections).pats = base.pats := by
+      have hp : (envCtors.addProjections decl.projectionEntries).pats = base.pats := by
         rw [addProjections_pats, VEnv.addConstVals_pats hctors, VEnv.addConstVals_pats htypes]
       exact ⟨(hbaseWF.rigid_of_absent hfreshT).of_eq hd hp,
         (hbaseWF.rigid_of_absent hfreshC).of_eq hd hp⟩
@@ -272,12 +323,26 @@ private theorem inductRigid_aux : ∀ {ds : List VDecl} {env : VEnv}, VEnv.WF' d
       refine ⟨⟨h1.step hc1 hd, _, hd.le.constants hc1⟩, fun c hc => ?_⟩
       obtain ⟨h3, c3, hc3⟩ := h2 c hc
       exact ⟨h3.step hc3 hd, _, hd.le.constants hc3⟩
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
+  | @inductProjections env' ds env decl₀ hstage H ih =>
+    have henv : env.WF := ⟨ds, H⟩
+    have hd := hstage.defeqs_eq
+    have hp := hstage.pats_eq
+    obtain ⟨envTypes, envCtors, htypes, hctors, rfl⟩ := hstage.stages
     intro decl hd' t ht
-    obtain ⟨⟨h1, c1, hc1⟩, h2⟩ := ihCtors decl hd' t ht
-    refine ⟨⟨h1.addProjections, _, by simpa using hc1⟩, fun c hc => ?_⟩
-    obtain ⟨h3, c3, hc3⟩ := h2 c hc
-    exact ⟨h3.addProjections, _, by simpa using hc3⟩
+    rcases List.mem_cons.1 hd' with h | hmem
+    · cases h
+      have htv : t.toVConstVal ∈ decl₀.typeConstants := List.mem_map.mpr ⟨t, ht, rfl⟩
+      refine ⟨⟨(henv.rigid_of_absent (VEnv.addConstVals_names_fresh htypes _ htv)).of_eq hd hp,
+        _, VEnv.addProjections_le.constants ((VEnv.addConstVals_le hctors).constants
+          (VEnv.addConstVals_get htypes htv))⟩, fun c hc => ?_⟩
+      have hcv : c ∈ decl₀.constructorConstants := List.mem_flatMap.mpr ⟨t, ht, hc⟩
+      exact ⟨(henv.rigid_of_absent ((VEnv.addConstVals_le htypes).constants_eq_none_left
+          (VEnv.addConstVals_names_fresh hctors c hcv))).of_eq hd hp,
+        _, VEnv.addProjections_le.constants (VEnv.addConstVals_get hctors hcv)⟩
+    · obtain ⟨⟨h1, c1, hc1⟩, h2⟩ := ih decl hmem t ht
+      refine ⟨⟨h1.of_eq hd hp, _, hstage.le.constants hc1⟩, fun c hc => ?_⟩
+      obtain ⟨h3, c3, hc3⟩ := h2 c hc
+      exact ⟨h3.of_eq hd hp, _, hstage.le.constants hc3⟩
 
 /-- A type former of an inductive declaration of a well-formed history is rigid. -/
 theorem WF'.inductTypeRigid {ds : List VDecl} {env : VEnv} (H : env.WF' ds)

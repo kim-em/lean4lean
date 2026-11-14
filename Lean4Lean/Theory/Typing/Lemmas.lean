@@ -281,24 +281,20 @@ inductive Ordered : VEnv → Prop where
   schematic rule, with a computational (template-headed) reduct. -/
   | pat : Ordered env → env.PatWF p r → Ordered (env.addPat p r)
   /-- Register the projection entries of a declaration whose type formers and constructors
-  are present (the projection stage of `VEnv.addInduct`). The premises record the
-  declaration-level facts that `Ordered.projectionShape` reads off a registered entry. -/
-  | inductProjections {base envTypes envCtors : VEnv}
-      {decl : VInductDecl} {block : VInductBlock} :
+  have been added (the projection stage of `VEnv.addInduct`). The premises are the part of
+  `VInductDecl.ProjectionStage` that the typing lemmas read: the source judgment
+  (`VInductDecl.SourceWF`) and the common-parameter judgment
+  (`VInductDecl.SourceParameterWF`, a consequence of formation). `Ordered envCtors` follows
+  from `Ordered base` and the source judgment; it is a premise so that an induction has a
+  hypothesis for `envCtors`. -/
+  | inductProjections {base envTypes envCtors : VEnv} {decl : VInductDecl} :
     Ordered base →
     Ordered envCtors →
-    decl.sourceNames.Nodup →
-    (∀ type ∈ decl.types, type.toVConstant.WF base) →
-    (∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars) →
-    (∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes) →
+    decl.SourceWF base →
     decl.SourceParameterWF base →
-    (∀ type ∈ decl.types, ∀ ctor ∈ type.ctors, decl.RawCtorShape type ctor) →
-    block.types = decl.typeConstants →
-    block.ctors = decl.constructorConstants →
-    block.projections = decl.projectionEntries →
-    base.addConstVals block.types = some envTypes →
-    envTypes.addConstVals block.ctors = some envCtors →
-    Ordered (envCtors.addProjections block.projections)
+    base.addConstVals decl.typeConstants = some envTypes →
+    envTypes.addConstVals decl.constructorConstants = some envCtors →
+    Ordered (envCtors.addProjections decl.projectionEntries)
 
 theorem Ordered.projectionConstant (H : Ordered env)
     (hprojection : env.projections name info) :
@@ -311,17 +307,14 @@ theorem Ordered.projectionConstant (H : Ordered env)
     rcases ih hprojection with ⟨constant, hconstant⟩
     exact ⟨constant, (VEnv.addConst_le hadd).constants hconstant⟩
   | defeq _ _ ih => exact ih hprojection
-  | @inductProjections base envTypes envCtors decl block
-      hbase hctorsOrdered hsource htypesWF hconstructorUvars _hctorsWF _hparams _hshape htypesSource hctorsSource
-      hprojections htypes hctors ihBase ihCtors =>
+  | @inductProjections base envTypes envCtors decl
+      hbase hctorsOrdered _ _hparams htypes hctors ihBase ihCtors =>
     rw [VEnv.addProjections_iff] at hprojection
     rcases hprojection with hnew | hold
     · rcases hnew with ⟨entry, hentry, rfl, rfl⟩
-      rw [hprojections] at hentry
       rcases VInductDecl.projectionEntries_origin hentry with
         ⟨type, htype, ctor, hctorsType, rfl⟩
-      have htypeValue : type.toVConstVal ∈ block.types := by
-        rw [htypesSource]
+      have htypeValue : type.toVConstVal ∈ decl.typeConstants := by
         exact List.mem_map.mpr ⟨type, htype, rfl⟩
       have hlookup := VEnv.addConstVals_get htypes htypeValue
       refine ⟨type.toVConstant, ?_⟩
@@ -345,17 +338,16 @@ theorem Ordered.projectionConstructor (H : Ordered env)
     rw [VEnv.addConst_projections hadd] at hprojection
     exact (VEnv.addConst_le hadd).constants (ih hprojection)
   | defeq _ _ ih => exact ih hprojection
-  | @inductProjections base envTypes envCtors decl block
-      hbase hctorsOrdered hsource htypesWF hconstructorUvars _hctorsWF _hparams _hshape htypesSource hctorsSource
-      hprojections htypes hctors ihBase ihCtors =>
+  | @inductProjections base envTypes envCtors decl
+      hbase hctorsOrdered hsrc _hparams htypes hctors ihBase ihCtors =>
+    have hconstructorUvars := hsrc.2.2.2.1
     rw [VEnv.addProjections_iff] at hprojection
     rcases hprojection with hnew | hold
     · rcases hnew with ⟨entry, hentry, rfl, rfl⟩
-      rw [hprojections] at hentry
       rcases VInductDecl.projectionEntries_origin hentry with
         ⟨type, htype, ctor, htypeCtors, rfl⟩
-      have hctorValue : ctor ∈ block.ctors := by
-        rw [hctorsSource, VInductDecl.constructorConstants]
+      have hctorValue : ctor ∈ decl.constructorConstants := by
+        rw [VInductDecl.constructorConstants]
         apply List.mem_flatMap.mpr
         exact ⟨type, htype, by simp [htypeCtors]⟩
       have hlookup := VEnv.addConstVals_get hctors hctorValue
@@ -376,9 +368,9 @@ theorem Ordered.projections_unique (H : Ordered env)
     rw [VEnv.addConst_projections hadd] at hleft hright
     exact ih hleft hright
   | defeq _ _ ih => exact ih hleft hright
-  | @inductProjections base envTypes envCtors decl block
-      hbase hctorsOrdered hsource htypesWF hconstructorUvars _hctorsWF _hparams _hshape htypesSource hctorsSource
-      hprojections htypes hctors ihBase ihCtors =>
+  | @inductProjections base envTypes envCtors decl
+      hbase hctorsOrdered hsrc _hparams htypes hctors ihBase ihCtors =>
+    have hsource := hsrc.2.1
     have hstages : envCtors.projections = base.projections :=
       (VEnv.addConstVals_projections hctors).trans <|
         VEnv.addConstVals_projections htypes
@@ -388,19 +380,17 @@ theorem Ordered.projections_unique (H : Ordered env)
       rcases hright with ⟨rightEntry, hrightMem, hrightName, hrightInfo⟩
       have hentry : leftEntry = rightEntry := by
         apply VInductDecl.projectionEntries_unique hsource
-        · simpa [hprojections] using hleftMem
-        · simpa [hprojections] using hrightMem
+        · simpa using hleftMem
+        · simpa using hrightMem
         · exact hleftName.symm.trans hrightName
       subst rightEntry
       exact hleftInfo.trans hrightInfo.symm
     · rcases hleft with ⟨entry, hentry, hname, hinfo⟩
       rw [hstages] at hright
       rcases hbase.projectionConstant hright with ⟨constant, hconstant⟩
-      rw [hprojections] at hentry
       rcases VInductDecl.projectionEntries_origin hentry with
         ⟨type, htype, ctor, hctorsType, hentryEq⟩
       have hfresh := VEnv.addConstVals_names_fresh htypes type.toVConstVal (by
-        rw [htypesSource]
         exact List.mem_map.mpr ⟨type, htype, rfl⟩)
       rw [hname, hentryEq] at hconstant
       simp only at hconstant
@@ -409,11 +399,9 @@ theorem Ordered.projections_unique (H : Ordered env)
     · rcases hright with ⟨entry, hentry, hname, hinfo⟩
       rw [hstages] at hleft
       rcases hbase.projectionConstant hleft with ⟨constant, hconstant⟩
-      rw [hprojections] at hentry
       rcases VInductDecl.projectionEntries_origin hentry with
         ⟨type, htype, ctor, hctorsType, hentryEq⟩
       have hfresh := VEnv.addConstVals_names_fresh htypes type.toVConstVal (by
-        rw [htypesSource]
         exact List.mem_map.mpr ⟨type, htype, rfl⟩)
       rw [hname, hentryEq] at hconstant
       simp only at hconstant
@@ -437,7 +425,7 @@ theorem Ordered.induction (motive : VEnv → Nat → VExpr → VExpr → Prop)
   induction H with
   | empty => exact ⟨nofun, nofun⟩
   | pat _ _ ih => exact OnTypes.mono .rfl (mono addPat_le) ih
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ ihBase ih =>
+  | inductProjections _ _ _ _ _ _ ihBase ih =>
     exact ⟨fun h => (ih.1 (by simpa using h)).imp fun _ =>
         mono VEnv.addProjections_le,
       fun h => (ih.2 (by simpa using h)).imp (mono VEnv.addProjections_le)
@@ -635,7 +623,7 @@ theorem Ordered.constWF (H : Ordered env) (h : env.constants n = some ci) : ci.W
     · cases h; exact h2
     · exact ih h
   | defeq _ _ ih => exact .mono addDefEq_le (ih h)
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ ihBase ih =>
+  | inductProjections _ _ _ _ _ _ ihBase ih =>
     exact .mono VEnv.addProjections_le (ih (by simpa using h))
 
 theorem Ordered.defEqWF (H : Ordered env) (h : env.defeqs df) : df.WF env := by
@@ -650,7 +638,7 @@ theorem Ordered.defEqWF (H : Ordered env) (h : env.defeqs df) : df.WF env := by
     obtain rfl | h := h
     · assumption
     · exact ih h
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ ihBase ih =>
+  | inductProjections _ _ _ _ _ _ ihBase ih =>
     exact .mono VEnv.addProjections_le (ih (by simpa using h))
 
 theorem PatTyped.mono {env env' : VEnv} (henv : env ≤ env') {p : Pattern} {r : p.RHS × p.Check} :
@@ -675,7 +663,7 @@ theorem Ordered.patWF (H : Ordered env) (h : env.pats p r) : env.PatWF p r := by
     obtain ⟨rfl, h⟩ | h := h
     · cases h; exact h2
     · exact ih h
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ ihBase ih =>
+  | inductProjections _ _ _ _ _ _ ihBase ih =>
     exact .mono VEnv.addProjections_le (ih (by simpa using h))
 
 /-- Every registered rule of an `Ordered` environment has a template-headed reduct. -/

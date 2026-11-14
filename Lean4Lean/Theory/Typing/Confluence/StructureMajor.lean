@@ -113,13 +113,11 @@ theorem WF.patCtor_declared (henv : env.WF) {c : Name} (h : IsPatCtor env c) :
   exact ⟨ci, hci⟩
 
 private theorem structureCtorCoherent_projections {base envTypes envCtors : VEnv}
-    {decl : VInductDecl} {block : VInductBlock} (hW : base.WF)
-    (htypesEq : block.types = decl.typeConstants)
-    (hprojs : block.projections = decl.projectionEntries)
-    (htypes : base.addConstVals block.types = some envTypes)
-    (hctorsAdd : envTypes.addConstVals block.ctors = some envCtors)
+    {decl : VInductDecl} (hW : base.WF)
+    (htypes : base.addConstVals decl.typeConstants = some envTypes)
+    (hctorsAdd : envTypes.addConstVals decl.constructorConstants = some envCtors)
     (ihCtors : StructureCtorCoherent envCtors) :
-    StructureCtorCoherent (envCtors.addProjections block.projections) := by
+    StructureCtorCoherent (envCtors.addProjections decl.projectionEntries) := by
   have hle : base ≤ envCtors := (addConstVals_le htypes).trans (addConstVals_le hctorsAdd)
   have hpats : envCtors.pats = base.pats := by
     rw [addConstVals_pats hctorsAdd, addConstVals_pats htypes]
@@ -133,11 +131,10 @@ private theorem structureCtorCoherent_projections {base envTypes envCtors : VEnv
     ResultFamily.of_le (hle.trans addProjections_le) hci hres
   rcases VEnv.addProjections_iff.mp hp with ⟨entry, hentry, rfl, rfl⟩ | hold
   · exfalso
-    rw [hprojs] at hentry
     obtain ⟨type, htype, ctor, -, hname, -, -⟩ := VInductDecl.mem_projectionEntries hentry
     obtain ⟨cF, hcF⟩ := hW.resultFamily_declared hresBase
-    have hfresh := addConstVals_names_fresh htypes type.toVConstVal (by
-      rw [htypesEq]; exact List.mem_map_of_mem htype)
+    have hfresh := addConstVals_names_fresh htypes type.toVConstVal
+      (List.mem_map_of_mem htype)
     rw [hname] at hcF
     change base.constants type.name = none at hfresh
     rw [hfresh] at hcF; cases hcF
@@ -148,10 +145,10 @@ private theorem structureCtorCoherent_projections {base envTypes envCtors : VEnv
 
 theorem WF'.structureCtorCoherent {ds : List VDecl} (H : env.WF' ds) :
     StructureCtorCoherent env := by
-  induction H with
+  induction H using VEnv.WF'.stageInduction with
   | empty => intro F info hp; cases hp
-  | inductProjections hbase _ _ _ _ _ _ _ htypesEq _ hprojs htypes hctorsAdd _ ihCtors =>
-    exact structureCtorCoherent_projections ⟨_, hbase⟩ htypesEq hprojs htypes hctorsAdd ihCtors
+  | inductProjections hbase _ _ htypes hctorsAdd _ ihCtors =>
+    exact structureCtorCoherent_projections ⟨_, hbase⟩ htypes hctorsAdd ihCtors
   | @decl d env' ds env hd H ih =>
     have hW : env.WF := ⟨ds, H⟩
     have hle := hd.le

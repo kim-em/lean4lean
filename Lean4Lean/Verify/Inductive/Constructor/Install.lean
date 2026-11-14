@@ -481,12 +481,7 @@ theorem checkingCtor : CheckingEnv c.safety ctorEnv I.ctorVEnv :=
 noncomputable abbrev envP : VEnv := I.ctorVEnv.addProjections decl.projectionEntries
 
 theorem envP_wf : I.envP.WF :=
-  VEnv.WF.inductProjections (block := ⟨decl.typeConstants, decl.constructorConstants, [], [],
-      decl.projectionEntries⟩)
-    I.sourceEnv_wf I.checkingCtor.wf (TrInductDeclCore.sourceNames_nodup I.core)
-    (TrInductDeclCore.typeHeadersWF I.core) I.constructorUvars I.ctorsWF'
-    I.formation.formationWF.sourceParameterWF I.K.rawShapes rfl rfl rfl I.H.typesAdded
-    I.ctorsAdded
+  TrInductDeclCore.projectionStageWF I.core I.sourceEnv_wf (.ordinary I.formation.formationWF)
 
 theorem headerLE_P : I.headerVEnv ≤ I.envP := I.headerLE.trans VEnv.addProjections_le
 

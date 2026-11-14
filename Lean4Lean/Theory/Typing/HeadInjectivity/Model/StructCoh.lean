@@ -98,13 +98,11 @@ theorem _root_.Lean4Lean.VEnv.WF.patCtor_declared' (henv : env.WF) {c : Name}
   exact ⟨ci, hci⟩
 
 private theorem structCoh_projections {base envTypes envCtors : VEnv}
-    {decl : VInductDecl} {block : VInductBlock} (hW : base.WF)
-    (htypesEq : block.types = decl.typeConstants)
-    (hprojs : block.projections = decl.projectionEntries)
-    (htypes : base.addConstVals block.types = some envTypes)
-    (hctorsAdd : envTypes.addConstVals block.ctors = some envCtors)
+    {decl : VInductDecl} (hW : base.WF)
+    (htypes : base.addConstVals decl.typeConstants = some envTypes)
+    (hctorsAdd : envTypes.addConstVals decl.constructorConstants = some envCtors)
     (ihCtors : StructCoh envCtors) :
-    StructCoh (envCtors.addProjections block.projections) := by
+    StructCoh (envCtors.addProjections decl.projectionEntries) := by
   have hle : base ≤ envCtors := (addConstVals_le htypes).trans (addConstVals_le hctorsAdd)
   have hpats : envCtors.pats = base.pats := by
     rw [addConstVals_pats hctorsAdd, addConstVals_pats htypes]
@@ -118,11 +116,10 @@ private theorem structCoh_projections {base envTypes envCtors : VEnv}
     RetFam.of_le (hle.trans addProjections_le) hci hres
   rcases VEnv.addProjections_iff.mp hp with ⟨entry, hentry, rfl, rfl⟩ | hold
   · exfalso
-    rw [hprojs] at hentry
     obtain ⟨type, htype, ctor, -, rfl⟩ := VInductDecl.projectionEntries_origin hentry
     obtain ⟨cF, hcF⟩ := hW.retFam_declared hresBase
-    have hfresh := addConstVals_names_fresh htypes type.toVConstVal (by
-      rw [htypesEq]; exact List.mem_map_of_mem htype)
+    have hfresh := addConstVals_names_fresh htypes type.toVConstVal
+      (List.mem_map_of_mem htype)
     change base.constants type.name = none at hfresh
     rw [hfresh] at hcF; cases hcF
   · refine ihCtors F info hold c ?_ (RetFam.of_le addProjections_le
@@ -132,10 +129,10 @@ private theorem structCoh_projections {base envTypes envCtors : VEnv}
 
 theorem _root_.Lean4Lean.VEnv.WF'.structCoh {ds : List VDecl} (H : env.WF' ds) :
     StructCoh env := by
-  induction H with
+  induction H using VEnv.WF'.stageInduction with
   | empty => intro F info hp; cases hp
-  | inductProjections hbase _ _ _ _ _ _ _ htypesEq _ hprojs htypes hctorsAdd _ ihCtors =>
-    exact structCoh_projections ⟨_, hbase⟩ htypesEq hprojs htypes hctorsAdd ihCtors
+  | inductProjections hbase _ _ htypes hctorsAdd _ ihCtors =>
+    exact structCoh_projections ⟨_, hbase⟩ htypes hctorsAdd ihCtors
   | @decl d env' ds env hd H ih =>
     have hW : env.WF := ⟨ds, H⟩
     have hle := hd.le

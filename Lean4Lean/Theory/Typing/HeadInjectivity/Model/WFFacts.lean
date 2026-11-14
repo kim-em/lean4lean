@@ -23,7 +23,7 @@ variable {env : VEnv}
 (a bare constant on the left) or the quotient rule. -/
 theorem WF'.defeqs_cases {ds : List VDecl} (H : env.WF' ds) {df : VDefEq} (hdf : env.defeqs df) :
     (∃ n ls, df.lhs = .const n ls) ∨ df = quotDefEq := by
-  induction H with
+  induction H using VEnv.WF'.stageInduction with
   | empty => cases hdf
   | decl hd _ ih =>
     cases hd with
@@ -46,7 +46,7 @@ theorem WF'.defeqs_cases {ds : List VDecl} (H : env.WF' ds) {df : VDefEq} (hdf :
       · rw [addConst_defeqs a4, addConst_defeqs a3, addConst_defeqs a2, addConst_defeqs a1] at hdf
         exact ih hdf
     | induct _ h2 => rw [addInduct_defeqs h2] at hdf; exact ih hdf
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih => exact ih (by simpa using hdf)
+  | inductProjections _ _ _ _ _ _ ih => exact ih (by simpa using hdf)
 
 /-- The constructor major of a λ-wrapped definitional axiom is unique. -/
 theorem _root_.Lean4Lean.VDefEq.HasConstructorMajor.unique {df : VDefEq} {a b : Name}
@@ -92,7 +92,7 @@ private theorem ne_of_some_none {n m : Name} {ci : VConstant}
   rintro rfl; rw [h1] at h2; cases h2
 
 private theorem WF'.quotFacts {ds : List VDecl} (H : env.WF' ds) : QuotFacts env := by
-  induction H with
+  induction H using VEnv.WF'.stageInduction with
   | empty => intro h; cases h
   | @decl d env' ds env0 hd hW ih =>
     intro hq
@@ -159,9 +159,8 @@ private theorem WF'.quotFacts {ds : List VDecl} (H : env.WF' ds) : QuotFacts env
         have hcC := hWF.ordered.projectionConstructor hS
         exact ⟨ne_of_some_none hcS hQ0, ne_of_some_none hcS hM0, ne_of_some_none hcC hQ0,
           ne_of_some_none hcC hM0⟩
-  | @inductProjections _ ds base envTypes envCtors decl block hbase hctorsW hsource htypesWF
-      hconstructorUvars hctorsWF' hspw hshape htypesSource hctorsSource hprojections htypes
-      hctors ihBase ihCtors =>
+  | @inductProjections base envTypes envCtors decl ds _
+      hbase hctorsW _ htypes hctors ihBase ihCtors =>
     intro hq
     have hqC : envCtors.defeqs quotDefEq := by simpa using hq
     have hqB : base.defeqs quotDefEq := by
@@ -172,10 +171,9 @@ private theorem WF'.quotFacts {ds : List VDecl} (H : env.WF' ds) : QuotFacts env
       r2.addProjections, fun S info hS => ?_⟩
     rw [addProjections_iff] at hS
     rcases hS with ⟨entry, hentry, rfl, rfl⟩ | hold
-    · rw [hprojections] at hentry
-      obtain ⟨type, htype, ctor, hctors', rfl⟩ := VInductDecl.projectionEntries_origin hentry
-      have htypes' := htypes; rw [htypesSource] at htypes'
-      have hctorsC := hctors; rw [hctorsSource] at hctorsC
+    · obtain ⟨type, htype, ctor, hctors', rfl⟩ := VInductDecl.projectionEntries_origin hentry
+      have htypes' := htypes
+      have hctorsC := hctors
       have hT : base.constants type.name = none :=
         addConstVals_names_fresh htypes' type.toVConstVal (List.mem_map_of_mem htype)
       have hC : base.constants ctor.name = none :=
@@ -224,7 +222,7 @@ private def ProjNames (env : VEnv) : Prop :=
   ∀ S info, env.projections S info → ∀ S' info', env.projections S' info' → S ≠ info'.ctorName
 
 private theorem WF'.projNames {ds : List VDecl} (H : env.WF' ds) : ProjNames env := by
-  induction H with
+  induction H using VEnv.WF'.stageInduction with
   | empty => intro _ _ h; cases h
   | @decl d env' ds env0 hd hW ih =>
     have hWF : env0.WF := ⟨ds, hW⟩
@@ -244,12 +242,12 @@ private theorem WF'.projNames {ds : List VDecl} (H : env.WF' ds) : ProjNames env
         exact ne_of_some_none hcS
           (addInduct_ctor_fresh hadd ht' (by rw [hc']; exact List.mem_singleton_self _))
       · exact ih S info hold S' info' hold'
-  | @inductProjections _ ds base envTypes envCtors decl block hbase hctorsW hsource htypesWF
-      hconstructorUvars hctorsWF' hspw hshape htypesSource hctorsSource hprojections htypes
-      hctors ihBase ihCtors =>
+  | @inductProjections base envTypes envCtors decl ds _
+      hbase hctorsW hstage htypes hctors ihBase ihCtors =>
+    have hsource := hstage.source.2.1
     have hbW : base.WF := ⟨_, hbase⟩
-    have htypes' := htypes; rw [htypesSource] at htypes'
-    have hctorsC := hctors; rw [hctorsSource] at hctorsC
+    have htypes' := htypes
+    have hctorsC := hctors
     have freshT : ∀ t ∈ decl.types, base.constants t.name = none := fun t ht =>
       addConstVals_names_fresh htypes' t.toVConstVal (List.mem_map_of_mem ht)
     have freshC : ∀ t ∈ decl.types, ∀ c ∈ t.ctors, base.constants c.name = none := fun t ht c hc =>
@@ -258,7 +256,7 @@ private theorem WF'.projNames {ds : List VDecl} (H : env.WF' ds) : ProjNames env
     have hprB : ∀ S info, envCtors.projections S info ↔ base.projections S info := fun S info => by
       rw [addConstVals_projections hctors, addConstVals_projections htypes]
     intro S info hS S' info' hS'
-    rw [addProjections_iff, hprojections] at hS hS'
+    rw [addProjections_iff] at hS hS'
     rcases hS with ⟨e, he, rfl, rfl⟩ | hold <;> rcases hS' with ⟨e', he', rfl, rfl⟩ | hold'
     · obtain ⟨t, ht, c, hc, rfl⟩ := VInductDecl.projectionEntries_origin he
       obtain ⟨t', ht', c', hc', rfl⟩ := VInductDecl.projectionEntries_origin he'
@@ -300,7 +298,7 @@ the block was compiled in (`CompiledInductive.rule_ctor_cases`; the induction hy
 again). -/
 private theorem WF'.patCtor_rigid_aux {ds : List VDecl} (H : env.WF' ds) :
     ∀ c, IsPatCtor env c → env.Rigid c := by
-  induction H with
+  induction H using VEnv.WF'.stageInduction with
   | empty => rintro c ⟨p, r, _, _, _, hp, _⟩; exact (hp : False).elim
   | @decl d env' ds env0 hd H ih =>
     intro c hc
@@ -321,7 +319,7 @@ private theorem WF'.patCtor_rigid_aux {ds : List VDecl} (H : env.WF' ds) :
           rw [hc']
           exact (VEnv.WF'.decl hd H).inductCtorRigid (List.mem_cons_self ..) ht hc
         · exact step hpc
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
+  | inductProjections _ _ _ _ _ _ ihCtors =>
     rintro c ⟨p, r, recN, M, N, hp, rfl⟩
     exact (ihCtors _ ⟨_, r, recN, M, N, by simpa using hp, rfl⟩).addProjections
 

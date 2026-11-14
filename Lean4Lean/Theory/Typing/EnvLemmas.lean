@@ -84,31 +84,6 @@ theorem VEnv.addDefEqs_ordered : ∀ {env : VEnv} {cis}, Ordered env →
     · exact (VEnv.addDefEq_le (df := ci.toDefEq)).constants (hmem c (.tail _ hc))
     · exact (hw c (.tail _ hc)).mono VEnv.addDefEq_le
 
-theorem VEnv.WF.ordered : WF env → Ordered env
-  | ⟨ds, H⟩ => by
-    induction H with
-    | empty => exact .empty
-    | decl h _ ih =>
-      cases h with
-      | «axiom» h1 h2 => exact .const ih h1 h2
-      | @«def» env env' ci h1 h2 =>
-        refine .defeq (.const ih (h1.isType ih ⟨⟩) h2) ⟨?_, ?_⟩
-        · simp [VDefVal.toDefEq]
-          rw [← (h1.levelWF ⟨⟩).2.2.instL_id]
-          exact .const (addConst_self h2) VLevel.id_WF (by simp)
-        · exact h1.mono (addConst_le h2)
-      | mutualDef h0 h1 h2 =>
-        exact VEnv.addDefEqs_ordered (VEnv.addConsts_ordered ih h0 h1)
-          (VEnv.addConsts_constants h1) h2
-      | «opaque» h1 h2 => exact .const ih (h1.isType ih ⟨⟩) h2
-      | «example» _ => exact ih
-      | quot h1 h2 => exact addQuot_WF ih h1 h2
-      | induct h1 h2 => exact addInduct_WF ih h1 h2
-    | inductProjections _ _ hsource htypesWF hconstructorUvars hctorsWF hparams hshape
-        htypesSource hctorsSource hprojections htypes hctors ihBase ihCtors =>
-      exact .inductProjections ihBase ihCtors hsource htypesWF hconstructorUvars hctorsWF hparams
-        hshape htypesSource hctorsSource hprojections htypes hctors
-
 /-- A dependency-ordered list of well-formed constants may be viewed as a
 sequence of abstract axioms extending a well-formed environment.  Stating
 the input typing in the starting environment is sufficient because each
@@ -137,6 +112,120 @@ theorem VEnv.WF.addConstVals
         exact (Hwf ci' (by simp [hmem])).mono (VEnv.addConst_le hci)
       · exact Hadd
 
+/-- The stages of a constructor-and-projection prefix: the type formers, then the constructors,
+then the projection entries. -/
+theorem VInductDecl.ProjectionStage.stages {env env' : VEnv} {decl : VInductDecl}
+    (h : decl.ProjectionStage env env') :
+    ∃ envTypes envCtors, env.addConstVals decl.typeConstants = some envTypes ∧
+      envTypes.addConstVals decl.constructorConstants = some envCtors ∧
+      env' = envCtors.addProjections decl.projectionEntries := by
+  have h := h.install
+  unfold VInductDecl.addTypesCtorsProjs at h
+  obtain ⟨envC, hC, rfl⟩ := Option.map_eq_some_iff.1 h
+  obtain ⟨envT, hT, hC⟩ := Option.bind_eq_some_iff.1 hC
+  rw [VInductDecl.addTypes_eq_addConstVals] at hT
+  rw [VInductDecl.addCtors_eq_addConstVals] at hC
+  exact ⟨envT, envC, hT, hC, rfl⟩
+
+/-- A constructor-and-projection prefix from its stages. -/
+theorem VInductDecl.ProjectionStage.of_stages {env envTypes envCtors : VEnv} {decl : VInductDecl}
+    (hsource : decl.SourceWF env) (hformation : decl.FormationWF env)
+    (htypes : env.addConstVals decl.typeConstants = some envTypes)
+    (hctors : envTypes.addConstVals decl.constructorConstants = some envCtors) :
+    decl.ProjectionStage env (envCtors.addProjections decl.projectionEntries) where
+  source := hsource
+  formation := hformation
+  install := by
+    rw [← VInductDecl.addTypes_eq_addConstVals] at htypes
+    rw [← VInductDecl.addCtors_eq_addConstVals] at hctors
+    simp [VInductDecl.addTypesCtorsProjs, VInductDecl.addTypesCtors, htypes, hctors,
+      VInductDecl.addProjs]
+
+/-- A constructor-and-projection prefix only grows the environment. -/
+theorem VInductDecl.ProjectionStage.le {env env' : VEnv} {decl : VInductDecl}
+    (h : decl.ProjectionStage env env') : env ≤ env' := by
+  obtain ⟨_, _, htypes, hctors, rfl⟩ := h.stages
+  exact (VEnv.addConstVals_le htypes).trans <|
+    (VEnv.addConstVals_le hctors).trans VEnv.addProjections_le
+
+/-- A constructor-and-projection prefix registers no ι rule. -/
+theorem VInductDecl.ProjectionStage.pats_eq {env env' : VEnv} {decl : VInductDecl}
+    (h : decl.ProjectionStage env env') : env'.pats = env.pats := by
+  obtain ⟨_, _, htypes, hctors, rfl⟩ := h.stages
+  rw [VEnv.addProjections_pats, VEnv.addConstVals_pats hctors, VEnv.addConstVals_pats htypes]
+
+/-- A constructor-and-projection prefix adds no definitional axiom. -/
+theorem VInductDecl.ProjectionStage.defeqs_eq {env env' : VEnv} {decl : VInductDecl}
+    (h : decl.ProjectionStage env env') : env'.defeqs = env.defeqs := by
+  obtain ⟨_, _, htypes, hctors, rfl⟩ := h.stages
+  rw [VEnv.addProjections_defeqs, VEnv.addConstVals_defeqs hctors,
+    VEnv.addConstVals_defeqs htypes]
+
+/-- Induction along a well-formed history that presents a constructor-and-projection prefix
+(`VEnv.WF'.inductProjections`) by its three parts. The type formers and constructors of the
+prefix are typed constants, so the environment `envCtors` that has them and not yet the
+projection entries is well formed, by a history `dsC` that lists them as axioms; the case for
+the prefix receives the induction hypothesis for `envCtors` as well as for `base`, and has to
+account for the projection entries only. -/
+theorem VEnv.WF'.stageInduction {motive : ∀ ds env, VEnv.WF' ds env → Prop}
+    (empty : motive [] .empty .empty)
+    (decl : ∀ {d env' ds env} (hd : VDecl.WF env d env') (H : env.WF' ds),
+      motive ds env H → motive (d :: ds) env' (.decl hd H))
+    (inductProjections : ∀ {base envTypes envCtors : VEnv} {decl : VInductDecl} {ds dsC}
+      (hbase : base.WF' ds) (hctorsWF : envCtors.WF' dsC)
+      (hstage : decl.ProjectionStage base (envCtors.addProjections decl.projectionEntries))
+      (_ : base.addConstVals decl.typeConstants = some envTypes)
+      (_ : envTypes.addConstVals decl.constructorConstants = some envCtors),
+      motive ds base hbase → motive dsC envCtors hctorsWF →
+      motive (.induct decl :: ds) _ (.inductProjections hstage hbase))
+    {ds env} (H : VEnv.WF' ds env) : motive ds env H := by
+  have step : ∀ {vs : List VConstVal} {env env' : VEnv} {ds} (H : env.WF' ds),
+      motive ds env H → (∀ v ∈ vs, v.toVConstant.WF env) → env.addConstVals vs = some env' →
+      ∃ ds' H', motive ds' env' H' := by
+    intro vs
+    induction vs with
+    | nil => intro env env' ds H ih _ hadd; cases hadd; exact ⟨_, H, ih⟩
+    | cons v vs ihvs =>
+      intro env env' ds H ih hv hadd
+      simp only [VEnv.addConstVals] at hadd
+      obtain ⟨mid, hmid, hadd⟩ := Option.bind_eq_some_iff.1 hadd
+      exact ihvs _ (decl (.axiom (ci := v) (hv v (.head _)) hmid) H ih)
+        (fun w hw => (hv w (.tail _ hw)).mono (VEnv.addConst_le hmid)) hadd
+  induction H with
+  | empty => exact empty
+  | decl hd H ih => exact decl hd H ih
+  | inductProjections hstage H ih =>
+    obtain ⟨envTypes, envCtors, htypes, hctors, rfl⟩ := hstage.stages
+    obtain ⟨_, HT, ihT⟩ := step H ih (fun v hv => by
+      obtain ⟨t, ht, rfl⟩ := List.mem_map.1 hv
+      exact hstage.source.sourceTypes t ht) htypes
+    obtain ⟨_, HC, ihC⟩ := step HT ihT (hstage.source.constructorsWF_at htypes) hctors
+    exact inductProjections H HC hstage htypes hctors ih ihC
+
+theorem VEnv.WF.ordered : WF env → Ordered env
+  | ⟨ds, H⟩ => by
+    induction H using VEnv.WF'.stageInduction with
+    | empty => exact .empty
+    | decl h _ ih =>
+      cases h with
+      | «axiom» h1 h2 => exact .const ih h1 h2
+      | @«def» env env' ci h1 h2 =>
+        refine .defeq (.const ih (h1.isType ih ⟨⟩) h2) ⟨?_, ?_⟩
+        · simp [VDefVal.toDefEq]
+          rw [← (h1.levelWF ⟨⟩).2.2.instL_id]
+          exact .const (addConst_self h2) VLevel.id_WF (by simp)
+        · exact h1.mono (addConst_le h2)
+      | mutualDef h0 h1 h2 =>
+        exact VEnv.addDefEqs_ordered (VEnv.addConsts_ordered ih h0 h1)
+          (VEnv.addConsts_constants h1) h2
+      | «opaque» h1 h2 => exact .const ih (h1.isType ih ⟨⟩) h2
+      | «example» _ => exact ih
+      | quot h1 h2 => exact addQuot_WF ih h1 h2
+      | induct h1 h2 => exact addInduct_WF ih h1 h2
+    | inductProjections _ _ hstage htypes hctors ihBase ihCtors =>
+      exact .inductProjections ihBase ihCtors hstage.source
+        (hstage.formation.sourceParameterWF htypes) htypes hctors
+
 instance : CoeOut (VEnv.WF env) env.Ordered := ⟨(·.ordered)⟩
 
 /-- Every `VDecl.WF` step only grows the environment. -/
@@ -155,7 +244,7 @@ theorem VEnv.WFPrefix.le {env env₀ : VEnv} (h : env.WFPrefix env₀) : env₀ 
   induction h with
   | rfl => exact .rfl
   | decl hd _ ih => exact ih.trans hd.le
-  | projs _ ih => exact ih.trans addProjections_le
+  | inductProjections hs _ ih => exact ih.trans hs.le
 
 /-- `OnTypes (EnvStrong ·)` is carried along a fold over `addConst`, given the typing of every
 added constant in the environment the fold starts from. -/
@@ -256,9 +345,9 @@ monotonicity. -/
 theorem VEnv.WF.strong {env : VEnv} (H : env.WF) : OnTypes env (EnvStrong env) := by
   have key : ∀ {ds e}, WF' ds e → OnTypes e (EnvStrong e) := by
     intro ds e H
-    induction H with
+    induction H using VEnv.WF'.stageInduction with
     | empty => exact ⟨nofun, nofun⟩
-    | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
+    | inductProjections _ _ _ _ _ _ ihCtors =>
       exact OnTypes.addProjections ihCtors
     | decl hd hwf IH =>
       have hord := WF.ordered ⟨_, hwf⟩
@@ -302,52 +391,6 @@ instance : CoeOut (VEnv.WF env) env.OrderedStrong := ⟨(·.orderedStrong)⟩
 /-! ### Origin of a well-formed environment's contents -/
 
 namespace VEnv.WF'
-
-/-- Every declaration of a well-formed list is a well-formed step `env₀ ⊢ d ⤳ env₁` from the
-environment of the remaining suffix, and the environment it produces is a prefix of `env`. -/
-theorem step_of_mem {ds : List VDecl} {env : VEnv} (H : env.WF' ds) {d : VDecl}
-    (hd : d ∈ ds) :
-    ∃ (ds₀ : List VDecl) (env₀ env₁ : VEnv),
-      (d :: ds₀) <:+ ds ∧ env₀.WF' ds₀ ∧ VDecl.WF env₀ d env₁ ∧ env.WFPrefix env₁ := by
-  induction H with
-  | empty => cases hd
-  | decl hwf H ih =>
-    rcases List.mem_cons.1 hd with rfl | hd'
-    · exact ⟨_, _, _, List.suffix_refl _, H, hwf, .rfl⟩
-    · obtain ⟨ds₀, env₀, env₁, hs, h₀, h₁, hp⟩ := ih hd'
-      exact ⟨ds₀, env₀, env₁, hs.trans (List.suffix_cons _ _), h₀, h₁, .decl hwf hp⟩
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
-    obtain ⟨ds₀, env₀, env₁, hs, h₀, h₁, hp⟩ := ihCtors hd
-    exact ⟨ds₀, env₀, env₁, hs, h₀, h₁, .projs hp⟩
-
-/-- An inductive block of a well-formed list was added by a well-formed `addInduct` step,
-whose result is a sub-environment of `env`. -/
-theorem induct_origin {ds : List VDecl} {env : VEnv} (H : env.WF' ds) {decl : VInductDecl}
-    (hd : VDecl.induct decl ∈ ds) :
-    ∃ env₀ env₁, decl.WF env₀ ∧ env₀.addInduct decl = some env₁ ∧ env₁ ≤ env := by
-  obtain ⟨_, _, _, _, _, h, hp⟩ := H.step_of_mem hd
-  cases h with | induct hdecl hadd => exact ⟨_, _, hdecl, hadd, hp.le⟩
-
-/-- Every constant of a well-formed environment was introduced by exactly one step of its
-declaration list: absent before that step, bound to its final value after it. -/
-theorem consts_origin {ds : List VDecl} {env : VEnv} (H : env.WF' ds) {c : Name}
-    {ci : VConstant} (hc : env.constants c = some ci) :
-    ∃ (d : VDecl) (ds₀ : List VDecl) (env₀ env₁ : VEnv),
-      (d :: ds₀) <:+ ds ∧ env₀.WF' ds₀ ∧ VDecl.WF env₀ d env₁ ∧ env₁ ≤ env ∧
-      env₀.constants c = none ∧ env₁.constants c = some ci := by
-  induction H with
-  | empty => cases hc
-  | @decl d env' ds env hwf H ih =>
-    cases h₀ : env.constants c with
-    | none => exact ⟨d, ds, env, env', List.suffix_refl _, H, hwf, .rfl, h₀, hc⟩
-    | some ci₀ =>
-      obtain rfl : ci₀ = ci := Option.some.inj ((hwf.le.constants h₀).symm.trans hc)
-      obtain ⟨d₁, ds₀, env₀, env₁, hs, h₁, h₂, hle, h₃, h₄⟩ := ih h₀
-      exact ⟨d₁, ds₀, env₀, env₁, hs.trans (List.suffix_cons _ _), h₁, h₂, hle.trans hwf.le,
-        h₃, h₄⟩
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
-    obtain ⟨d₁, ds₀, env₀, env₁, hs, h₁, h₂, hle, h₃, h₄⟩ := ihCtors (by simpa using hc)
-    exact ⟨d₁, ds₀, env₀, env₁, hs, h₁, h₂, hle.trans addProjections_le, h₃, h₄⟩
 
 /-- Every definitional axiom headed by a constant `c` has `c` declared, and is the only
 definitional axiom headed by `c`. -/
@@ -411,9 +454,9 @@ private theorem DefEqsConst.addDefEqs : ∀ {env : VEnv} {cis : List VDefVal},
 
 private theorem defEqsConst {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
     DefEqsConst env := by
-  induction H with
+  induction H using VEnv.WF'.stageInduction with
   | empty => intro _ _ _ h; cases h
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
+  | inductProjections _ _ _ _ _ _ ihCtors =>
     exact ihCtors.mono addProjections_le (addProjections_defeqs _ _)
   | decl hwf _ ih =>
     cases hwf with

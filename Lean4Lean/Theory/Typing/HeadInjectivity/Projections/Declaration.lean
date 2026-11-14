@@ -4,7 +4,8 @@ import Lean4Lean.Theory.Typing.EnvLemmas
 
 Every projection entry of an environment in the history `VEnv.WF'` is the entry of a
 single-constructor family of an inductive declaration `decl`. The entry is installed, either
-by the `induct` declaration or by an `inductProjections` step, on top of an earlier
+by the `induct` declaration or by its constructor-and-projection prefix
+(`VEnv.WF'.inductProjections`), on top of an earlier
 environment `base` of the history. The constructor's type is well formed in
 `envTypes = base.addConstVals decl.typeConstants`, itself well formed (the headers are
 axiom steps over `base`). That environment has the rules, patterns and projections of

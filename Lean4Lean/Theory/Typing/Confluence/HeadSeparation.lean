@@ -26,9 +26,9 @@ private theorem toDefEq_head (ci : VDefVal) {n : Name} {ls : List VLevel}
   exact (VExpr.const.inj h).1
 
 private theorem headsDisjoint {ds : List VDecl} (H : env.WF' ds) : HeadsDisjoint env := by
-  induction H with
+  induction H using VEnv.WF'.stageInduction with
   | empty => intro _ h; cases h
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
+  | inductProjections _ _ _ _ _ _ ihCtors =>
     intro df hdf p r hp ls
     exact ihCtors df (by simpa using hdf) p r (by simpa using hp) ls
   | @decl d env' ds env hd H ih =>
@@ -96,9 +96,9 @@ private def QuotLiftUnique (env : VEnv) : Prop :=
   env.defeqs quotDefEq → ∀ df, env.defeqs df → ∀ ls, df.lhs ≠ .const ``Quot.lift ls
 
 private theorem quotLiftUnique {ds : List VDecl} (H : env.WF' ds) : QuotLiftUnique env := by
-  induction H with
+  induction H using VEnv.WF'.stageInduction with
   | empty => intro h; cases h
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
+  | inductProjections _ _ _ _ _ _ ihCtors =>
     intro hq df hdf ls
     exact ihCtors (by simpa using hq) df (by simpa using hdf) ls
   | @decl d env' ds env hd H ih =>

@@ -1254,9 +1254,11 @@ inductive TrEnv' : ConstMap → Bool → VEnv → Prop where
     AddInduct safety C env decl C' env' →
     TrEnv' C Q env →
     TrEnv' C' Q env'
-  /-- The projection stage of an inductive declaration (`VInductDecl.addProjs`,
-  `VEnv.WF'.inductProjections`): projection entries registered in a well-formed environment add
-  no kernel constant. This is the environment the recursors of a block are checked in. -/
+  /-- The projection stage of an inductive declaration (`VInductDecl.addProjs`): projection
+  entries add no kernel constant. That the resulting environment is well formed is a premise;
+  it is the constructor-and-projection prefix of the declaration
+  (`VEnv.WF'.inductProjections`). This is the environment the recursors of a block are checked
+  in. -/
   | inductProjections {entries : List VProjectionEntry} :
     (env.addProjections entries).WF →
     TrEnv' C Q env →

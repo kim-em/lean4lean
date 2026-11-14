@@ -204,7 +204,7 @@ theorem WF'.envValid {envF : VEnv} {dsF : List VDecl} (HF : envF.WF' dsF) :
     fun _ h => hF.installedCtor_resultRigid h
   have hpctor : ∀ c, Model.IsProjCtor envF c → envF.Rigid c := fun _ h => hF.projCtor_rigid h
   intro ds env H
-  induction H with
+  induction H using VEnv.WF'.stageInduction with
   | empty =>
     intro _ _ _ _ _
     exact ⟨fun df h => (by cases h), fun _ _ h => (by cases h), fun _ _ h => (by cases h)⟩
@@ -279,31 +279,31 @@ theorem WF'.envValid {envF : VEnv} {dsF : List VDecl} (HF : envF.WF' dsF) :
           hQ.1 hQ.2 hdfF
       · exact V0.rule df hdf
     | induct _ hadd => exact V0.rule df (by rwa [addInduct_defeqs hadd] at hdf)
-  | @inductProjections _ ds base envTypes envCtors decl block hbase hctorsW hsource htypesWF
-      hconstructorUvars hctorsWF' hspw hshape htypesSource hctorsSource hprojections htypes
-      hctors _ ihCtors =>
+  | @inductProjections base envTypes envCtors decl ds _
+      hbase _ hstage htypes hctors ihBase _ =>
+    have hspw := hstage.formation.sourceParameterWF htypes
     intro hle hpre hds hcl hpc
+    have hBle := hstage.le
     have hCF : envCtors ≤ envF := addProjections_le.trans hle
-    have hclC : HeadsClosed envF envCtors := fun df h n ls h' ⟨ci, hci⟩ => by
-      simpa using hcl df h n ls h' ⟨ci, by simpa using hci⟩
-    have hpcC : PatsClosed envF envCtors := fun p r hp ⟨ci, hci⟩ => by
-      simpa using hpc p r hp ⟨ci, by simpa using hci⟩
-    have VC := ihCtors hCF (hpre.trans (.projs .rfl)) hds hclC hpcC
-    have VT : Model.EnvValid envF envTypes := VC.of_sub
-      (fun df h => by rwa [addConstVals_defeqs hctors])
-      (fun n p h => by rwa [addConstVals_projections hctors])
-      (fun p r h => by rwa [addConstVals_pats hctors])
+    have hclB : HeadsClosed envF base := hcl.down (new := []) hBle
+      (fun df h => .inr (by rwa [hstage.defeqs_eq] at h)) nofun
+    have hpcB : PatsClosed envF base := fun p r hp ⟨ci, hci⟩ => by
+      have := hpc p r hp ⟨ci, hBle.constants hci⟩
+      rwa [hstage.pats_eq] at this
+    have VB : Model.EnvValid envF base :=
+      ihBase (hBle.trans hle) (hpre.trans (.inductProjections hstage .rfl))
+        (fun d hd => hds d (.tail _ hd)) hclB hpcB
+    have VT : Model.EnvValid envF envTypes := VB.addConstVals htypes
+    have VC : Model.EnvValid envF envCtors := VT.addConstVals hctors
     refine ⟨fun df hdf => VC.rule df (by simpa using hdf), fun S info hp => ?_,
       fun p r hp => VC.pat p r (by simpa using hp)⟩
     have hpF := hle.projections hp
     rw [addProjections_iff] at hp
     rcases hp with ⟨entry, hentry, rfl, rfl⟩ | hold
-    · rw [hprojections] at hentry
-      have htypes' := htypes
-      rw [htypesSource] at htypes'
-      exact Model.ProjValid.of_origin hF hpF (ProjDeclAt.ofEntry hbase htypes'
-        ((addConstVals_le hctors).trans hCF) htypesWF hctorsWF' hconstructorUvars hshape
-        hsource hspw hentry) VT
+    · exact Model.ProjValid.of_origin hF hpF (ProjDeclAt.ofEntry hbase htypes
+        ((addConstVals_le hctors).trans hCF) hstage.source.sourceTypes
+        (hstage.source.constructorsWF_at htypes) hstage.source.2.2.2.1 hspw.rawCtorShape
+        hstage.source.2.1 hspw hentry) VT
     · exact VC.proj _ _ hold
 
 /-- **Soundness of the glued observation model** for every well-formed environment. -/

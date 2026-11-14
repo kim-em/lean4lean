@@ -30,32 +30,8 @@ variable {c : AddInductive.Context} {Hc : ContextWF c} {nparams : Nat}
   {sourceTypes : List InductiveType} {isUnsafe : Bool} {outEnv : Environment}
 
 /-- The projection stage of the restored block is well formed. -/
-theorem envP_wf (B : RestoredBlock L sourceTypes isUnsafe outEnv) : B.envP.WF := by
-  have hsrc := B.compiled.sourceWF
-  obtain ⟨_, hnodup, -, hcu, -⟩ := hsrc
-  have htypesWF : ∀ type ∈ B.decl.types, type.toVConstant.WF Hc.venv :=
-    TrInductDeclCore.typeHeadersWF B.source
-  have hctorsWF : ∀ ci ∈ B.decl.constructorConstants, ci.toVConstant.WF B.envTypes := by
-    intro ci hci
-    simp only [VInductDecl.constructorConstants, List.mem_flatMap] at hci
-    obtain ⟨t, ht, hci⟩ := hci
-    obtain ⟨_, _, Ht⟩ := List.Forall₂.forall_exists_r B.source.types t ht
-    obtain ⟨_, _, Hc⟩ := List.Forall₂.forall_exists_r Ht.ctors ci hci
-    exact Hc.wf
-  have hT : B.envTypes.WF := VEnv.WF.addConstVals Hc.wf
-    (by
-      intro ci hci
-      simp only [VInductDecl.typeConstants, List.mem_map] at hci
-      obtain ⟨t, ht, rfl⟩ := hci
-      exact htypesWF t ht)
-    B.source.typesAdded
-  have hC : B.envCtors.WF := VEnv.WF.addConstVals hT hctorsWF B.source.ctorsAdded
-  have := VEnv.WF.inductProjections (block := B.block) Hc.wf hC hnodup htypesWF hcu hctorsWF
-    B.compiled.sourceParameters B.compiled.sourceParameters.rawCtorShape B.compiled.types
-    B.compiled.ctors B.compiled.projections (B.compiled.types ▸ B.source.typesAdded)
-    (B.compiled.ctors ▸ B.source.ctorsAdded)
-  rw [B.compiled.projections] at this
-  exact this
+theorem envP_wf (B : RestoredBlock L sourceTypes isUnsafe outEnv) : B.envP.WF :=
+  TrInductDeclCore.projectionStageWF B.source Hc.wf (.nested B.formation .rfl)
 
 /-- The restored recursor stage is well formed. -/
 theorem envR_wf (B : RestoredBlock L sourceTypes isUnsafe outEnv) : B.envR.WF := by

@@ -23,9 +23,9 @@ open InductiveSignature
 /-- The stored quotient rule is installed only with the quotient declaration. -/
 theorem WF'.quotRegistered {env : VEnv} {ds : List VDecl} (H : env.WF' ds)
     (hq : env.defeqs quotDefEq) : QuotRegistered env := by
-  induction H with
+  induction H using VEnv.WF'.stageInduction with
   | empty => cases hq
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
+  | inductProjections _ _ _ _ _ _ ihCtors =>
     exact (ihCtors (by simpa using hq)).mono addProjections_le
   | @decl d env' ds env hd H ih =>
     have old : env.defeqs quotDefEq → QuotRegistered env' := fun h => (ih h).mono hd.le

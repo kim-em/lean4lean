@@ -87,7 +87,7 @@ theorem defeqs_addDefEq {env : VEnv} : (env.addDefEq d).defeqs df ↔ df ∈ [d]
   simp [VEnv.addDefEq]
 
 theorem WF'.deltaRules {env : VEnv} (H : env.WF' ds) : env.DeltaRules := by
-  induction H with
+  induction H using VEnv.WF'.stageInduction with
   | empty => exact ⟨nofun, nofun, nofun⟩
   | @decl d env' ds env hdecl hbase ih =>
     have hW : env.WF := ⟨ds, hbase⟩
@@ -201,7 +201,7 @@ theorem WF'.deltaRules {env : VEnv} (H : env.WF' ds) : env.DeltaRules := by
       rcases VEnv.addInduct_pats_origin hadd hp with hold | ⟨rec, hrec, ru, hru, rfl⟩
       · exact .inl hold
       · exact .inr (by rw [SimplePattern.iota_headConst]; exact VEnv.addInduct_rec_fresh hadd hrec)
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+  | inductProjections _ _ _ _ _ _ ih =>
     exact ⟨fun df hdf n ls h => by simpa using ih.const df (by simpa using hdf) n ls h,
       fun df df' hdf hdf' => ih.excl df df' (by simpa using hdf) (by simpa using hdf'),
       fun df hdf n ls h p r hp => ih.pats df (by simpa using hdf) n ls h p r (by simpa using hp)⟩

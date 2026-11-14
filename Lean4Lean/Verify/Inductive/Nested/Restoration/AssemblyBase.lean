@@ -370,14 +370,7 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
   -- the projection stage and the constructor side environment
   have hprojectedWF : (sourceCore.envCtors.addProjections
       sourceCore.sourceDecl.projectionEntries).WF :=
-    VEnv.WF.inductProjections (block := ⟨sourceCore.sourceDecl.typeConstants,
-        sourceCore.sourceDecl.constructorConstants, [], [],
-        sourceCore.sourceDecl.projectionEntries⟩)
-      HcChecker.wf sourceCore.validationValid.tr.wf
-      (TrInductDeclCore.sourceNames_nodup Hcore)
-      (TrInductDeclCore.typeHeadersWF Hcore) (TrInductDeclCore.constructorUvars Hcore)
-      (TrInductDeclCore.constructorsWF Hcore) Hparameters Hparameters.rawCtorShape
-      rfl rfl rfl Hcore.typesAdded Hcore.ctorsAdded
+    TrInductDeclCore.projectionStageWF Hcore HcChecker.wf (.nested D.formation .rfl)
   have HtypeValid := validationEnvironment.validProjected Hlower Hc Hprod Hcore Hmetadata
     Hchecked Harity hempty restoration sourceCore.validationValid HcChecker.toValid hprojectedWF
   have hle : Hc.venv ≤ sourceCore.envCtors.addProjections

@@ -45,60 +45,44 @@ inductive VDecl.WF : VEnv → VDecl → VEnv → Prop where
     env.addInduct decl = some env' →
     VDecl.WF env (.induct decl) env'
 
+/-- The constructor-and-projection prefix of an inductive declaration: `env'` is `env` extended
+by the type formers and constructors of `decl` as fresh constants and by the projection entries
+of its structures (`VInductDecl.addTypesCtorsProjs`), and `decl` satisfies in `env` the source
+and formation judgments of `VInductDecl.WF`: headers and constructors typed, distinct names,
+strict positivity (unless `decl.isUnsafe`) and the universe bound, for an ordinary declaration
+or through a finite nested expansion. The recursors of `decl` play no role: neither the
+judgments nor `addTypesCtorsProjs` read `decl.recs`. -/
+structure VInductDecl.ProjectionStage (env : VEnv) (decl : VInductDecl) (env' : VEnv) :
+    Prop where
+  /-- The source judgment, as in `VInductDecl.WF.source`. -/
+  source : decl.SourceWF env
+  /-- The formation judgment, as in `VInductDecl.WF.formation`. -/
+  formation : decl.FormationWF env
+  /-- Stages 0 to 2 of `VEnv.addInduct`, from `env`. -/
+  install : decl.addTypesCtorsProjs env = some env'
+
 inductive VEnv.WF' : List VDecl → VEnv → Prop where
   | empty : VEnv.WF' [] .empty
   | decl {env} : VDecl.WF env d env' → env.WF' ds → env'.WF' (d::ds)
-  /-- The projection stage of an inductive declaration (`VInductDecl.addProjs`; the premise that
-  the constructor-complete environment is well formed is what makes the stage well formed): register
-  the projection entries of a declaration whose type formers and constructors are present
-  and well formed, before its recursors are checked. The checker runs that happen in the
-  recursor-checking environment therefore run in a well-formed environment, which every
-  checker theorem requires. Both the source base and the constructor-complete environment
-  retain declaration traces; the remaining premises tie the new metadata to that precise
-  prefix (they are what `Ordered.projectionShape` reads off a registered entry). -/
-  | inductProjections {base envTypes envCtors : VEnv}
-      {decl : VInductDecl} {block : VInductBlock} :
-    VEnv.WF' baseDecls base →
-    VEnv.WF' ds envCtors →
-    decl.sourceNames.Nodup →
-    (∀ type ∈ decl.types, type.toVConstant.WF base) →
-    (∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars) →
-    (∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes) →
-    decl.SourceParameterWF base →
-    (∀ type ∈ decl.types, ∀ ctor ∈ type.ctors, decl.RawCtorShape type ctor) →
-    block.types = decl.typeConstants →
-    block.ctors = decl.constructorConstants →
-    block.projections = decl.projectionEntries →
-    base.addConstVals block.types = some envTypes →
-    envTypes.addConstVals block.ctors = some envCtors →
-    VEnv.WF' ds (envCtors.addProjections block.projections)
+  /-- The constructor-and-projection prefix of an inductive declaration
+  (`VInductDecl.ProjectionStage`) extends a well-formed environment to a well-formed
+  environment. The executable checks the generated recursors of a declaration in this
+  environment, before `VInductDecl.WF` is known, and every checker theorem requires a
+  well-formed environment. The stage introduces its own type formers and constructors and
+  imposes the source and formation conditions of the full declaration, so it is the full
+  declaration step `VDecl.WF.induct` without the recursor and ι-rule stages, and the history
+  records it as `.induct decl`: an entry `.induct decl` of a history stands for the whole
+  declaration or for this prefix of it. -/
+  | inductProjections {env} {decl : VInductDecl} :
+    decl.ProjectionStage env env' → env.WF' ds → env'.WF' (.induct decl :: ds)
 
 def VEnv.WF (env : VEnv) : Prop := ∃ ds, VEnv.WF' ds env
 
-/-- Register the projection table of one exact inductive prefix before its
-recursors are installed. -/
-theorem VEnv.WF.inductProjections
-    {base envTypes envCtors : VEnv} {decl : VInductDecl}
-    {block : VInductBlock}
-    (hbase : base.WF) (hctorsWF : envCtors.WF)
-    (hsource : decl.sourceNames.Nodup)
-    (htypesWF : ∀ type ∈ decl.types, type.toVConstant.WF base)
-    (hconstructorUvars :
-      ∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars)
-    (hctorsWF' : ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes)
-    (hparams : decl.SourceParameterWF base)
-    (hshape : ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors, decl.RawCtorShape type ctor)
-    (htypesSource : block.types = decl.typeConstants)
-    (hctorsSource : block.ctors = decl.constructorConstants)
-    (hprojections : block.projections = decl.projectionEntries)
-    (htypes : base.addConstVals block.types = some envTypes)
-    (hctors : envTypes.addConstVals block.ctors = some envCtors) :
-    (envCtors.addProjections block.projections).WF := by
-  rcases hbase with ⟨baseDecls, hbase⟩
-  rcases hctorsWF with ⟨decls, hctorsWF⟩
-  exact ⟨decls, .inductProjections hbase hctorsWF hsource htypesWF
-    hconstructorUvars hctorsWF' hparams hshape htypesSource hctorsSource hprojections
-    htypes hctors⟩
+/-- The constructor-and-projection prefix of an inductive declaration over a well-formed
+environment is well formed. -/
+theorem VEnv.WF.inductProjections {env env' : VEnv} {decl : VInductDecl}
+    (henv : env.WF) (hstage : decl.ProjectionStage env env') : env'.WF :=
+  let ⟨_, henv⟩ := henv; ⟨_, .inductProjections hstage henv⟩
 
 /-- `env₀` is the environment reached by a prefix of `env`'s declaration list: `env` extends
 `env₀` by a run of well-formed declarations. The environments the strengthening argument
@@ -106,10 +90,10 @@ walks through (`VEnv.WF.strong`) are these and their extensions by constants alo
 inductive VEnv.WFPrefix : VEnv → VEnv → Prop where
   | rfl : VEnv.WFPrefix env env
   | decl {d} : VDecl.WF env d env' → VEnv.WFPrefix env env₀ → VEnv.WFPrefix env' env₀
-  /-- The projection stage of an inductive declaration (`VEnv.WF'.inductProjections`) is a
-  step of the history too. -/
-  | projs {entries : List VProjectionEntry} :
-    VEnv.WFPrefix env env₀ → VEnv.WFPrefix (env.addProjections entries) env₀
+  /-- The constructor-and-projection prefix of an inductive declaration
+  (`VEnv.WF'.inductProjections`) is a step of the history too. -/
+  | inductProjections {decl : VInductDecl} :
+    decl.ProjectionStage env env' → VEnv.WFPrefix env env₀ → VEnv.WFPrefix env' env₀
 
 /-- A prefix of a prefix is a prefix. -/
 theorem VEnv.WFPrefix.trans {env env₁ env₂ : VEnv}
@@ -117,4 +101,4 @@ theorem VEnv.WFPrefix.trans {env env₁ env₂ : VEnv}
   induction h₁ with
   | rfl => exact h₂
   | decl hd _ ih => exact .decl hd (ih h₂)
-  | projs _ ih => exact .projs (ih h₂)
+  | inductProjections hs _ ih => exact .inductProjections hs (ih h₂)

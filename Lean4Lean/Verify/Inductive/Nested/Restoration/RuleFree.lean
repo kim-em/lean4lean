@@ -601,7 +601,6 @@ theorem NestedRun.strippedValid {ves : VEnvs} {res : ElimNestedInductive.Result}
       lparams nparams isUnsafe (safetyOf isUnsafe))
     (hB : B.loweredDecl = E.lowered.loweredDecl) (wf : ves.WF sourceProdEnv)
     (Hsources : SourceSyntaxChecked sourceTypes)
-    (Hparameters : decl.SourceParameterWF (ves.venv (safetyOf isUnsafe)))
     (hk : ∀ r ∈ E.restoration.rvals, r.k = false)
     (hshapes : ∀ r ∈ E.restoration.rvals,
       (if isUnsafe then DefinitionSafety.unsafe else .safe) ≤ (ConstantInfo.recInfo r).safety →
@@ -643,13 +642,8 @@ theorem NestedRun.strippedValid {ves : VEnvs} {res : ElimNestedInductive.Result}
     Hexact.transferForallSameTarget Hprim.fresh hwf Hprim.nonprimitive ci
       (hperm.mem_iff.mpr hci)
   have henvP : (decl.addProjs B.install.venvCtors).WF :=
-    VEnv.WF.inductProjections (block := ⟨decl.typeConstants, decl.constructorConstants, [], [],
-        decl.projectionEntries⟩)
-      hin.tr.wf (TrInductDeclCore.envCtorsWF hcore hin.tr.wf)
-      (TrInductDeclCore.sourceNames_nodup hcore)
-      (TrInductDeclCore.typeHeadersWF hcore) (TrInductDeclCore.constructorUvars hcore)
-      (TrInductDeclCore.constructorsWF hcore) Hparameters Hparameters.rawCtorShape
-      rfl rfl rfl hcore.typesAdded hcore.ctorsAdded
+    TrInductDeclCore.projectionStageWF hcore hin.tr.wf
+      (.nested B.formationAssembly.formation .rfl)
   have htypeUvars : ∀ T ∈ decl.types, T.uvars = decl.uvars := by
     intro T hT
     rcases Lean4Lean.List.Forall₂.forall_exists_r hcore.types T hT with ⟨_, _, HT⟩

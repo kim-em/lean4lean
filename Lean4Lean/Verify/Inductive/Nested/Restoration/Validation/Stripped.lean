@@ -32,7 +32,7 @@ structure RuleFreeStage (safety : DefinitionSafety) (env : Environment) (venv : 
   /-- The declaration carries no rule. -/
   rules_empty : ∀ r ∈ decl.recs, r.rules = []
   quotInit : S.quotInit = env.quotInit
-  /-- The projection stage is a well-formed environment (`VEnv.WF.inductProjections`). -/
+  /-- The projection stage is a well-formed environment (`TrInductDeclCore.projectionStageWF`). -/
   envP_wf : H.envP.WF
   /-- The recursor types are types of the projection stage. -/
   recs_wf : ∀ r ∈ decl.recs, r.toVConstVal.toVConstant.WF H.envP

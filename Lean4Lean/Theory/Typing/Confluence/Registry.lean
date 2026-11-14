@@ -75,10 +75,10 @@ theorem WFH.oneRecursor {ds : List VDecl} {hs : List VEnv} (H : env.WFH ds hs) {
     OneRecursor env hs name := by
   induction H with
   | empty => obtain ⟨p, r, hp, -⟩ := hex; cases hp
-  | projs _ _ ihCtors =>
+  | inductProjections hstage _ _ ih =>
     obtain ⟨p, r, hp, hh⟩ := hex
-    exact (ihCtors ⟨p, r, by simpa using hp, hh⟩).mono addProjections_le (fun _ h => h)
-      (fun p r hp _ => by simpa using hp)
+    exact (ih ⟨p, r, hstage.pats_eq ▸ hp, hh⟩).mono hstage.le (fun _ h => h)
+      (fun p r hp _ => hstage.pats_eq ▸ hp)
   | @decl env env' d ds hs hd H _ ih =>
     have hW : env.WF := ⟨ds, H⟩
     rcases hd.pats_eq_or_induct' with hpats | ⟨decl, rfl, hdecl, hadd⟩
@@ -341,9 +341,9 @@ theorem addDefEqs_constants' : ∀ {cis : List VDefVal} {e : VEnv},
 theorem WF'.defeqs_origin {ds : List VDecl} (H : env.WF' ds) {df : VDefEq}
     (hdf : env.defeqs df) :
     df = quotDefEq ∨ ∃ value, DefinitionRegistered env value ∧ df = value.toDefEq := by
-  induction H generalizing df with
+  induction H using VEnv.WF'.stageInduction generalizing df with
   | empty => cases hdf
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
+  | inductProjections _ _ _ _ _ _ ihCtors =>
     rcases ihCtors (by simpa using hdf) with h | ⟨value, hv, h⟩
     · exact .inl h
     · exact .inr ⟨value, hv.mono addProjections_le, h⟩

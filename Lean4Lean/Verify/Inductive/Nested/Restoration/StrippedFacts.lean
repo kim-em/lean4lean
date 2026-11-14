@@ -57,7 +57,6 @@ theorem NestedRun.strippedChecker {ves : VEnvs} {res : ElimNestedInductive.Resul
       lparams nparams isUnsafe (safetyOf isUnsafe))
     (hB : B.loweredDecl = E.lowered.loweredDecl) (wf : ves.WF sourceProdEnv)
     (Hsources : SourceSyntaxChecked sourceTypes)
-    (Hparameters : decl.SourceParameterWF (ves.venv (safetyOf isUnsafe)))
     (hnested : res.aux2nested.size ≠ 0) :
     CheckingEnv.Valid (safetyOf isUnsafe) (stripRecursorRules outEnv
         (restoredRecursorNames (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
@@ -67,7 +66,7 @@ theorem NestedRun.strippedChecker {ves : VEnvs} {res : ElimNestedInductive.Resul
             sourceTypes (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1))
           B.recursorVEnv := by
   have hk := E.restored_k_false B.sourceNonempty hnested
-  have H := E.strippedValid B hB wf Hsources Hparameters hk
+  have H := E.strippedValid B hB wf Hsources hk
     (fun r hr _ => E.restoredRecursorTelescopes wf Hsources B hB hk r hr)
   exact ⟨H.1, H.2 (wf.toVEnvAt _).toCheckerEnv⟩
 

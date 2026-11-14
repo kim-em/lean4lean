@@ -74,10 +74,11 @@ theorem WF'.pats_origin {ds : List VDecl} {env : VEnv} (H : env.WF' ds) {p rr}
     · rcases addInduct_pats_origin' hind hp with hold | rest
       · exact .inl hold
       · exact .inr ⟨decl, hd_eq, hdecl, hind, rest⟩
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
+  | inductProjections hstage _ ih =>
     obtain ⟨decl, ds₀, env₀, env₁, hsuf, hwf', hdecl, hadd, hle, rest⟩ :=
-      ihCtors (by simpa only [VEnv.addProjections_pats] using hp)
-    exact ⟨decl, ds₀, env₀, env₁, hsuf, hwf', hdecl, hadd, hle.trans addProjections_le, rest⟩
+      ih (hstage.pats_eq ▸ hp)
+    exact ⟨decl, ds₀, env₀, env₁, hsuf.trans (List.suffix_cons _ _), hwf', hdecl, hadd,
+      hle.trans hstage.le, rest⟩
 
 /-! ### The population invariant -/
 
@@ -187,7 +188,7 @@ theorem PatsIota.induct {env env' : VEnv} {decl : VInductDecl} (H : env.PatsIota
 /-- Every well-formed environment satisfies the pattern population invariant. -/
 theorem WF.patsIota {env : VEnv} (H : env.WF) : env.PatsIota := by
   obtain ⟨ds, H⟩ := H
-  induction H with
+  induction H using VEnv.WF'.stageInduction with
   | empty =>
     constructor
     · intro p rr h; exact (h : False).elim
@@ -198,7 +199,7 @@ theorem WF.patsIota {env : VEnv} (H : env.WF) : env.PatsIota := by
     rcases hd.pats_eq_or_induct with heq | ⟨decl, hwf, hind⟩
     · exact ih.of_le heq hd.le
     · exact ih.induct hwf hind
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
+  | inductProjections _ _ _ _ _ _ ihCtors =>
     exact ihCtors.of_le (addProjections_pats _ _) addProjections_le
 
 end VEnv

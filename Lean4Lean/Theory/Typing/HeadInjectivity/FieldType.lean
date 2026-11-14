@@ -32,13 +32,12 @@ theorem Ordered.projection_rawShape {env : VEnv} (H : env.Ordered)
     rw [VEnv.addConst_projections hadd] at hprojection
     exact ih hprojection
   | defeq _ _ ih => exact ih hprojection
-  | @inductProjections base envTypes envCtors decl block
-      hbase hctorsOrdered hsource htypesWF hconstructorUvars _hctorsWF _hparams hshape
-      htypesSource hctorsSource hprojections htypes hctors ihBase ihCtors =>
+  | @inductProjections base envTypes envCtors decl
+      hbase hctorsOrdered _ hparams htypes hctors ihBase ihCtors =>
+    have hshape := hparams.rawCtorShape
     rw [VEnv.addProjections_iff] at hprojection
     rcases hprojection with hnew | hold
     · rcases hnew with ⟨entry, hentry, rfl, rfl⟩
-      rw [hprojections] at hentry
       rcases VInductDecl.projectionEntries_origin hentry with
         ⟨type, htype, ctor, htypeCtors, rfl⟩
       obtain ⟨doms, result, h1, h2, _, h4⟩ := hshape type htype ctor (by simp [htypeCtors])

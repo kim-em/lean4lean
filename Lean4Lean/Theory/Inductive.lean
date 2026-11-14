@@ -798,17 +798,6 @@ theorem VInductDecl.WF.rules_ctor_shape {env : VEnv} {decl : VInductDecl}
         ci.type.CtorShape (ru.ctorParams + ru.nfields) :=
   hwf.rules_ctor
 
-/-- Source constructor typing at the exact header environment named by an
-installation. -/
-theorem VInductDecl.SourceWF.constructorsWF_at
-    {env envTypes : VEnv} {decl : VInductDecl}
-    (H : decl.SourceWF env)
-    (htypes : env.addConstVals decl.typeConstants = some envTypes) :
-    ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes := by
-  rcases H.sourceConstructors with ⟨envTypes', htypes', hwf⟩
-  cases Option.some.inj (htypes'.symm.trans htypes)
-  exact hwf
-
 /-- Both ordinary and nested formation retain the source
 parameter judgment at any environment in which the headers install. -/
 theorem VInductDecl.FormationWF.sourceParameterWF

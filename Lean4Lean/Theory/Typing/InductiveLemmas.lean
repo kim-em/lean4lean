@@ -204,7 +204,7 @@ theorem addTypesCtors_ordered {env envC : VEnv} {decl : VInductDecl}
 
 /-- Stage 2 keeps the environment `Ordered`: the projection entries of a well-formed
 declaration are registered once its type formers and constructors are present
-(`Ordered.inductProjections`, whose declaration-level premises are read off `SourceWF` and
+(`Ordered.inductProjections`, whose premises are `SourceWF` and the parameter judgment of
 `FormationWF`). -/
 theorem addProjs_ordered {env envC : VEnv} {decl : VInductDecl}
     (henv : Ordered env) (hdecl : decl.WF env) (hC : decl.addTypesCtors env = some envC)
@@ -212,11 +212,7 @@ theorem addProjs_ordered {env envC : VEnv} {decl : VInductDecl}
   obtain ⟨envT, hT, hC'⟩ := Option.bind_eq_some_iff.1 hC
   rw [VInductDecl.addTypes_eq_addConstVals] at hT
   rw [VInductDecl.addCtors_eq_addConstVals] at hC'
-  have hparams := hdecl.sourceParameterWF hT
-  exact Ordered.inductProjections
-    (block := ⟨decl.typeConstants, decl.constructorConstants, [], [], decl.projectionEntries⟩)
-    henv hordC hdecl.source.2.1 hdecl.source.sourceTypes hdecl.source.2.2.2.1
-    (hdecl.source.constructorsWF_at hT) hparams hparams.rawCtorShape rfl rfl rfl hT hC'
+  exact Ordered.inductProjections henv hordC hdecl.source (hdecl.sourceParameterWF hT) hT hC'
 
 /-- Stages 0–2 keep the environment `Ordered`. -/
 theorem addTypesCtorsProjs_ordered {env envP : VEnv} {decl : VInductDecl}
@@ -1018,13 +1014,15 @@ theorem Ordered.projectionShape {env : VEnv} (H : Ordered env)
     exact ⟨decl, type, ctor, htype, hctor, hname, hctorUvars, huvars, hnparams,
       hindices, hlevel, hctorName, hctorType, hle.constants hlookup, hwf.mono hle,
       ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw, hnodup⟩
-  | @inductProjections base envTypes envCtors decl block
-      hbase hctorsOrdered hsource htypesWF hconstructorUvars hctorsWF hparams hshape
-      htypesSource hctorsSource hprojections htypes hctors ihBase ihCtors =>
+  | @inductProjections base envTypes envCtors decl
+      hbase hctorsOrdered hsrc hparams htypes hctors ihBase ihCtors =>
+    have hsource := hsrc.2.1
+    have hconstructorUvars := hsrc.2.2.2.1
+    have hctorsWF := hsrc.constructorsWF_at htypes
+    have hshape := hparams.rawCtorShape
     rw [VEnv.addProjections_iff] at hproj
     rcases hproj with hnew | hold
     · rcases hnew with ⟨entry, hentry, rfl, rfl⟩
-      rw [hprojections] at hentry
       rcases VInductDecl.projectionEntries_origin hentry with
         ⟨type, htype, ctor, hctorsType, rfl⟩
       have hctorMem : ctor ∈ type.ctors := by
@@ -1033,23 +1031,21 @@ theorem Ordered.projectionShape {env : VEnv} (H : Ordered env)
       have hctorConst : ctor ∈ decl.constructorConstants := by
         simp only [VInductDecl.constructorConstants, List.mem_flatMap]
         exact ⟨type, htype, hctorMem⟩
-      have hle : envTypes ≤ envCtors.addProjections block.projections :=
+      have hle : envTypes ≤ envCtors.addProjections decl.projectionEntries :=
         (VEnv.addConstVals_le hctors).trans VEnv.addProjections_le
-      have hbaseLe : base ≤ envCtors.addProjections block.projections :=
+      have hbaseLe : base ≤ envCtors.addProjections decl.projectionEntries :=
         (VEnv.addConstVals_le htypes).trans hle
-      have htypeValue : type.toVConstVal ∈ block.types := by
-        rw [htypesSource]
+      have htypeValue : type.toVConstVal ∈ decl.typeConstants := by
         exact List.mem_map.mpr ⟨type, htype, rfl⟩
       have hlookup := hle.constants (VEnv.addConstVals_get htypes htypeValue)
       have huvars := hconstructorUvars ctor hctorConst
-      have hwf : (envCtors.addProjections block.projections).IsType
+      have hwf : (envCtors.addProjections decl.projectionEntries).IsType
           decl.uvars [] ctor.type := by
         have := (hctorsWF ctor hctorConst).mono hle
-        change (envCtors.addProjections block.projections).IsType
+        change (envCtors.addProjections decl.projectionEntries).IsType
           ctor.uvars [] ctor.type at this
         rwa [huvars] at this
-      have htypes' : base.addConstVals decl.typeConstants = some envTypes := by
-        rwa [htypesSource] at htypes
+      have htypes' : base.addConstVals decl.typeConstants = some envTypes := htypes
       rcases hparams with ⟨params, envTypes', htypes'', Htypes, Hctors, _⟩
       cases Option.some.inj (htypes''.symm.trans htypes')
       exact ⟨decl, type, ctor, htype, hctorMem, rfl, huvars, rfl, rfl, rfl, rfl,
@@ -1060,7 +1056,7 @@ theorem Ordered.projectionShape {env : VEnv} (H : Ordered env)
     · rcases ihCtors hold with ⟨decl', type, ctor, htype, hctor, hname, hctorUvars,
         huvars, hnparams, hindices, hlevel, hctorName, hctorType, hlookup, hwf,
         ⟨params, Hshape, Hparams⟩, Hraw, hnodup⟩
-      have hle : envCtors ≤ envCtors.addProjections block.projections :=
+      have hle : envCtors ≤ envCtors.addProjections decl.projectionEntries :=
         VEnv.addProjections_le
       exact ⟨decl', type, ctor, htype, hctor, hname, hctorUvars, huvars, hnparams,
         hindices, hlevel, hctorName, hctorType, hle.constants hlookup,

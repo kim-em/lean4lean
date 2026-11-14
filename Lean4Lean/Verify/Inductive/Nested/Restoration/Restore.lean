@@ -57,7 +57,7 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   obtain ⟨hperm, hfresh, hmap, hquot⟩ :=
     E.restoration.kernelOrder (ContextWF.initial wf (safetyOf isUnsafe) lparams
       false fuel).map_wf
-  obtain ⟨hV, Cstrip⟩ := E.strippedChecker B hBlowered wf Hchecked Hparameters hnested
+  obtain ⟨hV, Cstrip⟩ := E.strippedChecker B hBlowered wf Hchecked hnested
   obtain ⟨recs, auxiliaries, block, envR, outVEnv, hcontainers, hcompiled, hrecsOf, hrecsAdded,
     htrRecs, hrecs_wf, hrec_shape, hrules_nodup, hrules_ctor, hrules_ctorParams, hrule_shape,
     hrulesAdded, hrecShapes, hrecK, henvR, hequationsWF⟩ :=
