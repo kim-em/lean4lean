@@ -69,6 +69,13 @@ is, aligning the domains of two lifted abstractions with no type information. Th
 obligation holds in every normalising fragment; by the Klop example it fails in some
 environment with looping definitions.
 
+With canonical `Eq` the statement is also equivalent to its special case for one binder of type
+`∀ p : Prop, p` at the front of the context (`VEnv.Strengthening.absurdStrengthening_iff`,
+`Theory/Typing/Strengthening/AbsurdBinder.lean`; no `sorry`): such a binder inhabits every type,
+by casting the identity along `z ((A → A) = A)`, so any binder can be replaced by it. The
+statement therefore says that an absurd hypothesis adds no conversions between terms that do not
+mention it.
+
 **Fresh replay.** The executable keeps its caches across binders unconditionally, as the C++
 kernel does, so every binder exit of the checker moves cache facts with this theorem, whichever
 declaration is being checked. The prelude's declarations before `Eq` (`id`, `PUnit`, `True`,

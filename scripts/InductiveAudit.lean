@@ -9,6 +9,7 @@ import Lean4Lean.Theory.Typing.QuotPropInhabitant
 import Lean4Lean.Theory.Typing.RecursorRegistryInstallation
 import Lean4Lean.Theory.Typing.ConstructorCaptureTransport
 import Lean4Lean.Theory.Typing.Strengthening.Klop
+import Lean4Lean.Theory.Typing.Strengthening.AbsurdBinder
 import Lean4Lean.Verify.Replay
 
 /-! Audit the transitive dependency closure, including opaque theorem bodies.
@@ -150,3 +151,6 @@ elab "#inductive_audit " ids:ident* : command => do
 -- (`REFUTATION_ROOTS` in `scripts/check-inductive-audit.py`).
 #inductive_audit Lean4Lean.VEnv.Strengthening.not_weakN_iff_of_canonicalEq
 #inductive_audit Lean4Lean.VEnv.Strengthening.not_weakN_iff_of_setModel
+
+-- The reduction of strengthening to one absurd binder: a strict root (`REFUTATION_ROOTS`).
+#inductive_audit Lean4Lean.VEnv.Strengthening.absurdStrengthening_iff
