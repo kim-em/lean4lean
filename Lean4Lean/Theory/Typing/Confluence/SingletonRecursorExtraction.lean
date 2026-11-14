@@ -7,8 +7,7 @@ import Lean4Lean.Theory.Inductive.SignatureData
 import Lean4Lean.Theory.Inductive.RecursorData
 import Lean4Lean.Theory.VLevel
 import Lean4Lean.Theory.VExpr
-import Lean4Lean.Theory.InductBlock
-import Lean4Lean.Theory.DeclarationData
+import Lean4Lean.Theory.VDecl
 import Lean4Lean.Theory.VEnv
 import Lean4Lean.Theory.VDecl
 import Lean4Lean.Theory.Inductive.Restoration

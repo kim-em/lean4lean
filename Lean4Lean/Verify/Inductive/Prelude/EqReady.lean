@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Environment.Model
+import Lean4Lean.Verify.TypeChecker
 import Lean4Lean.Verify.Environment.Extension
 
 /-! # Canonical `Eq` in the safety-indexed models

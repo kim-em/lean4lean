@@ -66,9 +66,6 @@ theorem VLCtx.WF.fvwf : ∀ {Δ}, VLCtx.WF env U Δ → Δ.FVWF
   | [], h => h
   | _ :: _, ⟨h1, h2, _⟩ => ⟨h1.fvwf, h2⟩
 
-/-- The environment has a constant named `name`. -/
-def VEnv.contains (env : VEnv) (name : Name) := ∃ ci, env.constants name = some ci
-
 def VEnv.ContainsLits (env : VEnv) : Literal → Prop
   | .natVal _ => env.contains ``Nat
   | .strVal _ => env.contains ``Char.ofNat ∧ env.contains ``String.ofList

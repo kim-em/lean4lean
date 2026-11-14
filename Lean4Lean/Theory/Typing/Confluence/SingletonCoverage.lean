@@ -14,7 +14,7 @@ import Lean4Lean.Theory.Typing.SingletonExtraction.TelescopeTyping
 import Lean4Lean.Theory.Typing.EqTyping
 import Lean4Lean.Theory.Typing.Confluence.SingletonExtractionTyping
 import Lean4Lean.Theory.Typing.ProjectionLemmas
-import Lean4Lean.Theory.DeclarationData
+import Lean4Lean.Theory.VDecl
 import Lean4Lean.Theory.VExpr.Telescope
 import Lean4Lean.Theory.Typing.SignatureVars
 import Lean4Lean.Theory.Typing.Basic

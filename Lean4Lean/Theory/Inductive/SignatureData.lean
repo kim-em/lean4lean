@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.DeclarationData
+import Lean4Lean.Theory.VDecl
 
 /-! Normalized inductive signatures and total eliminator generation.
 

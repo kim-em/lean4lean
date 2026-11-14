@@ -1,8 +1,24 @@
-import Lean4Lean.Theory.ProjectionFieldType
+import Lean4Lean.Theory.VExpr
 import Lean4Lean.Theory.Typing.Pattern
-import Lean4Lean.Theory.InductBlock
+import Lean4Lean.Theory.ProjectionFieldType
 
 namespace Lean4Lean
+
+structure VConstant where
+  uvars : Nat
+  type : VExpr
+
+theorem VConstant.eq_of_fields {a b : VConstant}
+    (huvars : a.uvars = b.uvars) (htype : a.type = b.type) : a = b := by
+  cases a
+  cases b
+  simp_all
+
+structure VDefEq where
+  uvars : Nat
+  lhs : VExpr
+  rhs : VExpr
+  type : VExpr
 
 @[ext] structure VEnv where
   constants : Name → Option VConstant
@@ -34,6 +50,8 @@ def VEnv.empty : VEnv where
   projections _ _ := False
 
 instance : EmptyCollection VEnv := ⟨.empty⟩
+
+def VEnv.contains (env : VEnv) (name : Name) := ∃ ci, env.constants name = some ci
 
 def VEnv.addConst (env : VEnv) (name : Name) (ci : VConstant) : Option VEnv :=
   match env.constants name with

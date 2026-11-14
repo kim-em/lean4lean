@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.Basic
 import Lean4Lean.Theory.Typing.Pattern
+import Lean4Lean.Theory.VDecl
 
 /-! Concrete stored delta patterns of ordinary definitions. The right-hand
 side is the actual installed value, and lookup fixes one value per name. -/

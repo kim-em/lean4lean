@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.DeclarationData
+import Lean4Lean.Theory.ProjectionInfo
 
 /-! The field type of a primitive projection (`VProjectionInfo.fieldType`, read by the `projDF`
 rule) and its syntactic substitution lemmas.
