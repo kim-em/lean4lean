@@ -8,6 +8,7 @@ import Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLift
 import Lean4Lean.Theory.Typing.QuotPropInhabitant
 import Lean4Lean.Theory.Typing.RecursorRegistryInstallation
 import Lean4Lean.Theory.Typing.ConstructorCaptureTransport
+import Lean4Lean.Theory.Typing.Strengthening.Klop
 import Lean4Lean.Verify.Replay
 
 /-! Audit the transitive dependency closure, including opaque theorem bodies.
@@ -144,3 +145,8 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.VEnv.WF.patCoverage
 #inductive_audit Lean4Lean.VEnv.WF.singletonPatCoverageJ
 #inductive_audit Lean4Lean.VEnv.WF.patCoverageJ
+
+-- The refutation of the statement of `IsDefEqU.weakN_iff`: strict roots
+-- (`REFUTATION_ROOTS` in `scripts/check-inductive-audit.py`).
+#inductive_audit Lean4Lean.VEnv.Strengthening.not_weakN_iff_of_canonicalEq
+#inductive_audit Lean4Lean.VEnv.Strengthening.not_weakN_iff_of_setModel

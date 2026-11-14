@@ -88,6 +88,9 @@ Context strengthening for definitional equality: the one strengthening principle
 verification uses (through `VEnv.WF.strengthening`). Open proof; `OPEN_PROOFS.md` records its
 status, including a paper argument that it fails in well-formed environments without `Eq`. -/
 
+/- This statement is false: `VEnv.Strengthening.not_weakN_iff_of_setModel`
+(`Theory/Typing/Strengthening/Klop.lean`) refutes it with a looping definition, also with
+canonical `Eq`. See `OPEN_PROOFS.md`. -/
 variable! (henv : VEnv.WF env) (hΓ : OnCtx Γ' (env.IsType U)) in
 theorem IsDefEqU.weakN_iff (W : Ctx.LiftN n k Γ Γ') :
     env.IsDefEqU U Γ' (e1.liftN n k) (e2.liftN n k) ↔ env.IsDefEqU U Γ e1 e2 := by

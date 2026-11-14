@@ -91,7 +91,12 @@ FOUNDATION_ROOTS = {
     "Lean4Lean.VEnv.WF.singletonPatCoverageJ",
     "Lean4Lean.VEnv.WF.patCoverageJ",
 }
-STRICT_ROOTS = DEFINITION_ROOTS | FOUNDATION_ROOTS
+# The refutation of the statement of the open proof `IsDefEqU.weakN_iff`.
+REFUTATION_ROOTS = {
+    "Lean4Lean.VEnv.Strengthening.not_weakN_iff_of_canonicalEq",
+    "Lean4Lean.VEnv.Strengthening.not_weakN_iff_of_setModel",
+}
+STRICT_ROOTS = DEFINITION_ROOTS | FOUNDATION_ROOTS | REFUTATION_ROOTS
 ROOTS |= STRICT_ROOTS
 BUILD_TARGETS = [
     "Lean4Lean.Verify.Inductive.Dispatch",
@@ -104,6 +109,7 @@ BUILD_TARGETS = [
     "Lean4Lean.Theory.Typing.QuotPropInhabitant",
     "Lean4Lean.Theory.Typing.RecursorRegistryInstallation",
     "Lean4Lean.Theory.Typing.ConstructorCaptureTransport",
+    "Lean4Lean.Theory.Typing.Strengthening.Klop",
     "Lean4Lean.Verify.Replay",
 ]
 

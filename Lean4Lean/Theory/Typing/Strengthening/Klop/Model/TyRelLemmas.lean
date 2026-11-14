@@ -1,0 +1,282 @@
+import Lean4Lean.Theory.Typing.Strengthening.Klop.Model.Univ
+
+/-! # Coarsely related types have the same elements
+
+`ValidAny.tyRel_same`: two valid semantic types with the same skeleton have the same set of
+elements and the same coarse relation on it. By induction on the validity of the first.
+-/
+
+namespace Lean4Lean
+namespace VEnv.Strengthening
+
+open Classical
+
+namespace SetModel
+variable {𝕊 : SetModel}
+
+local infix:50 " ∈ₛ " => 𝕊.mem
+
+/-- The skeleton of a valid type is a pair headed by the type's tag. -/
+theorem ValidAny.skel_tag {n : Nat} {x : 𝕊.S} (H : 𝕊.ValidAny (𝕊.univList n) x) :
+    ∃ k s, k < 6 ∧ 𝕊.skel x = 𝕊.pair (𝕊.tagN k) s ∧ 𝕊.kind x = 𝕊.tagN k := by
+  cases H with
+  | prop => exact ⟨0, _, by decide, skel_cand _, kind_cand _⟩
+  | tT => exact ⟨1, _, by decide, skel_tT, kind_tT⟩
+  | tProp => exact ⟨2, _, by decide, skel_tProp, kind_tProp⟩
+  | univ h =>
+    obtain ⟨m, -, rfl⟩ := mem_univList h
+    exact ⟨3, _, by decide, skel_univ m, kind_tU ..⟩
+  | pi => exact ⟨4, _, by decide, skel_tPi .., kind_tPi ..⟩
+  | piP => exact ⟨5, _, by decide, skel_tPiP .., kind_tPiP ..⟩
+
+/-- Coarsely related valid types have the same tag. -/
+theorem ValidAny.kind_eq_of_tyRel {n : Nat} {A B : 𝕊.S} (hA : 𝕊.ValidAny (𝕊.univList n) A)
+    (hB : 𝕊.ValidAny (𝕊.univList n) B) (h : 𝕊.TyRel A B) : 𝕊.kind A = 𝕊.kind B := by
+  obtain ⟨k, s, -, hs, hk⟩ := hA.skel_tag
+  obtain ⟨k', s', -, hs', hk'⟩ := hB.skel_tag
+  rw [TyRel, hs, hs'] at h
+  rw [hk, hk', (𝕊.pair_inj h).1]
+
+/-- The statement proved by induction: same elements and same relation. -/
+def SameEl (𝕊 : SetModel) (A B : 𝕊.S) : Prop :=
+  𝕊.El A = 𝕊.El B ∧ ∀ x y, 𝕊.mem x (𝕊.El A) → (𝕊.Rel A x y ↔ 𝕊.Rel B x y)
+
+theorem sameEl_refl (A : 𝕊.S) : 𝕊.SameEl A A := ⟨rfl, fun _ _ _ => .rfl⟩
+
+theorem pi_congr {A : 𝕊.S} {B B' : 𝕊.S → 𝕊.S} (h : ∀ x, x ∈ₛ A → B x = B' x) :
+    𝕊.pi A B = 𝕊.pi A B' := by
+  refine 𝕊.ext fun f => ?_
+  rw [𝕊.mem_pi, 𝕊.mem_pi]
+  exact and_congr_right fun _ => forall_congr' fun x => imp_congr_right fun hx => by rw [h x hx]
+
+/-- **Coarsely related valid types have the same elements and the same relation.** -/
+theorem ValidAny.tyRel_same_sim {n : Nat} {A : 𝕊.S} (hA : 𝕊.ValidAny (𝕊.univList n) A) :
+    ∀ {B : 𝕊.S}, 𝕊.ValidAny (𝕊.univList n) B → 𝕊.TyRel A B → 𝕊.SameEl A B ∧ 𝕊.Sim A B := by
+  induction hA with
+  | @prop c hc =>
+    intro B hB h
+    have hk := (ValidAny.prop hc).kind_eq_of_tyRel hB h
+    rw [kind_cand] at hk
+    cases hB with
+    | @prop d hd =>
+      have hiff := tyRel_cand.1 h
+      have hEl : 𝕊.El (𝕊.cand c) = 𝕊.El (𝕊.cand d) := by
+        simp only [cand, El_rec5]
+        by_cases hcne : ∃ v, c.mem v
+        · rw [if_pos hcne, if_pos (hiff.1 hcne)]
+        · rw [if_neg hcne, if_neg (fun h => hcne (hiff.2 h))]
+      refine ⟨⟨hEl, fun x y hx => ?_⟩, .base (.inl (kind_cand _)) (.inl (kind_cand _))⟩
+      rw [rel_cand hx, rel_cand (hEl ▸ hx), hEl]
+    | tT => rw [kind_tT] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | tProp => rw [kind_tProp] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | univ hu =>
+      obtain ⟨m, -, rfl⟩ := mem_univList hu
+      rw [SetModel.univ, kind_tU] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | pi => rw [kind_tPi] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | piP => rw [kind_tPiP] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+  | tT =>
+    intro B hB h
+    have hk := ValidAny.tT.kind_eq_of_tyRel hB h
+    rw [kind_tT] at hk
+    cases hB with
+    | prop => rw [kind_cand] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | tT => exact ⟨sameEl_refl _, .base (.inr (.inl kind_tT)) (.inr (.inl kind_tT))⟩
+    | tProp => rw [kind_tProp] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | univ hu =>
+      obtain ⟨m, -, rfl⟩ := mem_univList hu
+      rw [SetModel.univ, kind_tU] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | pi => rw [kind_tPi] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | piP => rw [kind_tPiP] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+  | tProp =>
+    intro B hB h
+    have hk := ValidAny.tProp.kind_eq_of_tyRel hB h
+    rw [kind_tProp] at hk
+    cases hB with
+    | prop => rw [kind_cand] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | tT => rw [kind_tT] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | tProp => exact ⟨sameEl_refl _, .base (.inr (.inr kind_tProp)) (.inr (.inr kind_tProp))⟩
+    | univ hu =>
+      obtain ⟨m, -, rfl⟩ := mem_univList hu
+      rw [SetModel.univ, kind_tU] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | pi => rw [kind_tPi] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | piP => rw [kind_tPiP] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+  | @univ u hu =>
+    intro B hB h
+    obtain ⟨m, -, rfl⟩ := mem_univList hu
+    have hk := (ValidAny.univ hu).kind_eq_of_tyRel hB h
+    rw [SetModel.univ, kind_tU] at hk
+    cases hB with
+    | prop => rw [kind_cand] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | tT => rw [kind_tT] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | tProp => rw [kind_tProp] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | univ hu' =>
+      obtain ⟨m', -, rfl⟩ := mem_univList hu'
+      rw [TyRel, skel_univ, skel_univ] at h
+      have : m = m' := 𝕊.enc_inj (𝕊.pair_inj h).2
+      subst this
+      exact ⟨sameEl_refl _, .univ (kind_tU ..) (kind_tU ..) rfl⟩
+    | pi => rw [kind_tPi] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | piP => rw [kind_tPiP] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+  | @pi D F hD hDc hF hfull hFrel hmix hfam ihD ihF =>
+    intro B hB h
+    have hk := (ValidAny.pi hD hDc hF hfull hFrel hmix hfam).kind_eq_of_tyRel hB h
+    rw [kind_tPi] at hk
+    cases hB with
+    | prop => rw [kind_cand] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | tT => rw [kind_tT] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | tProp => rw [kind_tProp] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | univ hu' =>
+      obtain ⟨m', -, rfl⟩ := mem_univList hu'
+      rw [SetModel.univ, kind_tU] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | @pi D' F' hD' hDc' hF' hfull' hFrel' hmix' =>
+      rw [TyRel, skel_tPi, skel_tPi] at h
+      obtain ⟨hsD, hsF⟩ := 𝕊.pair_inj (𝕊.pair_inj h).2
+      obtain ⟨⟨hElD, hRelD⟩, hSimD⟩ := ihD hD' hsD
+      have hfib' : ∀ d, d ∈ₛ 𝕊.El D → 𝕊.SameEl (F d) (F' d) ∧ 𝕊.Sim (F d) (F' d) := fun d hd => by
+        refine ihF d hd (hF' d (hElD ▸ hd)) ?_
+        have : 𝕊.app (𝕊.lam (𝕊.El D) fun d => 𝕊.skel (F d)) d =
+            𝕊.app (𝕊.lam (𝕊.El D') fun d => 𝕊.skel (F' d)) d := by rw [hsF]
+        rwa [𝕊.app_lam hd, 𝕊.app_lam (hElD ▸ hd)] at this
+      have hfib : ∀ d, d ∈ₛ 𝕊.El D → 𝕊.SameEl (F d) (F' d) := fun d hd => (hfib' d hd).1
+      have hsim : 𝕊.Sim (𝕊.prePi D F) (𝕊.prePi D' F') := by
+        refine .pi (kind_prePi ..) (kind_prePi ..) (by simpa using hSimD) (by simpa using hElD)
+          fun d hd => ?_
+        have hd' : d ∈ₛ 𝕊.El D := by simpa using hd
+        rw [fib_prePi hd', fib_prePi (hElD ▸ hd')]
+        exact (hfib' d hd').2
+      have hpi : (𝕊.pi (𝕊.El D) fun d => 𝕊.El (F d)) = 𝕊.pi (𝕊.El D') fun d => 𝕊.El (F' d) := by
+        rw [← hElD]; exact pi_congr fun d hd => (hfib d hd).1
+      have hmem : ∀ x, x ∈ₛ 𝕊.El (𝕊.tPi D F) ↔ x ∈ₛ 𝕊.El (𝕊.tPi D' F') := by
+        intro x
+        rw [mem_El_tPi, mem_El_tPi]
+        refine exists_congr fun f => and_congr_right fun _ => ?_
+        rw [← hpi]
+        refine and_congr_right fun hf => and_congr ?_
+          ⟨fun hu => hu.sim fun _ => hsim, fun hu => hu.sim fun _ => hsim.symm⟩
+        refine forall_congr' fun d => forall_congr' fun d' => ?_
+        rw [← hElD]
+        refine imp_congr_right fun hd => ?_
+        rw [hRelD d d' hd, (hfib d hd).2 _ _ ((𝕊.mem_pi.1 hf).2 d hd)]
+      have hEl := 𝕊.ext hmem
+      refine ⟨⟨hEl, fun f g hf => ?_⟩, ?_⟩
+      rotate_left
+      · refine .pi (kind_tPi ..) (kind_tPi ..) (by simpa using hSimD) (by simpa using hElD)
+          fun d hd => ?_
+        have hd' : d ∈ₛ 𝕊.El D := by simpa using hd
+        rw [fib_tPi hd', fib_tPi (hElD ▸ hd')]
+        exact (hfib' d hd').2
+      rw [rel_tPi_iff hf, rel_tPi_iff (hEl ▸ hf), hEl, ← hElD]
+      refine and_congr_right fun _ => forall_congr' fun d => imp_congr_right fun hd => ?_
+      obtain ⟨f', rfl, hf', -, -⟩ := mem_El_tPi.1 hf
+      refine (hfib d hd).2 _ _ ?_
+      simp only [ap, snd_pair]
+      exact (𝕊.mem_pi.1 hf').2 d hd
+    | piP => rw [kind_tPiP] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+  | @piP c B₀ hc hne hB₀ hB₀c ih =>
+    intro B hB h
+    have hk := (ValidAny.piP hc hne hB₀ hB₀c).kind_eq_of_tyRel hB h
+    rw [kind_tPiP] at hk
+    cases hB with
+    | prop => rw [kind_cand] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | tT => rw [kind_tT] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | tProp => rw [kind_tProp] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | univ hu' =>
+      obtain ⟨m', -, rfl⟩ := mem_univList hu'
+      rw [SetModel.univ, kind_tU] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | pi => rw [kind_tPi] at hk; exact absurd (𝕊.tagN_inj hk) (by decide)
+    | @piP c' B₁ hc' hne' hB₁ hB₁c =>
+      rw [TyRel, skel_tPiP, skel_tPiP] at h
+      obtain ⟨⟨hElB, hRelB⟩, hSimB⟩ := ih hB₁ (𝕊.pair_inj h).2
+      have hEl : 𝕊.El (𝕊.tPiP c B₀) = 𝕊.El (𝕊.tPiP c' B₁) := by
+        simp only [tPiP, El_rec5, hElB]
+      refine ⟨⟨hEl, fun f g hf => ?_⟩, .piP (kind_tPiP ..) (kind_tPiP ..) (by simpa using hSimB)⟩
+      rw [rel_tPiP_iff hf, rel_tPiP_iff (hEl ▸ hf), hEl]
+      refine and_congr_right fun _ => ?_
+      obtain ⟨f', rfl, hf'⟩ := mem_El_tPiP.1 hf
+      refine hRelB _ _ ?_
+      simp only [ap, snd_pair]
+      exact (𝕊.mem_pi.1 hf').2 _ (𝕊.mem_one.2 rfl)
+
+/-- **Coarsely related valid types have the same elements and the same relation.** -/
+theorem ValidAny.tyRel_same {n : Nat} {A B : 𝕊.S} (hA : 𝕊.ValidAny (𝕊.univList n) A)
+    (hB : 𝕊.ValidAny (𝕊.univList n) B) (h : 𝕊.TyRel A B) : 𝕊.SameEl A B :=
+  (hA.tyRel_same_sim hB h).1
+
+/-- Coarsely related valid types are similar. -/
+theorem ValidAny.tyRel_sim {n : Nat} {A B : 𝕊.S} (hA : 𝕊.ValidAny (𝕊.univList n) A)
+    (hB : 𝕊.ValidAny (𝕊.univList n) B) (h : 𝕊.TyRel A B) : 𝕊.Sim A B :=
+  (hA.tyRel_same_sim hB h).2
+
+/-! ### The coarse relation is a partial equivalence -/
+
+theorem ap_mem_of_mem_tPi {D f d : 𝕊.S} {F : 𝕊.S → 𝕊.S} (hf : f ∈ₛ 𝕊.El (𝕊.tPi D F))
+    (hd : d ∈ₛ 𝕊.El D) : 𝕊.ap f d ∈ₛ 𝕊.El (F d) := by
+  obtain ⟨f', rfl, hf', -, -⟩ := mem_El_tPi.1 hf
+  simp only [ap, snd_pair]
+  exact (𝕊.mem_pi.1 hf').2 d hd
+
+theorem ap_mem_of_mem_tPiP {c : Candidate} {B f : 𝕊.S} (hf : f ∈ₛ 𝕊.El (𝕊.tPiP c B)) :
+    𝕊.ap f 𝕊.star ∈ₛ 𝕊.El B := by
+  obtain ⟨f', rfl, hf'⟩ := mem_El_tPiP.1 hf
+  simp only [ap, snd_pair]
+  exact (𝕊.mem_pi.1 hf').2 _ (𝕊.mem_one.2 rfl)
+
+/-- The coarse relation of a type is reflexive, symmetric and transitive on its elements. -/
+structure IsPER (𝕊 : SetModel) (A : 𝕊.S) : Prop where
+  refl : ∀ x, 𝕊.mem x (𝕊.El A) → 𝕊.Rel A x x
+  mem : ∀ x y, 𝕊.mem x (𝕊.El A) → 𝕊.Rel A x y → 𝕊.mem y (𝕊.El A)
+  symm : ∀ x y, 𝕊.mem x (𝕊.El A) → 𝕊.Rel A x y → 𝕊.Rel A y x
+  trans : ∀ x y z, 𝕊.mem x (𝕊.El A) → 𝕊.Rel A x y → 𝕊.Rel A y z → 𝕊.Rel A x z
+
+/-- **The coarse relation of a valid type is a partial equivalence.** -/
+theorem ValidAny.isPER {n : Nat} {A : 𝕊.S} (hA : 𝕊.ValidAny (𝕊.univList n) A) : 𝕊.IsPER A := by
+  induction hA with
+  | prop =>
+    exact ⟨fun x hx => (rel_cand hx).2 hx, fun x y hx h => (rel_cand hx).1 h,
+      fun x y hx h => (rel_cand ((rel_cand hx).1 h)).2 hx,
+      fun x y z hx h1 h2 => (rel_cand hx).2 ((rel_cand ((rel_cand hx).1 h1)).1 h2)⟩
+  | tT =>
+    exact ⟨fun x hx => (rel_tT_iff hx).2 hx, fun x y hx h => (rel_tT_iff hx).1 h,
+      fun x y hx h => (rel_tT_iff ((rel_tT_iff hx).1 h)).2 hx,
+      fun x y z hx h1 h2 => (rel_tT_iff hx).2 ((rel_tT_iff ((rel_tT_iff hx).1 h1)).1 h2)⟩
+  | tProp =>
+    refine ⟨fun x hx => (rel_tProp_iff hx).2 ⟨hx, rfl⟩, fun x y hx h => ((rel_tProp_iff hx).1 h).1,
+      fun x y hx h => ?_, fun x y z hx h1 h2 => ?_⟩
+    · obtain ⟨hy, e⟩ := (rel_tProp_iff hx).1 h
+      exact (rel_tProp_iff hy).2 ⟨hx, e.symm⟩
+    · obtain ⟨hy, e⟩ := (rel_tProp_iff hx).1 h1
+      obtain ⟨hz, e'⟩ := (rel_tProp_iff hy).1 h2
+      exact (rel_tProp_iff hx).2 ⟨hz, e.trans e'⟩
+  | univ hu =>
+    obtain ⟨m, -, rfl⟩ := mem_univList hu
+    refine ⟨fun x hx => (rel_univ_iff hx).2 ⟨hx, rfl⟩, fun x y hx h => ((rel_univ_iff hx).1 h).1,
+      fun x y hx h => ?_, fun x y z hx h1 h2 => ?_⟩
+    · obtain ⟨hy, e⟩ := (rel_univ_iff hx).1 h
+      exact (rel_univ_iff hy).2 ⟨hx, e.symm⟩
+    · obtain ⟨hy, e⟩ := (rel_univ_iff hx).1 h1
+      obtain ⟨hz, e'⟩ := (rel_univ_iff hy).1 h2
+      exact (rel_univ_iff hx).2 ⟨hz, e.trans e'⟩
+  | @pi D F hD hDc hF hfull hFrel hmix _ ihD ihF =>
+    refine ⟨fun f hf => ?_, fun f g hf h => ((rel_tPi_iff hf).1 h).1, fun f g hf h => ?_,
+      fun f g k hf h1 h2 => ?_⟩
+    · exact (rel_tPi_iff hf).2 ⟨hf, fun d hd => (ihF d hd).refl _ (ap_mem_of_mem_tPi hf hd)⟩
+    · obtain ⟨hg, e⟩ := (rel_tPi_iff hf).1 h
+      exact (rel_tPi_iff hg).2 ⟨hf, fun d hd =>
+        (ihF d hd).symm _ _ (ap_mem_of_mem_tPi hf hd) (e d hd)⟩
+    · obtain ⟨hg, e⟩ := (rel_tPi_iff hf).1 h1
+      obtain ⟨hk, e'⟩ := (rel_tPi_iff hg).1 h2
+      exact (rel_tPi_iff hf).2 ⟨hk, fun d hd =>
+        (ihF d hd).trans _ _ _ (ap_mem_of_mem_tPi hf hd) (e d hd) (e' d hd)⟩
+  | @piP c B hc hne hB hBc ih =>
+    refine ⟨fun f hf => ?_, fun f g hf h => ((rel_tPiP_iff hf).1 h).1, fun f g hf h => ?_,
+      fun f g k hf h1 h2 => ?_⟩
+    · exact (rel_tPiP_iff hf).2 ⟨hf, ih.refl _ (ap_mem_of_mem_tPiP hf)⟩
+    · obtain ⟨hg, e⟩ := (rel_tPiP_iff hf).1 h
+      exact (rel_tPiP_iff hg).2 ⟨hf, ih.symm _ _ (ap_mem_of_mem_tPiP hf) e⟩
+    · obtain ⟨hg, e⟩ := (rel_tPiP_iff hf).1 h1
+      obtain ⟨hk, e'⟩ := (rel_tPiP_iff hg).1 h2
+      exact (rel_tPiP_iff hf).2 ⟨hk, ih.trans _ _ _ (ap_mem_of_mem_tPiP hf) e e'⟩
+
+end SetModel
+end VEnv.Strengthening
+end Lean4Lean
