@@ -159,6 +159,8 @@ took lean4lean over a second, the slowest `PresheafOfModules.freeObj._proof_2` (
       * `Strong.lean`: proof that you can have all the inductive hypotheses
       * `UniqueTyping.lean`: uniqueness of types, and context strengthening
       * `Strengthening/Klop.lean`: context strengthening for definitional equality is false
+      * `Strengthening/AbsurdBinder.lean`: with canonical `Eq`, strengthening reduces to one binder
+        of type `∀ p : Prop, p`
       * `Env.lean`: typing for environments
   * `Verify`: relation between the metatheory and the kernel
     * `Axioms.lean`: theorems about upstream opaques that shouldn't be opaque

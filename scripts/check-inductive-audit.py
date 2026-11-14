@@ -91,8 +91,10 @@ FOUNDATION_ROOTS = {
     "Lean4Lean.VEnv.WF.singletonPatCoverageJ",
     "Lean4Lean.VEnv.WF.patCoverageJ",
 }
-# The refutation of the statement of the open proof `IsDefEqU.weakN_iff`.
+# The refutation of the statement of the open proof `IsDefEqU.weakN_iff`, and its reduction, with
+# canonical `Eq`, to one binder of type `∀ p : Prop, p`.
 REFUTATION_ROOTS = {
+    "Lean4Lean.VEnv.Strengthening.absurdStrengthening_iff",
     "Lean4Lean.VEnv.Strengthening.not_weakN_iff_of_canonicalEq",
     "Lean4Lean.VEnv.Strengthening.not_weakN_iff_of_setModel",
 }
@@ -110,6 +112,7 @@ BUILD_TARGETS = [
     "Lean4Lean.Theory.Typing.RecursorRegistryInstallation",
     "Lean4Lean.Theory.Typing.ConstructorCaptureTransport",
     "Lean4Lean.Theory.Typing.Strengthening.Klop",
+    "Lean4Lean.Theory.Typing.Strengthening.AbsurdBinder",
     "Lean4Lean.Verify.Replay",
 ]
 
