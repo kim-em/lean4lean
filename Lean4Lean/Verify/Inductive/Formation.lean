@@ -345,13 +345,6 @@ structure RecursorsWF (env : VEnv) (decl : VInductDecl) : Prop where
     r.type.piBinders[r.numParams + r.numMotives + j]? = some A ∧ A.MinorFor ru.ctor ∧
     ru.nfields ≤ A.piArity ∧
     ru.rhs.RuleShape r.numParams r.numMotives r.numMinors ru.nfields (A.piArity - ru.nfields) j
-  rules_wf : ∀ envR, decl.addTypesCtorsProjsRecs env = some envR →
-    ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ∀ hc : ru.rhs.Closed,
-    envR.PatTyped
-      (SimplePattern.iota r.name r.getMajorIdx ru.ctor (ru.ctorParams + ru.nfields)).toPattern
-      (SimplePattern.iotaRHS r.name ru.ctor
-        r.numParams r.numMotives r.numMinors r.numIndices ru.ctorParams ru.nfields ru.rhs hc,
-        .true)
 
 /-- The declaration judgment from a formation certificate, the source judgment and the
 recursor half. -/
@@ -367,7 +360,6 @@ theorem FormationCertificate.wf
   rules_ctor := hrecs.rules_ctor
   rules_ctorParams := hrecs.rules_ctorParams
   rule_shape := hrecs.rule_shape
-  rules_wf := hrecs.rules_wf
 
 /-- Remove equally long outer prefixes from a context conversion.  Since
 `IsDefEqCtx` is built from the shared innermost suffix outwards, the proof is

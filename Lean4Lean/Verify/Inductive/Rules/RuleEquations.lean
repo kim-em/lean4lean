@@ -1,14 +1,11 @@
 import Lean4Lean.Verify.Inductive.Recursor.Check
-import Lean4Lean.Verify.Inductive.Rules.IotaPatTyped
 
-/-! # `rules_wf` from the generated equations
+/-! # The model rules are the generated equations
 
-The rule clause of `VInductDecl.WF` (`rules_wf`) types each model rule of the installed
-recursors as a schematic ι rule (`VEnv.PatTyped`): the rule is a pattern and its typing is
-restated from the `VDefEq.WF` of the generated equation
-(`InductiveSignature.Instance.equation_patTyped`). This file identifies each model rule with
-its generated equation through the kernel recursor it translates (`TrRecursor`, functional by
-`TrExprS.unique`) and the generator's coverage of the kernel rules (`TrRecursorRule`), and
+Each rule of the installed recursors is read off the generated equation of its constructor
+(`VRecRule.OfEquation`, `RecursorCheck.rules_ofEquation`). This file identifies each model rule
+with its generated equation through the kernel recursor it translates (`TrRecursor`, functional
+by `TrExprS.unique`) and the generator's coverage of the kernel rules (`TrRecursorRule`), and
 reads the counts off the recursor metadata (`RecursorMetadata`). -/
 
 namespace Lean4Lean
@@ -17,18 +14,6 @@ open Lean hiding Environment Exception
 open Kernel
 
 namespace VerifyInductive
-
-/-- Transport of a typed ι rule along equalities of its data. -/
-theorem VEnv.patTyped_iota_congr {env : VEnv} {r r' c c' : Name}
-    {np np' nm nm' nmin nmin' nind nind' cnp cnp' nf nf' : Nat} {rhs rhs' : VExpr}
-    {hc : rhs.Closed} {hc' : rhs'.Closed}
-    (hr : r = r') (hcn : c = c') (hnp : np = np') (hnm : nm = nm') (hnmin : nmin = nmin')
-    (hnind : nind = nind') (hcnp : cnp = cnp') (hnf : nf = nf') (hrhs : rhs = rhs')
-    (H : env.PatTyped (SimplePattern.iota r (np+nm+nmin+nind) c (cnp+nf)).toPattern
-      (SimplePattern.iotaRHS r c np nm nmin nind cnp nf rhs hc, .true)) :
-    env.PatTyped (SimplePattern.iota r' (np'+nm'+nmin'+nind') c' (cnp'+nf')).toPattern
-      (SimplePattern.iotaRHS r' c' np' nm' nmin' nind' cnp' nf' rhs' hc', .true) := by
-  subst hr hcn hnp hnm hnmin hnind hcnp hnf hrhs; exact H
 
 section
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
@@ -181,25 +166,6 @@ theorem RecursorCheck.rules_ofEquation (H : RecursorCheck R outEnv) (hcov : H.Ru
   · obtain ⟨index, -, rfl⟩ := List.mem_map.1 hdf
     obtain ⟨r, hr, ru, hru, D⟩ := H.equation_rule hcov hparams index
     exact ⟨r, hr, ru, hru, D.ofEquation⟩
-
-/-- `VInductDecl.WF.rules_wf` of a recursor check, from the rule coverage, the
-well-formedness of the generated equations and the constructor parameter counts. -/
-theorem RecursorCheck.rules_wf_of (H : RecursorCheck R outEnv) (hcov : H.RulesCovered)
-    (hwf : H.EquationsWF) (hparams : H.RuleCtorParams) :
-    ∀ r ∈ H.recs, ∀ ru ∈ r.rules, ∀ hc : ru.rhs.Closed,
-      H.outVEnv.PatTyped
-        (SimplePattern.iota r.name r.getMajorIdx ru.ctor (ru.ctorParams + ru.nfields)).toPattern
-        (SimplePattern.iotaRHS r.name ru.ctor
-          r.numParams r.numMotives r.numMinors r.numIndices ru.ctorParams ru.nfields ru.rhs hc,
-          .true) := by
-  intro r hr ru hru hc
-  obtain ⟨index, ⟨hname, hnp, hnm, hnmin, hnind, hctor, hcnp, hnf, hrhs⟩⟩ :=
-    H.rule_equation hcov hparams hr hru
-  have hc' : (H.generation.equation index).rhs.Closed := hrhs ▸ hc
-  have hdf := hwf _ (List.mem_map.2 ⟨index, List.mem_finRange _, rfl⟩)
-  exact VEnv.patTyped_iota_congr hname.symm hctor.symm hnp.symm hnm.symm hnmin.symm
-    hnind.symm hcnp.symm hnf.symm hrhs.symm
-    (H.generation.equation_patTyped H.outVEnv_wf index hdf hc')
 
 end
 end VerifyInductive

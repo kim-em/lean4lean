@@ -1,6 +1,5 @@
 import Lean4Lean.Theory.Inductive
 import Lean4Lean.Tests.ShapeDecide
-import Lean4Lean.Verify.Inductive.Rules.IotaPatTyped
 
 namespace Lean4Lean.Tests.InductiveTheory
 
@@ -453,9 +452,8 @@ theorem enumCompiles : VInductDecl.CompilesTo .empty enumDecl enumBlock :=
 
 `enumDecl` carries the kernel's recursor `Enum0.rec` with its rule (`enumVRec`), so it satisfies
 every clause of `VInductDecl.WF`: its recursor and rule are read off the compiled block
-(`RecsOf`), the recursor is typed in the projection-stage environment, its telescope and rule
-have the kernel's shapes, and the rule is a typed schematic reduction rule (`VEnv.PatTyped`) in
-the recursor-stage environment, as `VEnv.addInduct` registers it in `pats`. -/
+(`RecsOf`), the recursor is typed in the projection-stage environment, and its telescope and
+rule have the kernel's shapes. `VEnv.addInduct` registers the rule in `pats`. -/
 
 theorem enumRecsOf : enumDecl.RecsOf enumBlock where
   recursors := rfl
@@ -495,42 +493,6 @@ private theorem enumMinorTyping' {env : VEnv} (Γ : List VExpr)
     env.HasType 0 (enumMotive :: Γ) enumMinor (.sort .zero) := by
   have hm : env.HasType 0 (enumMotive :: Γ) (.bvar 0) enumMotive := .bvar .zero
   exact hm.app (enumConstructorTyping _ h)
-
-/-- The rule of `Enum0.rec` is a typed ι rule of the recursor-stage environment: the generic
-redex `Enum0.rec motive minor Enum0.mk` and the reduct `(λ motive minor. minor) motive minor`
-both have type `motive Enum0.mk` in the context of the motive and the minor premise. -/
-private theorem enumRulePatTyped (hc : enumRecRule.rhs.Closed) :
-    enumRecursorsEnv.PatTyped
-      (SimplePattern.iota `Enum0.rec (2 + 0) `Enum0.mk (0 + 0)).toPattern
-      (SimplePattern.iotaRHS' `Enum0.rec `Enum0.mk 2 0 0 0 enumRecRule.rhs hc, .true) := by
-  have ht : enumRecursorsEnv.constants `Enum0 = some enumType.toVConstant := by
-    simp [enumRecursorsEnv, projectedCtorsEnv, enumCtorsEnv, enumTypesEnv]
-  have hk : enumRecursorsEnv.constants `Enum0.mk = some enumCtor.toVConstant := by
-    simp [enumRecursorsEnv, projectedCtorsEnv, enumCtorsEnv]
-  have hr : enumRecursorsEnv.constants `Enum0.rec = some enumRecursor.toVConstant := by
-    simp [enumRecursorsEnv]
-  let recArgs : List VExpr := [.bvar 1, .bvar 0]
-  let ctorArgs : List VExpr := []
-  have h1 : recArgs.length = 2 + 0 := rfl
-  have h2 : ctorArgs.length = 0 + 0 := rfl
-  obtain ⟨g1, hm1, hg1⟩ := Pattern.matches_varN_const (c := `Enum0.rec) (ls := []) _ _ h1
-  obtain ⟨g2, hm2, hg2⟩ := Pattern.matches_varN_const (c := `Enum0.mk) (ls := []) _ _ h2
-  have hpaths := SimplePattern.iotaPaths_map (m2 := Sum.elim g1 g2) h1 h2 hg1 hg2
-  have happ := SimplePattern.iotaRHS'_apply `Enum0.rec `Enum0.mk 2 0 0 0 enumRecRule.rhs hc
-    (VLevel.params 0)
-    (Sum.elim g1 g2) h1 h2 hg1 hg2
-  refine ⟨0, [enumMinor, enumMotive], _, Sum.elim g1 g2, .app (.bvar 1) (.const `Enum0.mk []),
-    .app hm1 hm2, ?_, ?_, ?_⟩
-  · exact Pattern.RHS.generic_foldl_var (hpaths.trans rfl)
-  · have hrec : enumRecursorsEnv.HasType 0 [enumMinor, enumMotive]
-        (.const `Enum0.rec []) enumRecursor.type := .constDF hr nofun nofun rfl .nil
-    exact ((hrec.app (.bvar (.succ .zero))).app (.bvar .zero)).app (enumConstructorTyping _ hk)
-  · dsimp only
-    rw [happ]
-    have hlam : enumRecursorsEnv.HasType 0 [enumMinor, enumMotive] enumRecRule.rhs
-        (.forallE enumMotive (.forallE enumMinor (.app (.bvar 1) (.const `Enum0.mk [])))) :=
-      .lamDF (enumMotiveTyping _ ht) (.lamDF (enumMinorTyping' _ hk) (.bvar .zero))
-    exact (hlam.app (.bvar (.succ .zero))).app (.bvar .zero)
 
 /-- The full well-formedness judgment of the enumeration, with its recursor and rule. -/
 theorem enumDecl_WF : enumDecl.WF .empty where
@@ -578,15 +540,6 @@ theorem enumDecl_WF : enumDecl.WF .empty where
     simp only [enumVRec, List.mem_singleton] at hru
     subst ru
     exact ⟨0, by decide, enumMinor, rfl, by decide, by decide, by decide⟩
-  rules_wf := by
-    intro envR hR r hr ru hru hc
-    rw [addEnumTypesCtorsProjsRecs] at hR
-    cases hR
-    simp only [enumDecl, List.mem_singleton] at hr
-    subst r
-    simp only [enumVRec, List.mem_singleton] at hru
-    subst ru
-    exact enumRulePatTyped hc
 
 /-- The staged installation `VEnv.addInduct` succeeds: it adds the type, constructor and
 recursor, and registers the rule of `Enum0.rec` in `pats` (its reduct is closed). -/

@@ -150,9 +150,8 @@ computes — its reduct is a closed λ-template applied to arguments
 (`Pattern.RHS.TemplateHeaded`, the head shape of every ι reduct, `SimplePattern.iotaRHS`).
 The shape is what makes a `pats` entry a *reduction* rule rather than a definitional axiom
 (`VEnv.defeqs`, whose sides are arbitrary closed terms): the head of a reduct is fixed by
-the rule, so no instance of it is a sort, a Π-type or a bare hole. This is the monotone
-(`PatWF.mono`) condition under which a rule may be registered (`Ordered.pat`). It does not
-give subject reduction, which is false under `Ordered`; for well-formed environments it is
-`VEnv.WF.iotaReductTyped`. -/
+the rule, so no instance of it is a sort, a Π-type or a bare hole. The condition is monotone
+(`PatWF.mono`). `Ordered.pat` asks for the shape only. Neither gives subject reduction, which
+is false under `Ordered`; for well-formed environments it is `VEnv.WF.iotaReductTyped`. -/
 def VEnv.PatWF (env : VEnv) (p : Pattern) (r : p.RHS × p.Check) : Prop :=
   env.PatTyped p r ∧ r.1.TemplateHeaded

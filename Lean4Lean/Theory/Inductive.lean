@@ -210,10 +210,8 @@ def majorFormer? (ty : VExpr) (idx : Nat) : Option Name :=
 /-- Thesis §2.6.4: the reduct of the ι rule using minor `j` (counted from the outermost
 minor binder) is `λ params motives minors fields, minor_j fields v`, minor `j` applied
 η-long to the fields and then to `nrec` further arguments `v` (`recArgs`). The terms `v` are
-not pinned, syntactically or through typing: `VInductDecl.WF.rules_wf` types the reduct at
-the redex's type, which forces only the *types* of `v` — those of the minor's binders after
-the fields (`δ`, themselves unpinned by `MinorFor`) — not that they are the thesis's
-recursive calls `rec … (u_i x)`. Their *number* is pinned: `VInductDecl.WF.rule_shape` sets
+not pinned by this shape; they are those of the generated equation the rule is read off
+(`VInductDecl.RecsOf`, `VRecRule.OfEquation`). Their *number* is pinned: `VInductDecl.WF.rule_shape` sets
 `nrec` to the number of the minor's binders after the fields (`v::δ` has the length of `δ`),
 so the reduct applies the minor to exactly its binders — none beyond the fields for a
 non-recursive constructor. -/
@@ -698,17 +696,15 @@ positivity and universe bounds, or a finite nested expansion into an ordinary we
 declaration) are definitional (`SourceWF`, `FormationWF`, `Theory/Inductive/Formation.lean`),
 so that a constructor field typed through a reducible alias is admitted exactly when the
 kernel's `whnf`-based check admits it. The recursors are tied to the generator's output
-(`RecsCompiled`), typed in the projection-stage environment (`recs_wf`), and their rules are
-typed as schematic reduction rules in the recursor-stage environment (`rules_wf`,
-`VEnv.PatTyped`, the typing half of `VEnv.PatWF`; the template shape is `rule_shape`).
+(`RecsCompiled`) and typed in the projection-stage environment (`recs_wf`); their rules are
+the equations of the compiled block, which are typed in its recursor stage (`VInductBlock.WF`).
 The remaining clauses are the syntactic shapes of the kernel's recursor data: the telescope
 split (`rec_shape`), one rule per constructor (`rules_nodup`), each rule firing on a
 constructor constant of the right spine arity (`rules_ctor`, stated so that the auxiliary
 recursors of a nested block, which fire on the constructors of a previously declared
 container, are admissible) and the reduct shape (`rule_shape`). The recursor clauses
-(`recs_wf`, `rules_wf`, `rec_shape`, `rule_shape`, `rules_nodup`, `rules_ctor`) are fields rather
-than consequences of `recsCompiled`: deriving `rules_wf` from the compiled block needs uniqueness
-of typing and Π-injectivity, which are proved downstream of this definition. -/
+(`recs_wf`, `rec_shape`, `rule_shape`, `rules_nodup`, `rules_ctor`) are fields rather
+than consequences of `recsCompiled`. -/
 structure VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop where
   /-- The source judgment: headers and constructors typed, names distinct, universes shared. -/
   source : decl.SourceWF env
@@ -749,20 +745,6 @@ structure VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop where
     r.type.piBinders[r.numParams + r.numMotives + j]? = some A ∧ A.MinorFor ru.ctor ∧
     ru.nfields ≤ A.piArity ∧
     ru.rhs.RuleShape r.numParams r.numMotives r.numMinors ru.nfields (A.piArity - ru.nfields) j
-  /-- §2.6.4 as a typing, the `VDefEq.WF` of an ι rule: as registered by `addRecRule`, in
-  the recursor-stage environment, the rule is typed (`VEnv.PatTyped`) — its generic redex
-  `rec params motives minors idx (c cargs fields)` and reduct `rhs params motives minors
-  fields` are typed at a common type in the context of the parameters, motives, minors and
-  fields. No kernel check performs it: it is the model's admissibility condition for
-  registering the rule, the analogue of the thesis's regularity of reductions for the
-  generic rule. -/
-  rules_wf : ∀ envR, decl.addTypesCtorsProjsRecs env = some envR →
-    ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ∀ hc : ru.rhs.Closed,
-    envR.PatTyped
-      (SimplePattern.iota r.name r.getMajorIdx ru.ctor (ru.ctorParams + ru.nfields)).toPattern
-      (SimplePattern.iotaRHS r.name ru.ctor
-        r.numParams r.numMotives r.numMinors r.numIndices ru.ctorParams ru.nfields ru.rhs hc,
-        .true)
 
 /-- Type formers are typed in `env` (`SourceWF`). -/
 theorem VInductDecl.WF.types_wf {env : VEnv} {decl : VInductDecl} (H : decl.WF env) :

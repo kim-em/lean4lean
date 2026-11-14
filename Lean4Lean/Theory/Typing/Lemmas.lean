@@ -277,9 +277,11 @@ inductive Ordered : VEnv → Prop where
     Ordered env → ci.WF env →
     env.addConst n ci = some env' → Ordered env'
   | defeq : Ordered env → df.WF env → Ordered (env.addDefEq df)
-  /-- A reduction rule may be registered once it is well-formed (`VEnv.PatWF`): typed as a
-  schematic rule, with a computational (template-headed) reduct. -/
-  | pat : Ordered env → env.PatWF p r → Ordered (env.addPat p r)
+  /-- A reduction rule may be registered once its reduct is computational: a closed λ-template
+  applied to arguments (`Pattern.RHS.TemplateHeaded`). No typing of the rule is asked for:
+  `IsDefEq.pat` has the typing of the reduct as a premise. -/
+  | pat {p : Pattern} {r : p.RHS × p.Check} :
+    Ordered env → r.1.TemplateHeaded → Ordered (env.addPat p r)
   /-- Register the projection entries of a declaration whose type formers and constructors
   have been added (the projection stage of `VEnv.addInduct`). The premises are the part of
   `VInductDecl.ProjectionStage` that the typing lemmas read: the source judgment
@@ -649,26 +651,19 @@ theorem PatWF.mono {env env' : VEnv} (henv : env ≤ env') {p : Pattern} {r : p.
     env.PatWF p r → env'.PatWF p r
   | ⟨h1, h2⟩ => ⟨h1.mono henv, h2⟩
 
-/-- Every registered rule of an `Ordered` environment is well-formed in it: the `pats`
-analogue of `Ordered.constWF`/`Ordered.defEqWF`. -/
-theorem Ordered.patWF (H : Ordered env) (h : env.pats p r) : env.PatWF p r := by
+/-- Every registered rule of an `Ordered` environment has a template-headed reduct. -/
+theorem Ordered.patHeaded (H : Ordered env) (h : env.pats p r) : r.1.TemplateHeaded := by
   induction H with
   | empty => cases h
   | const _ _ h3 ih =>
-    refine .mono (addConst_le h3) (ih ?_)
+    refine ih ?_
     unfold addConst at h3; split at h3 <;> cases h3; exact h
-  | defeq _ _ ih => exact .mono addDefEq_le (ih h)
+  | defeq _ _ ih => exact ih h
   | pat _ h2 ih =>
-    refine .mono addPat_le ?_
     obtain ⟨rfl, h⟩ | h := h
     · cases h; exact h2
     · exact ih h
-  | inductProjections _ _ _ _ _ _ ihBase ih =>
-    exact .mono VEnv.addProjections_le (ih (by simpa using h))
-
-/-- Every registered rule of an `Ordered` environment has a template-headed reduct. -/
-theorem Ordered.patHeaded (H : Ordered env) (h : env.pats p r) : r.1.TemplateHeaded :=
-  (H.patWF h).2
+  | inductProjections _ _ _ _ _ _ ihBase ih => exact ih (by simpa using h)
 
 variable! (henv : Ordered env) in
 theorem CtxWF.closed (h : OnCtx Γ (IsType env U)) : CtxClosed Γ :=

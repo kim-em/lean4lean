@@ -1,15 +1,13 @@
 import Lean4Lean.Verify.Inductive.Recursor.Check
-import Lean4Lean.Verify.Inductive.Rules.RulesWF
+import Lean4Lean.Verify.Inductive.Rules.RuleEquations
 import Lean4Lean.Verify.Inductive.Rules.Coverage
 
 /-! # The rule phase
 
 The rules of the installed recursors are the generator's equations: each kernel rule's reduct
-translates to the generated equation's reduct (`TrRecursorRule`), the generated equations are
-well formed in the recursor-stage environment (as `VDefEq`s, for the compiled block), and each
-model rule is typed as a schematic ι rule (`VEnv.PatTyped`, the `rules_wf` clause of
-`VInductDecl.WF`, the well-formedness of the generated equations restated in the open
-equation context as the generic instance). `RuleTranslations` is the interface of the rule
+translates to the generated equation's reduct (`TrRecursorRule`), and the generated equations
+are well formed in the recursor-stage environment (as `VDefEq`s, for the compiled block).
+`RuleTranslations` is the interface of the rule
 phase; `RecursorCheck.generatedRuleTranslation` is the boundary theorem. The rule phase reads
 the recursor phase's internals (rule templates, minor contexts). -/
 
@@ -21,8 +19,8 @@ open Kernel
 namespace VerifyInductive
 
 /-- The rule translations of a recursor check: coverage of every kernel rule by the generated
-equation of its constructor, well-formedness of the generated equations in the recursor stage,
-and the typing of every model rule as a registered ι rule. -/
+equation of its constructor, and well-formedness of the generated equations in the recursor
+stage. -/
 structure RuleTranslations
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -38,14 +36,6 @@ structure RuleTranslations
   /-- The generated equations are well formed in the recursor stage (the `rules` clause of
   `VInductBlock.WF` for the compiled block). -/
   equationsWF : ∀ df ∈ H.generation.equations, df.WF H.outVEnv
-  /-- `VInductDecl.WF.rules_wf`: every model rule is typed as a schematic ι rule in the
-  recursor stage. -/
-  rules_wf : ∀ r ∈ H.recs, ∀ ru ∈ r.rules, ∀ hc : ru.rhs.Closed,
-    H.outVEnv.PatTyped
-      (SimplePattern.iota r.name r.getMajorIdx ru.ctor (ru.ctorParams + ru.nfields)).toPattern
-      (SimplePattern.iotaRHS r.name ru.ctor
-        r.numParams r.numMotives r.numMinors r.numIndices ru.ctorParams ru.nfields ru.rhs hc,
-        .true)
 
 /-- `InductiveSignature.Models` reads only the source fields of the declaration. -/
 theorem _root_.Lean4Lean.InductiveSignature.Models.withRecs {s : InductiveSignature} {env : VEnv}
@@ -181,10 +171,6 @@ theorem recursorsWF (T : RuleTranslations H) (hnonempty : indTypes.toList ≠ []
     obtain ⟨c, hc, hn⟩ := H.rules_own r hr ru hru
     exact .inl ⟨c, by simpa using hc, hn, H.rules_ctorParams r hr ru hru⟩
   rule_shape := H.rule_shape
-  rules_wf envR hR := by
-    have : envR = H.outVEnv := by
-      rw [H.addTypesCtorsProjsRecs] at hR; exact (Option.some.inj hR).symm
-    subst this; exact T.rules_wf
 
 end RuleTranslations
 
@@ -239,8 +225,7 @@ theorem RecursorCheck.equationsWF (H : RecursorCheck R outEnv) : H.EquationsWF :
 end
 
 /-- The boundary theorem of the rule phase: the recursor check determines its rule
-translations. No rule, telescope, or equation is chosen by the caller. The `rules_wf` clause is
-the `PatTyped` restatement of the generated equations' `VDefEq.WF` (`RecursorCheck.rules_wf_of`). -/
+translations. No rule, telescope, or equation is chosen by the caller. -/
 theorem RecursorCheck.generatedRuleTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -249,7 +234,6 @@ theorem RecursorCheck.generatedRuleTranslation
     (H : RecursorCheck R outEnv) : RuleTranslations H where
   trRules := H.rulesCovered
   equationsWF := H.equationsWF
-  rules_wf := H.rules_wf_of H.rulesCovered H.equationsWF H.ruleCtorParams
 
 end VerifyInductive
 end Lean4Lean

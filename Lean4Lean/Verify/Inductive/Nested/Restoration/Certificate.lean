@@ -28,11 +28,9 @@ produced in `Nested/Restoration/Restore.lean`, its rule typing is added in
   and the facts recursor reduction reads of the new recursors in the output
   model (`recShapes`, `recK`), auxiliary recursors included.
 
-What is *not* here is the typing of the restored rules (`VInductDecl.WF.rules_wf`,
-`RestoredBlock.rulesWF`) and of the restored block's equations (`RestoredBlock.blockWF`): they
-go through the restoration interpretation (`Theory/Inductive/RestorationInterpretation.lean`)
-and are proved in `Nested/Equations/Rules.lean`. `RestoredBlock.addInduct` and
-`RestoredBlock.wf` (given those two) are proved here. -/
+What is *not* here is the well-formedness of the restored block (`RestoredBlock.blockWF`,
+`Nested/Equations/Rules.lean`). `RestoredBlock.addInduct` and `RestoredBlock.wf` (given the
+block's well-formedness) are proved here. -/
 
 namespace Lean4Lean
 
@@ -218,15 +216,10 @@ theorem rules_ofRestoredEquation (B : RestoredBlock L sourceTypes isUnsafe outEn
   obtain ⟨k, -, rfl⟩ := List.mem_map.mp heq
   exact ⟨k, hrestore⟩
 
-/-- `VInductDecl.WF` of the restored declaration, given the typing of its rules
-(`RestoredBlock.rulesWF`, `Nested/Equations/Rules.lean`). -/
+/-- `VInductDecl.WF` of the restored declaration, given the well-formedness of its block
+(`RestoredBlock.blockWF`, `Nested/Equations/Rules.lean`). -/
 theorem wf (B : RestoredBlock L sourceTypes isUnsafe outEnv) (hsource : sourceTypes ≠ [])
-    (hblock : B.block.WF Hc.venv)
-    (hrules : ∀ r ∈ B.decl.recs, ∀ ru ∈ r.rules, ∀ hc : ru.rhs.Closed,
-      B.envR.PatTyped
-        (SimplePattern.iota r.name r.getMajorIdx ru.ctor (ru.ctorParams + ru.nfields)).toPattern
-        (SimplePattern.iotaRHS r.name ru.ctor r.numParams r.numMotives r.numMinors
-          r.numIndices ru.ctorParams ru.nfields ru.rhs hc, .true)) :
+    (hblock : B.block.WF Hc.venv) :
     B.decl.WF Hc.venv where
   source := TrInductDeclCore.sourceWF_ofNonempty B.source (B.types_ne_nil hsource)
   formation := .nested B.formation VEnv.LE.rfl
@@ -245,11 +238,6 @@ theorem wf (B : RestoredBlock L sourceTypes isUnsafe outEnv) (hsource : sourceTy
     exact B.rules_ctor
   rules_ctorParams := B.rules_ctorParams
   rule_shape := B.rule_shape
-  rules_wf envR hR := by
-    have := B.addInduct.addTypesCtorsProjsRecs
-    rw [hR] at this
-    cases this
-    exact hrules
 
 end RestoredBlock
 end VerifyInductive

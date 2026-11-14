@@ -235,35 +235,30 @@ theorem addTypesCtorsProjsRecs_ordered {env envR : VEnv} {decl : VInductDecl}
   obtain ⟨envP, hP, hR⟩ := Option.bind_eq_some_iff.1 h
   exact addRecs_ordered hdecl hP (addTypesCtorsProjs_ordered henv hdecl hP) hR
 
-/-- Stage 4 keeps the environment `Ordered`: every registration is an `Ordered.pat`
-step, whose `VEnv.PatWF` is `VInductDecl.WF.rules_wf` (the typing, stated at `envR` and
-carried to the environment reached so far by `PatTyped.mono`) together with the template
-shape of the reduct (`rule_shape`: the template is a λ-abstraction, so `iotaRHS` is
-`TemplateHeaded`). -/
+/-- Stage 4 keeps the environment `Ordered`: every registration is an `Ordered.pat` step,
+whose premise is the template shape of the reduct (`rule_shape`: the template is a
+λ-abstraction, so `iotaRHS` is `TemplateHeaded`). -/
 theorem addRules_ordered {env envR env' : VEnv} {decl : VInductDecl}
-    (hdecl : decl.WF env) (hR : decl.addTypesCtorsProjsRecs env = some envR)
-    (hordR : Ordered envR) (hP : decl.addRules envR = some env') : Ordered env' := by
+    (hdecl : decl.WF env) (hordR : Ordered envR) (hP : decl.addRules envR = some env') :
+    Ordered env' := by
   unfold VInductDecl.addRules at hP
-  refine (foldlM_inv (P := fun e => Ordered e ∧ envR ≤ e) (fun r hr _ _ hPe hfold => ?_)
-    ⟨hordR, .rfl⟩ hP).1
-  refine foldlM_inv (P := fun e => Ordered e ∧ envR ≤ e) (fun ru hru _ _ ⟨hord, hle⟩ h => ?_)
-    hPe hfold
+  refine foldlM_inv (P := Ordered) (fun r hr _ _ hPe hfold => ?_) hordR hP
+  refine foldlM_inv (P := Ordered) (fun ru hru _ _ hord h => ?_) hPe hfold
   unfold addRecRule at h
   split at h
   · cases h
     obtain ⟨j, hj, _, _, _, _, hshape⟩ := hdecl.rule_shape r hr ru hru
-    exact ⟨.pat hord ⟨(hdecl.rules_wf envR hR r hr ru hru ‹_›).mono hle,
-      SimplePattern.iotaRHS_templateHeaded (hshape.lam hj) _⟩, hle.trans addPat_le⟩
+    exact .pat hord (SimplePattern.iotaRHS_templateHeaded (hshape.lam hj) _)
   · cases h
 
 /-- Soundness of `addInduct`: extending an `Ordered` environment with a well-formed
 inductive declaration keeps it `Ordered`. The constant stages follow from the staged
 `VInductDecl.WF` (`types_wf`/`ctors_wf`/`recs_wf`), the projection stage from
-`Ordered.inductProjections`, the ι-rule stage from `Ordered.pat` and `rules_wf`. -/
+`Ordered.inductProjections`, the ι-rule stage from `Ordered.pat` and `rule_shape`. -/
 theorem addInduct_WF (henv : Ordered env) (hdecl : decl.WF env)
     (henv' : addInduct env decl = some env') : Ordered env' := by
   obtain ⟨envR, hR, hP⟩ := Option.bind_eq_some_iff.1 henv'
-  exact addRules_ordered hdecl hR (addTypesCtorsProjsRecs_ordered henv hdecl hR) hP
+  exact addRules_ordered hdecl (addTypesCtorsProjsRecs_ordered henv hdecl hR) hP
 
 /-! ## Environment-population lemmas
 

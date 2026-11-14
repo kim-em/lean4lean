@@ -1,4 +1,6 @@
-import Lean4Lean.Verify.Inductive.Rules.IotaPatTyped
+import Lean4Lean.Theory.Typing.Telescope
+import Lean4Lean.Theory.Inductive.SignatureData
+import Lean4Lean.Theory.Typing.SignatureVars
 import Lean4Lean.Verify.Inductive.Rules.EquationWF
 import Lean4Lean.Verify.Inductive.Recursor.Metadata
 import Lean4Lean.Verify.Inductive.Recursor.Signature.RecursiveShapeTranslations

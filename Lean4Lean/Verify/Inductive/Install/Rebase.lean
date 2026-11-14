@@ -44,7 +44,7 @@ theorem VInductDecl.WF.rebase {decl : VInductDecl} {block : VInductBlock}
     (stT' : decl.addTypes env' = some envT') (stC' : decl.addCtors envT' = some envC')
     (stR' : decl.addRecs (decl.addProjs envC') = some envR') :
     decl.WF env' ∧ block.WF env' := by
-  obtain ⟨hT, hC, hR⟩ := VEnv.addStages_mono hle stT stC stR stT' stC' stR'
+  obtain ⟨hT, hC, -⟩ := VEnv.addStages_mono hle stT stC stR stT' stC' stR'
   have htypes' := stT'; rw [VInductDecl.addTypes_eq_addConstVals] at htypes'
   have hctors' := stC'; rw [VInductDecl.addCtors_eq_addConstVals] at hctors'
   have hrecs' := stR'
@@ -66,17 +66,11 @@ theorem VInductDecl.WF.rebase {decl : VInductDecl} {block : VInductBlock}
     rw [hCeq hy]
   have hPeq₀ : decl.addTypesCtorsProjs env = some (decl.addProjs envC) :=
     VEnv.addTypesCtorsProjs_eq_some hCeq₀
-  have hReq₀ : decl.addTypesCtorsProjsRecs env = some envR :=
-    VEnv.addTypesCtorsProjsRecs_of_stages stT stC stR
-  have hReq : ∀ {x}, decl.addTypesCtorsProjsRecs env' = some x → x = envR' := by
-    intro x hx
-    rw [VEnv.addTypesCtorsProjsRecs_of_stages stT' stC' stR'] at hx
-    exact (Option.some.inj hx).symm
   have hP : decl.addProjs envC ≤ decl.addProjs envC' := VEnv.addProjections_mono hC
   refine ⟨?_, hblock'⟩
   refine ⟨H.source.mono_of_addConstVals hle htypes' hctors', ?_,
     ⟨block, hcomp.mono hle hblock', hrecs, hblock'⟩, ?_, H.rec_shape, H.rules_nodup, ?_, ?_,
-    H.rule_shape, ?_⟩  -- `RecsCompiled` carries `block.WF`
+    H.rule_shape⟩  -- `RecsCompiled` carries `block.WF`
   · cases H.formation with
     | ordinary h => exact .ordinary (h.mono_of_addConstVals hle htypes')
     | nested h hb => exact .nested h (hb.trans hle)
@@ -92,9 +86,6 @@ theorem VInductDecl.WF.rebase {decl : VInductDecl} {block : VInductBlock}
     rcases H.rules_ctorParams r hr ru hru with h | ⟨D, hD, h⟩
     · exact .inl h
     · exact .inr ⟨D, VEnv.InstalledBelow.mono hle hD, h⟩
-  · intro envR'' hR'' r hr ru hru hc
-    rw [hReq hR'']
-    exact (H.rules_wf _ hReq₀ r hr ru hru hc).mono hR
 
 /-- The names `addInduct` binds are the names of the kernel constants of an `AddInduct`. -/
 theorem AddInduct.consts_fst {safety : DefinitionSafety} {m₁ m₂ : ConstMap} {env₁ env₂ : VEnv}
