@@ -22,7 +22,7 @@ ignore; the boundary theorems' statements are the interface.
   `IotaRulesRegistered`). The pipeline's context `ContextWF c` (`Context.lean`) carries all
   three environment facts, so `ContextSemantics.checkerEnv` gives the checker its `CheckerEnv`
   in every intermediate environment (header, constructor, projection stage).
-* From the environment model: `VEnvs`/`VEnvs.WF` (`Verify/Environment/Model.lean`),
+* From the environment model: `VEnvs`/`VEnvs.WF` (`Verify/TypeChecker.lean`),
   `InstalledBlocks`, `InstalledBlocks.addInduct` and `CheckingEnv.Valid`
   (`Verify/Environment/Blocks.lean`), the translation relations `AddInduct`, `TrIndType`,
   `TrRecursor`, `TrInductDeclCore` and `insertConsts` (`Verify/Environment/Basic.lean`), and
@@ -58,7 +58,7 @@ ignore; the boundary theorems' statements are the interface.
 | `AddInductive.run` | `OrdinaryInstallation`, `OrdinaryRunResult`, `PrimitiveNamesFresh` | `Kernel.Environment.checkDuplicatedUnivParams.WF` | `Install/Ordinary.lean` |
 | `addInductiveAfterLowering` (ordinary) | | `AddInductive.run.extensionModelWF`, `Environment.addInductiveAfterLowering.ordinaryExtensionModelWF` | `Install/OrdinaryExtension.lean` |
 | `checkInductiveSources`, `ElimNestedInductive.run` | `SourceSyntaxChecks`, `NestedLoweringOutput` (of `loweringRun`) | `loweringRun.WF`, `Environment.addInductive.WF` | `Lowering.lean` |
-| primitive branch | `PrimitiveInductiveShape`, `PrimitiveInstallation`, `PrimitiveRunResult` | `checkPrimitiveInductive_eq_true_iff`, `loweringRun.primitiveNoop`, `AddInductive.constructorPhase.primitiveWF` | `Primitive/Shape.lean`, `Primitive/Run.lean`, `Primitive/Extension.lean` |
+| primitive branch | `PrimitiveInductiveShape`, `PrimitiveRunResult` | `checkPrimitiveInductive_eq_true_iff`, `loweringRun.primitiveNoop`, `AddInductive.constructorPhase.primitiveWF` | `Primitive/Shape.lean`, `Primitive/Run.lean`, `Primitive/Extension.lean` |
 | result, dispatch | `SourceAddInduct`, `InductiveExtension` | `addInductiveDeclaration.WF`, `addInductiveDeclaration.spec`, `addInductiveDeclaration.preserves` | `Install/Result.lean`, `Dispatch.lean` |
 
 The installed declaration is `decl.withRecs recs` (`Basic.lean`): the constructor phase fixes
@@ -88,9 +88,16 @@ depend on nothing upstream.
 * `TrRecursor` is the recursor translation; `VInductDecl.RecsOf` is read off the block
   `RuleTranslations.block`, whose recursors and rules are the generator's
   (`generation.recursors`, `generation.equations`).
-* `rules_wf : PatTyped` is a field of `RuleTranslations`; `equationsWF : VDefEq.WF` stands
-  beside it because the compiled block's `VInductBlock.WF` (needed by `CompiledInductive`,
-  `ContainersInstalled`, `InstalledBelow`) types the equations.
+* `RuleTranslations` carries `equationsWF : VDefEq.WF` for the generated equations: the
+  compiled block's `VInductBlock.WF` (needed by `CompiledInductive`, `ContainersInstalled`,
+  `InstalledBelow`) types them. `VInductDecl.WF` has no separate rule-typing clause, and its
+  source judgment and recursor typing are theorems (`VInductDecl.WF.source`,
+  `VInductDecl.WF.recs_wf`) read off the compiled block.
+* The environment in which the recursors are checked (types, constructors, projection
+  entries) is well formed as the constructor-and-projection prefix of the declaration
+  (`VEnv.WF.inductProjections`, `VInductDecl.ProjectionStage` in `Theory/Typing/Env.lean`),
+  from the source judgment and the formation certificate of the constructor phase
+  (`TrInductDeclCore.projectionStageWF`, `Formation.lean`).
 * A container of a nested declaration is certified by `ContainersInstalled.cons` and
   `VEnv.InstalledBelow.intro` from `CompiledInductive base container block`, `block.WF base`,
   `container.RecsOf block` and `base.addInduct container = some installed` with
@@ -126,7 +133,7 @@ lowered environment, then four validation passes in side environments).
 | `restoreNestedAfterInstall` | `RestorationRun`: the restoration fold's output, the two side environments and the four passes' `= .ok ()` | `Environment.restoreNestedAfterInstall.WF` | `Nested/Restoration/RestorationRun.lean` |
 | the validation passes | checker-facing: under `CheckerEnv safety E V` for the side environment `E`, each pass yields `TrExprS`/typing in `V` | `validateSourceConstructorTypes.run.WF`, `validateRestoredRecursorTypes.check.WF`, `validateRestoredRecursorTypes.run.WF`, `validateRestoredRecursorRules.check.WF`, `validateRestoredRecursorRules.run.WF`, `validateNestedAuxiliaries.WF_typing`, `stripRecursorRules.checkingValid` | `Nested/Restoration/Validation/Passes.lean` |
 | restoration | `NestedRun` (the data of a successful nested execution), `RestoredBlock L sourceTypes isUnsafe outEnv` (the source declaration with restored recursors, its translation and nested formation, the specialization list with `ContainersInstalled`, the `CompilationData` of the lowered run's generator, the kernel constants with `TrIndType`/`TrRecursor`, the shape clauses of `VInductDecl.WF`) | `nestedRestoredBlock` | `Nested/Restoration/Run.lean`, `Nested/Restoration/Certificate.lean`, `Nested/Restoration/Restore.lean` |
-| rule typing | | `RestoredBlock.rulesWF`, `RestoredBlock.blockWF` | `Nested/Equations/Rules.lean` |
+| block typing | | `RestoredBlock.blockWF`, `RestoredBlock.wf'` | `Nested/Equations/Rules.lean` |
 | installation | `RestoredBlock.Installed B` | `RestoredBlock.installedFacts` | `Nested/Install/Installed.lean` |
 | result | `NestedCertificate` (the block certificate plus the source translation) | `NestedCertificate.inductiveExtension`, `Environment.addInductiveAfterLowering.nestedInductiveExtensionWF` | `Nested/Install/Result.lean`, `Nested/Install/Extension.lean` |
 
@@ -173,7 +180,7 @@ off an installed block; the nested instance provides them through `RestoredBlock
 * `Nested/Restoration/Validation/**`, `Nested/Restoration/Uniform/**`: the statements of
   `Validation/Passes.lean` and the parameter uniformity of the lowered recursors.
 * The rest of `Nested/Restoration/**`: `nestedRestoredBlock` (`Restore.lean`).
-* `Nested/Equations/**`, `Nested/Install/**`: `rulesWF`, `blockWF` (`Equations/Rules.lean`),
+* `Nested/Equations/**`, `Nested/Install/**`: `blockWF`, `wf'` (`Equations/Rules.lean`),
   `installedFacts` (`Install/Installed.lean`), the certificate and the entry point
   (`Install/Result.lean`, `Install/Extension.lean`).
 
@@ -185,8 +192,8 @@ off an installed block; the nested instance provides them through `RestoredBlock
 2. The restoration consumes `NestedLoweringOutput` and the validation passes (the side
    environments' models are built from the restoration folds and instantiate `Passes.lean`'s
    statements). The Theory facts of `CompilationMajors.lean` depend on nothing upstream.
-3. The rule typing and installation consume `RestoredBlock` (rule typing over `B.envR` and the
-   lowered run's rule translations; the environment-side facts over `B.addInduct`).
+3. The block typing and installation consume `RestoredBlock` (the block's well-formedness over
+   `B.envR`; the environment-side facts over `B.addInduct`).
 
 ### Interface decisions (nested)
 

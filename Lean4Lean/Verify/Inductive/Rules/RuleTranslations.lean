@@ -137,8 +137,8 @@ theorem compilesTo (T : RuleTranslations H) (hnonempty : indTypes.toList ≠ [])
     hnames
 
 /-- The model recursors and rules are read off the block (`VInductDecl.RecsOf`): the recursors
-by `recursors_eq`, the rules through `TrRecursorRule` and `TrRecursor` agreeing on the reducts
-(`VRecRule.OfEquation.ofTr`). -/
+by `RecursorInstallation.recs_recursors`, the rules through `TrRecursorRule` and `TrRecursor`
+agreeing on the reducts (`RecursorCheck.rules_ofEquation`). -/
 theorem recsOf (T : RuleTranslations H) : H.decl'.RecsOf T.block :=
   ⟨H.recs_recursors, (H.rules_ofEquation T.trRules H.ruleCtorParams).1,
     (H.rules_ofEquation T.trRules H.ruleCtorParams).2⟩

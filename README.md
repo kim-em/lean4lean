@@ -47,7 +47,10 @@ is sound for every declaration form, including ordinary, mutual and nested induc
 declarations and quotient initialization: whenever it returns an environment, that environment
 is modelled at every safety level by a well-formed abstract environment (`VEnv.WF`, with the
 generative specification of inductive types in `Lean4Lean/Theory/Inductive`) extending the
-previous model. Its only hypothesis is that the invariant held before the call.
+previous model. Its only hypothesis is that the invariant held before the call. Projection
+entries enter a well-formed environment only with an inductive declaration or with its
+constructor-and-projection prefix, both of which impose the formation conditions
+(`VEnv.WF.projection_formation`, `Lean4Lean/Theory/Typing/ProjectionRigidity.lean`).
 `replayFresh.WF` (`Lean4Lean/Verify/Replay.lean`) lifts this to a whole `--fresh` replay from
 the empty environment, without hypotheses: the replayed environment is modelled by well-formed
 abstract environments, and every safe, non-partial source constant is in it and agrees with
