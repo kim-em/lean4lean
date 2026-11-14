@@ -26,6 +26,73 @@ namespace Lean4Lean
 namespace VEnv
 namespace Model
 
+open Lean Elab Tactic Meta in
+/-- `omega` in stages, each with more hypotheses than the last: the goal alone; the simple
+hypotheses that share with the goal a variable occurring in at most three of them; the simple
+hypotheses that share any variable with the goal; all simple hypotheses; every hypothesis. A
+hypothesis is simple when it compares natural numbers, or negates such a comparison, without list
+operations, truncated subtraction or `min`.
+
+The proofs below run with some thirty arithmetic hypotheses in scope, several of them about
+lengths of mapped prefixes of lists. `omega` builds its proof term from all the facts it is given,
+so with every hypothesis each call takes seconds and the proof terms take gigabytes. A call that
+fails is cheap, and most calls succeed with two or three hypotheses. -/
+local elab "omega_staged" : tactic => do
+  liftMetaFinishingTactic fun g₀ => do
+    let old := (← g₀.withContext getLocalHyps).size
+    let some g ← g₀.falseOrByContra | return ()
+    g.withContext do
+      let type ← g.getType
+      let hyps := (← getLocalHyps).toList
+      -- the hypotheses of the goal, and the negated goal
+      let (given, new) := hyps.splitAt old
+      let mut goalVars : CollectFVars.State := {}
+      for h in new do
+        goalVars := collectFVars goalVars (← instantiateMVars (← inferType h))
+      let heavy := [``List.map, ``List.take, ``List.drop, ``HAppend.hAppend, ``HSub.hSub,
+        ``Min.min, ``Max.max]
+      let nat (e : Expr) := e.isConstOf ``Nat
+      let rel (t : Expr) : Bool := match_expr t with
+        | Eq α _ _ => nat α
+        | Ne α _ _ => nat α
+        | LE.le α _ _ _ => nat α
+        | LT.lt α _ _ _ => nat α
+        | GE.ge α _ _ _ => nat α
+        | GT.gt α _ _ _ => nat α
+        | _ => false
+      -- the simple hypotheses, with their variables
+      let mut simple : Array (Expr × Array FVarId) := #[]
+      let mut uses : Std.HashMap FVarId Nat := {}
+      for h in given do
+        let t ← instantiateMVars (← inferType h)
+        let isRel := match_expr t with
+          | Not p => rel p
+          | _ => rel t
+        if isRel && !t.getUsedConstants.any heavy.contains then
+          let vars := (collectFVars {} t).fvarIds
+          simple := simple.push (h, vars)
+          for v in vars do uses := uses.insert v (uses.getD v 0 + 1)
+      let near := simple.filter fun (_, vars) => vars.any goalVars.fvarSet.contains
+      let nearRare := near.filter fun (_, vars) =>
+        vars.any fun v => goalVars.fvarSet.contains v && uses.getD v 0 ≤ 3
+      let attempt (facts : List Expr) : MetaM (Option Expr) := do
+        let s ← saveState
+        try
+          let g' ← mkFreshExprSyntheticOpaqueMVar type
+          Omega.omega facts g'.mvarId! {}
+          return some (← mkAuxTheorem type (← instantiateMVars g') (zetaDelta := true))
+        catch _ => s.restore; return none
+      for facts in [#[], nearRare, near, simple] do
+        if let some e ← attempt ((facts.map (·.1)).toList ++ new) then
+          g.assign e
+          return
+      let g' ← mkFreshExprSyntheticOpaqueMVar type
+      Omega.omega hyps g'.mvarId! {}
+      g.assign (← mkAuxTheorem type (← instantiateMVars g') (zetaDelta := true))
+
+/-- In this file `omega` is `omega_staged`. -/
+local macro_rules | `(tactic| omega) => `(tactic| omega_staged)
+
 variable {env : VEnv} {U : Nat} {Δ : List VExpr}
 
 local notation "Obs'" => Obs env U Δ
