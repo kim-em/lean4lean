@@ -689,32 +689,30 @@ for the rules of nested blocks, whose restored equations it cannot otherwise typ
 def VInductDecl.RecsCompiled (env : VEnv) (decl : VInductDecl) : Prop :=
   ∃ block, decl.CompilesTo env block ∧ decl.RecsOf block ∧ block.WF env
 
-/-- Well-formedness of an inductive declaration, staged like the kernel's checks and
-`VEnv.addInduct`. The source judgment (headers typed, a common parameter telescope, constructor
-types typed with the headers, raw constructor shapes) and formation (ordinary strict
-positivity and universe bounds, or a finite nested expansion into an ordinary well-formed
-declaration) are definitional (`SourceWF`, `FormationWF`, `Theory/Inductive/Formation.lean`),
-so that a constructor field typed through a reducible alias is admitted exactly when the
-kernel's `whnf`-based check admits it. The recursors are tied to the generator's output
-(`RecsCompiled`) and typed in the projection-stage environment (`recs_wf`); their rules are
-the equations of the compiled block, which are typed in its recursor stage (`VInductBlock.WF`).
-The remaining clauses are the syntactic shapes of the kernel's recursor data: the telescope
-split (`rec_shape`), one rule per constructor (`rules_nodup`), each rule firing on a
-constructor constant of the right spine arity (`rules_ctor`, stated so that the auxiliary
-recursors of a nested block, which fire on the constructors of a previously declared
-container, are admissible) and the reduct shape (`rule_shape`). The recursor clauses
-(`recs_wf`, `rec_shape`, `rule_shape`, `rules_nodup`, `rules_ctor`) are fields rather
-than consequences of `recsCompiled`. -/
+/-- Well-formedness of an inductive declaration. Formation (ordinary strict positivity and
+universe bounds, or a finite nested expansion into an ordinary well-formed declaration) is
+definitional (`FormationWF`, `Theory/Inductive/Formation.lean`), so that a constructor field
+typed through a reducible alias is admitted exactly when the kernel's `whnf`-based check admits
+it. The recursors and rules are tied to the generator's output (`RecsCompiled`): the compiled
+block is well formed, which gives the source judgment (`VInductDecl.WF.source`: headers typed,
+constructor types typed with the headers, distinct names) and the typing of the recursors in
+the projection-stage environment (`VInductDecl.WF.recs_wf`) and of the equations in the
+recursor-stage environment. The remaining clauses are the syntactic shapes of the kernel's
+recursor data: the telescope split (`rec_shape`), one rule per constructor (`rules_nodup`),
+each rule firing on a constructor constant of the right spine arity (`rules_ctor`, stated so
+that the auxiliary recursors of a nested block, which fire on the constructors of a previously
+declared container, are admissible), the constructor's parameter count (`rules_ctorParams`)
+and the reduct shape (`rule_shape`). They are fields rather than consequences of
+`recsCompiled`: `VInductDecl.RecsOf` relates `decl.recs` to the block through the recursor
+constants and through `VRecRule.OfEquation`, which fixes the sums `getMajorIdx` and
+`ctorParams + nfields` and not the separate counts `numParams`, `numMotives`, `numMinors`,
+`numIndices`, `ctorParams`, `nfields` that the shape clauses split, and does not exclude a
+repeated rule. -/
 structure VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop where
-  /-- The source judgment: headers and constructors typed, names distinct, universes shared. -/
-  source : decl.SourceWF env
   /-- Ordinary formation, or a finite nested expansion into an ordinary well-formed block. -/
   formation : decl.FormationWF env
   /-- The recursors and rules are read off a compilation of the declaration. -/
   recsCompiled : decl.RecsCompiled env
-  /-- Recursors are typed once the constructors and projections are declared. -/
-  recs_wf : ∀ envP, decl.addTypesCtorsProjs env = some envP →
-    ∀ r ∈ decl.recs, r.toVConstVal.toVConstant.WF envP
   /-- §2.6.3: the recursor telescope split and the shapes of its motives, minors and
   major premise. -/
   rec_shape : ∀ r ∈ decl.recs, r.type.RecShape r.numParams r.numMotives r.numMinors r.numIndices
@@ -745,6 +743,29 @@ structure VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop where
     r.type.piBinders[r.numParams + r.numMotives + j]? = some A ∧ A.MinorFor ru.ctor ∧
     ru.nfields ≤ A.piArity ∧
     ru.rhs.RuleShape r.numParams r.numMotives r.numMinors ru.nfields (A.piArity - ru.nfields) j
+
+/-- The source judgment: headers and constructors typed, names distinct, universes shared. It
+holds of every compiled declaration (`CompiledInductive.sourceWF`). -/
+theorem VInductDecl.WF.source {env : VEnv} {decl : VInductDecl} (H : decl.WF env) :
+    decl.SourceWF env :=
+  let ⟨_, hcomp, _⟩ := H.recsCompiled
+  CompiledInductive.sourceWF hcomp
+
+/-- Recursors are typed once the constructors and projections are declared: they are the
+recursors of the compiled block, which is well formed. -/
+theorem VInductDecl.WF.recs_wf {env : VEnv} {decl : VInductDecl} (H : decl.WF env) :
+    ∀ envP, decl.addTypesCtorsProjs env = some envP →
+    ∀ r ∈ decl.recs, r.toVConstVal.toVConstant.WF envP := by
+  intro envP hP r hr
+  obtain ⟨block, hcomp, hrecs, envTypes, envCtors, _, htypes, hctors, -, -, -, hrw, -⟩ :=
+    H.recsCompiled
+  rw [hcomp.types, ← VInductDecl.addTypes_eq_addConstVals] at htypes
+  rw [hcomp.ctors, ← VInductDecl.addCtors_eq_addConstVals] at hctors
+  rw [hcomp.projections] at hrw
+  simp only [VInductDecl.addTypesCtorsProjs, VInductDecl.addTypesCtors, htypes,
+    Option.bind_eq_bind, Option.bind_some, hctors, Option.map_some, Option.some.injEq] at hP
+  subst hP
+  exact hrw _ (hrecs.recursors ▸ List.mem_map_of_mem hr)
 
 /-- Type formers are typed in `env` (`SourceWF`). -/
 theorem VInductDecl.WF.types_wf {env : VEnv} {decl : VInductDecl} (H : decl.WF env) :

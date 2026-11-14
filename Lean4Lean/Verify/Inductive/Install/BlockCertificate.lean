@@ -348,9 +348,7 @@ theorem RecursorCheck.blockCertificate
     (VEnv.addTypes_le stT).trans ((VEnv.addCtors_le stC).trans
       (VEnv.addProjs_le.trans (VEnv.addRecs_le stR)))
   have wf' : H.decl'.WF sourceEnv :=
-    (R.formation.withRecs H.recs).wf
-      (VInductDecl.SourceWF.withRecs (TrInductDeclCore.sourceWF_ofNonempty R.core
-        (TrInductDeclCore.nonempty R.core hnonempty)) H.recs) (T.recursorsWF hnonempty)
+    (R.formation.withRecs H.recs).wf (T.recursorsWF hnonempty)
   have installed : sourceEnv.addInduct H.decl' = some outR := add.env_eq
   have houtWF : outEnv.constants.WF := H.checkingValid.tr.map_wf
   -- every new recursor is one of the block's

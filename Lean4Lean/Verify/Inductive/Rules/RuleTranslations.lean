@@ -152,13 +152,6 @@ theorem recsCompiled (T : RuleTranslations H) (hnonempty : indTypes.toList ≠ [
 theorem recursorsWF (T : RuleTranslations H) (hnonempty : indTypes.toList ≠ []) :
     RecursorsWF sourceEnv H.decl' where
   recsCompiled := T.recsCompiled hnonempty
-  recs_wf envP hP := by
-    have : envP = R.envP := by
-      have h := R.addTypesCtorsProjs (decl := decl)
-      rw [show H.decl'.addTypesCtorsProjs sourceEnv = decl.addTypesCtorsProjs sourceEnv from rfl,
-        h] at hP
-      exact (Option.some.inj hP).symm
-    subst this; exact H.recsWF
   rec_shape := H.rec_shape
   rules_nodup := H.rules_nodup
   rules_ctor envC hC r hr ru hru := by

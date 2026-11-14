@@ -321,7 +321,7 @@ theorem installedFacts (B : RestoredBlock L sourceTypes isUnsafe outEnv)
     B.Installed := by
   have K := B.kernelFacts hsource (hblocks.mutualInductivesClosed (by decide))
   have hwf : c.env.constants.WF := Hc.map_wf
-  have wf' := B.wf' hsource
+  have wf' := B.wf'
   have htrOut : TrEnv c.safety outEnv B.outVEnv := by
     unfold TrEnv; rw [B.quotInit_eq]; exact .induct wf' B.addInduct htr
   have hpres : ∀ {n ci}, c.env.find? n = some ci → outEnv.find? n = some ci := by
@@ -365,10 +365,9 @@ theorem newRec (B : RestoredBlock L sourceTypes isUnsafe outEnv) (I : B.Installe
     · cases h; exact hrval
 
 /-- **The block certificate of a restored block.** -/
-def blockCertificate (B : RestoredBlock L sourceTypes isUnsafe outEnv) (I : B.Installed)
-    (hsource : sourceTypes ≠ []) :
+def blockCertificate (B : RestoredBlock L sourceTypes isUnsafe outEnv) (I : B.Installed) :
     BlockCertificate c.safety c.env Hc.venv B.decl outEnv B.outVEnv where
-  wf := B.wf' hsource
+  wf := B.wf'
   add := B.addInduct
   quotInit_eq := B.quotInit_eq
   checking := I.checking

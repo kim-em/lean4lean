@@ -35,15 +35,14 @@ def ofRestoredBlock {c : AddInductive.Context} {Hc : ContextWF c} {nparams : Nat
     {res : ElimNestedInductive.Result} {loweredEnv : Environment}
     {L : LoweredRun Hc nparams res.types.toArray loweredEnv}
     {sourceTypes : List InductiveType} {isUnsafe : Bool} {outEnv : Environment}
-    (B : RestoredBlock L sourceTypes isUnsafe outEnv) (I : B.Installed)
-    (hsource : sourceTypes ≠ []) :
+    (B : RestoredBlock L sourceTypes isUnsafe outEnv) (I : B.Installed) :
     NestedCertificate c.safety c.env Hc.venv c.lparams nparams sourceTypes isUnsafe outEnv where
   decl := B.decl
   envTypes := B.envTypes
   envCtors := B.envCtors
   outVEnv := B.outVEnv
   source := B.source
-  block := B.blockCertificate I hsource
+  block := B.blockCertificate I
 
 /-- A certified nested declaration extends the safety-indexed model, with the source judgment
 of the exact submitted syntax. -/

@@ -73,9 +73,8 @@ theorem blockWF (B : RestoredBlock L sourceTypes isUnsafe outEnv) : B.block.WF H
     exact B.recs_wf r hr
 
 /-- `VInductDecl.WF` of the restored declaration. -/
-theorem wf' (B : RestoredBlock L sourceTypes isUnsafe outEnv) (hsource : sourceTypes ≠ []) :
-    B.decl.WF Hc.venv :=
-  B.wf hsource B.blockWF
+theorem wf' (B : RestoredBlock L sourceTypes isUnsafe outEnv) : B.decl.WF Hc.venv :=
+  B.wf B.blockWF
 
 /-- The compiled block with its typing, for `BlockCertificate.compiled`. -/
 theorem compiledWF (B : RestoredBlock L sourceTypes isUnsafe outEnv) :

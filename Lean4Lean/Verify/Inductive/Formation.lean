@@ -324,14 +324,11 @@ theorem FormationCertificate.formationWF
         H.constructors.ctorShape htype hctor⟩,
     H.rawShapes⟩
 
-/-- The recursor half of `VInductDecl.WF`: everything but `source` and `formation`. The
-recursor and rule phases deliver it (`RecursorCheck`, `RuleTranslations`); together with a
-formation certificate and the source judgment it gives `decl.WF env`
-(`FormationCertificate.wf`). -/
+/-- The recursor half of `VInductDecl.WF`: every field but `formation`. The recursor and rule
+phases deliver it (`RecursorCheck`, `RuleTranslations`); together with a formation certificate
+it gives `decl.WF env` (`FormationCertificate.wf`). -/
 structure RecursorsWF (env : VEnv) (decl : VInductDecl) : Prop where
   recsCompiled : decl.RecsCompiled env
-  recs_wf : ∀ envP, decl.addTypesCtorsProjs env = some envP →
-    ∀ r ∈ decl.recs, r.toVConstVal.toVConstant.WF envP
   rec_shape : ∀ r ∈ decl.recs, r.type.RecShape r.numParams r.numMotives r.numMinors r.numIndices
   rules_nodup : ∀ r ∈ decl.recs, (r.rules.map (·.ctor)).Nodup
   rules_ctor : ∀ envC, decl.addTypesCtors env = some envC → ∀ r ∈ decl.recs, ∀ ru ∈ r.rules,
@@ -346,15 +343,11 @@ structure RecursorsWF (env : VEnv) (decl : VInductDecl) : Prop where
     ru.nfields ≤ A.piArity ∧
     ru.rhs.RuleShape r.numParams r.numMotives r.numMinors ru.nfields (A.piArity - ru.nfields) j
 
-/-- The declaration judgment from a formation certificate, the source judgment and the
-recursor half. -/
+/-- The declaration judgment from a formation certificate and the recursor half. -/
 theorem FormationCertificate.wf
-    (H : FormationCertificate env decl) (hsource : decl.SourceWF env)
-    (hrecs : RecursorsWF env decl) : decl.WF env where
-  source := hsource
+    (H : FormationCertificate env decl) (hrecs : RecursorsWF env decl) : decl.WF env where
   formation := .ordinary H.formationWF
   recsCompiled := hrecs.recsCompiled
-  recs_wf := hrecs.recs_wf
   rec_shape := hrecs.rec_shape
   rules_nodup := hrecs.rules_nodup
   rules_ctor := hrecs.rules_ctor

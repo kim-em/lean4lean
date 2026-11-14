@@ -54,7 +54,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
   -- the base translation, complete blocks and alignment from `wf`
   have I := B.installedFacts Hout.source_nonempty hvisible wf.tr wf.blocks
     wf.constructorParameterAlignment
-  exact (NestedCertificate.ofRestoredBlock B I Hout.source_nonempty).inductiveExtension wf
+  exact (NestedCertificate.ofRestoredBlock B I).inductiveExtension wf
 
 end VerifyInductive
 end Lean4Lean

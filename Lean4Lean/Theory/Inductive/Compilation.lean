@@ -277,6 +277,20 @@ theorem CompiledInductive.ctors_eq {env source block} (H : CompiledInductive env
   | nil => trivial
   | cons _ _ _ _ _ _ _ _ => trivial
 
+/-- A compiled declaration satisfies the source judgment in the environment of the
+compilation: a replay keeps it, since the block is installed there. -/
+theorem CompiledInductive.sourceWF {env source block} (H : CompiledInductive env source block) :
+    source.SourceWF env := by
+  induction H using CompiledInductive.rec (motive_2 := fun _ _ _ => True) with
+  | intro h _ _ => exact h.sourceWF
+  | replay h hle hblock ih =>
+    obtain ⟨envTypes, envCtors, _, htypes, hctors, -⟩ := hblock
+    rw [h.types_eq] at htypes
+    rw [h.ctors_eq] at hctors
+    exact ih.mono_of_addConstVals hle htypes hctors
+  | nil => trivial
+  | cons _ _ _ _ _ _ _ _ => trivial
+
 /-- The block of a compilation lays out the source declaration's projections. -/
 theorem CompiledInductive.projections_eq {env source block}
     (H : CompiledInductive env source block) :

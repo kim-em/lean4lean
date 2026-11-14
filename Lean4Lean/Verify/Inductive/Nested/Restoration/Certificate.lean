@@ -185,10 +185,6 @@ theorem isUnsafe_eq (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     B.decl.isUnsafe = isUnsafe :=
   B.source.isUnsafe
 
-theorem types_ne_nil (B : RestoredBlock L sourceTypes isUnsafe outEnv)
-    (hsource : sourceTypes ≠ []) : B.decl.types ≠ [] :=
-  TrInductDeclCore.nonempty B.source hsource
-
 /-- The compilation of the source declaration. -/
 theorem compilesTo (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     B.decl.CompilesTo Hc.venv B.block :=
@@ -218,17 +214,11 @@ theorem rules_ofRestoredEquation (B : RestoredBlock L sourceTypes isUnsafe outEn
 
 /-- `VInductDecl.WF` of the restored declaration, given the well-formedness of its block
 (`RestoredBlock.blockWF`, `Nested/Equations/Rules.lean`). -/
-theorem wf (B : RestoredBlock L sourceTypes isUnsafe outEnv) (hsource : sourceTypes ≠ [])
+theorem wf (B : RestoredBlock L sourceTypes isUnsafe outEnv)
     (hblock : B.block.WF Hc.venv) :
     B.decl.WF Hc.venv where
-  source := TrInductDeclCore.sourceWF_ofNonempty B.source (B.types_ne_nil hsource)
   formation := .nested B.formation VEnv.LE.rfl
   recsCompiled := B.recsCompiled hblock
-  recs_wf envP hP r hr := by
-    have := B.addInduct.addTypesCtorsProjs
-    rw [hP] at this
-    cases this
-    exact B.recs_wf r hr
   rec_shape := B.rec_shape
   rules_nodup := B.rules_nodup
   rules_ctor envC hC := by

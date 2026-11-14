@@ -68,15 +68,12 @@ theorem VInductDecl.WF.rebase {decl : VInductDecl} {block : VInductBlock}
     VEnv.addTypesCtorsProjs_eq_some hCeq₀
   have hP : decl.addProjs envC ≤ decl.addProjs envC' := VEnv.addProjections_mono hC
   refine ⟨?_, hblock'⟩
-  refine ⟨H.source.mono_of_addConstVals hle htypes' hctors', ?_,
-    ⟨block, hcomp.mono hle hblock', hrecs, hblock'⟩, ?_, H.rec_shape, H.rules_nodup, ?_, ?_,
+  refine ⟨?_,
+    ⟨block, hcomp.mono hle hblock', hrecs, hblock'⟩, H.rec_shape, H.rules_nodup, ?_, ?_,
     H.rule_shape⟩  -- `RecsCompiled` carries `block.WF`
   · cases H.formation with
     | ordinary h => exact .ordinary (h.mono_of_addConstVals hle htypes')
     | nested h hb => exact .nested h (hb.trans hle)
-  · intro envP hP' r hr
-    rw [hPeq hP']
-    exact (H.recs_wf _ hPeq₀ r hr).mono hP
   · intro envC'' hC'' r hr ru hru
     rw [hCeq hC'']
     obtain ⟨ci, hci, hshape⟩ := H.rules_ctor _ hCeq₀ r hr ru hru

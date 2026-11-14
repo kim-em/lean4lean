@@ -496,16 +496,8 @@ private theorem enumMinorTyping' {env : VEnv} (Γ : List VExpr)
 
 /-- The full well-formedness judgment of the enumeration, with its recursor and rule. -/
 theorem enumDecl_WF : enumDecl.WF .empty where
-  source := enumDecl_wf.1
   formation := enumDecl_wf.2
   recsCompiled := ⟨enumBlock, enumCompiles, enumRecsOf, enumBlockWellFormed⟩
-  recs_wf := by
-    intro envP hP r hr
-    rw [addEnumTypesCtorsProjs] at hP
-    cases hP
-    simp only [enumDecl, List.mem_singleton] at hr
-    subst r
-    exact enumRecursorTyping
   rec_shape := by
     intro r hr
     simp only [enumDecl, List.mem_singleton] at hr
